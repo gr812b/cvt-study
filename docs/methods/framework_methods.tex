@@ -15,7 +15,13 @@
 
 \definecolor{frameworkblue}{HTML}{244A73}
 \definecolor{frameworkgray}{HTML}{5D6874}
-\hypersetup{colorlinks=true,linkcolor=frameworkblue,urlcolor=frameworkblue}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=frameworkblue,
+  urlcolor=frameworkblue,
+  pdftitle={Measured Track-Based Drivetrain Design Framework -- Methods},
+  pdfauthor={Framework technical documentation}
+}
 \setlist{nosep}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{2}
@@ -56,14 +62,14 @@ Chapter~\ref{ch:studies} reference one common set of mechanisms rather than repe
 derivations.  This is important: a study changes which declared inputs are varied; it
 does not silently change the physical model.
 
-The current ideal-CVT comparison is one implementation inside a broader measured
-track-based framework.  Section~\ref{sec:extensions} states the interfaces by which a
-transient CINDER drivetrain, a richer tire law, calibrated obstacle models, or another
-driveline may be introduced without rewriting the upstream evidence pipeline.
+The current ideal-CVT comparison is one reduced-order mechanism inside the measured
+track-based framework.  Section~\ref{sec:extensions} states the generic interfaces by
+which external tire, obstacle, or mechanism work may consume the reviewed evidence
+boundary without rewriting the upstream pipeline.  Detailed physical drivetrain-model
+development is outside this repository's scope.
 \end{abstract}
 
 \tableofcontents
-\listoftables
 \clearpage
 \pagenumbering{arabic}
 
@@ -931,23 +937,15 @@ paths change.
 
 \chapter{Extension interfaces}\label{sec:extensions}
 
-\section{CINDER drivetrain}
+\section{External mechanism boundary}
 
-A transient CINDER model can implement the drivetrain adapter while consuming the same
-runtime track, driver demand, vehicle state, and scenario inputs.  It must expose
-wheel-force capability and explicit channels for clutch work, primary/secondary slip,
-shift inertia, actuator work, and any stored drivetrain energy.  It also needs its own
-reference and caching policy; the ideal-CVT reference assumptions cannot be copied
-without proof.
-
-The comparison hierarchy can then become
-
-\begin{center}
-infinite ideal CVT $\leftrightarrow$ bounded ideal CVT $\leftrightarrow$ transient CINDER
-CVT,
-\end{center}
-
-without rebuilding the measured-track evidence pipeline.
+An external mechanism may consume the same runtime track, driver demand, vehicle state,
+and paired scenario inputs when it declares a versioned configuration and returns
+deterministic force, stored-energy, dissipative-loss, and quality channels.  The current
+runner uses its built-in ideal comparison directly; the protocol is an API boundary, not
+a dynamically selected model system.  Any external implementation requires its own
+validated comparison and caching policy rather than inheriting ideal-reference
+assumptions without proof.
 
 \section{Tire and obstacle models}
 
@@ -956,11 +954,8 @@ A brush or empirical model must declare its valid domain, state, sign convention
 energy channel, and uncertainty inputs.  Obstacle extensions similarly declare geometry,
 force/work equations, boundary behavior, physical support, and model-form alternatives.
 
-\section{Other drivetrains}
-
-Any driveline may participate if it can consume the framework state/demand boundary and
-return deterministic force, energy, and quality channels.  Upstream GPX and bundle code
-should not contain conditionals for a particular driveline family.
+Upstream GPX and bundle code should not contain conditionals for a particular mechanism
+family.
 
 \chapter{Limitations and future work}\label{ch:limitations}
 
@@ -972,8 +967,7 @@ should not contain conditionals for a particular driveline family.
         dynamics are absent.
   \item The tire law is reduced-order and does not resolve terrain-dependent combined slip.
   \item Obstacle models are explicit approximations and broad defaults are uncalibrated.
-  \item The ideal CVT omits rubber-belt shift transients, pulley forces, thermal behavior,
-        and detailed slip mechanics.
+  \item The ideal CVT is an intentionally reduced-order comparison mechanism.
   \item The driver follows measured gate ceilings and full-throttle/full-brake logic; it
         is not an optimized human control model.
   \item Uncertainty attribution is screening, not a global causal decomposition.
@@ -985,8 +979,7 @@ should not contain conditionals for a particular driveline family.
 Elevation-to-grade processing requires smoothing, lap alignment, vertical-bias handling,
 external terrain comparison, and grade confidence.  Obstacle calibration requires known
 geometry, video, vehicle/suspension evidence, and controlled before/after speed tests.
-CINDER integration requires a versioned transient drivetrain adapter and expanded energy
-state.  Optional expensive global sensitivity may later add Sobol or grouped methods,
+Optional expensive global sensitivity may later add Sobol or grouped methods,
 especially when interactions materially change a drivetrain decision.
 
 \chapter{Audit checklist}\label{ch:audit}
@@ -1004,6 +997,7 @@ Before treating a report as engineering evidence, confirm:
   \item the design domain includes meaningful alternatives and is extended at a boundary
         optimum;
   \item all numerical quality checks pass;
+  \item project-validation and track-review evidence blockers are resolved;
   \item sample count and convergence support the claimed confidence;
   \item energy attribution is not mixed with counterfactual opportunity loss;
   \item correlation and sparse-category attribution warnings are respected; and

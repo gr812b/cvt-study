@@ -4,11 +4,10 @@ Research software for turning repeated closed-course GPX recordings into a
 reviewed **Track Evidence Bundle**, then using that evidence to compare
 drivetrain designs under explicit physical and statistical assumptions.
 
-The current flagship mechanism compares a bounded ideal rubber-belt CVT with an
-otherwise-identical infinite-ratio opportunity reference. The evidence,
-simulation, study, and reporting boundaries are intentionally open to future
-CINDER drivetrain dynamics, richer tire models, calibrated obstacle models, and
-other driveline concepts.
+The current mechanism compares a bounded ideal CVT with an otherwise-identical
+infinite-ratio opportunity reference. This repository owns the measured-track
+evidence, reduced-order simulation, paired-study, and decision-reporting workflow.
+Detailed physical drivetrain development is outside this project's scope.
 
 This is a working Phase 8 checkpoint (`0.8.0.dev0`). Start with the one-page
 `SUMMARY.md` produced by each run, then expand into `REPORT.md`,
@@ -87,8 +86,9 @@ result/
 ```
 
 `SUMMARY.md` is designed for a two-minute review. It never silently upgrades a
-short smoke run into a settled recommendation. Numerical validity, statistical
-convergence, and directional robustness are reported as distinct ideas.
+short smoke run into a settled recommendation. Numerical validity, evidence
+readiness, statistical readiness, directional robustness, and final decision
+readiness are reported as distinct ideas.
 
 ## Safe interrupted runs and caching
 
@@ -171,6 +171,11 @@ exploratory from eight to nineteen, and enabled as screening evidence at twenty
 or more. Screening importance is not presented as an exact causal variance
 fraction.
 
+Project validation warnings and unresolved track-review records are carried into
+every result. They do not block exploratory execution, but they prevent a result
+from being marked decision-ready. A nominal baseline is never a design
+recommendation.
+
 ## Model boundary and extension path
 
 The current simulator includes one-dimensional translation, driven-wheel
@@ -178,11 +183,11 @@ rotation, a compact saturating longitudinal tire law, rolling and aerodynamic
 resistance, explicit obstacles, braking gates, a bounded ideal CVT, and a
 finite-launch-torque infinite reference.
 
-The runtime model registry defines small drivetrain and tire adapter protocols.
-Future models should implement those boundaries and preserve the existing
-evidence and reporting contracts. In particular:
+The runtime model registry records small drivetrain and tire adapter protocols.
+It is an API boundary, not a claim that external models are dynamically selected
+by the current runner. Any external mechanism integration should preserve the
+existing evidence and reporting contracts. In particular:
 
-- CINDER can replace the ideal CVT mechanism without changing GPX ingestion;
 - a brush or measured tire model can replace the compact tire force law;
 - calibrated obstacle models can retain feature and response-group identities;
 - a new driveline can participate in paired studies if it returns the declared
@@ -207,6 +212,7 @@ obstacle physics from prototype coefficients.
 ## Documentation map
 
 - `docs/USER_GUIDE.md` — practical end-to-end workflow
+- `docs/DATA_HANDOFF_GUIDE.md` — track-first and vehicle-second data-entry checklist
 - `docs/INPUT_CONTRACT.md` — field, unit, provenance, and uncertainty reference
 - `docs/OUTPUT_REFERENCE.md` — files, plots, JSON, CSV, and column meanings
 - `docs/DEVELOPER_GUIDE.md` — architecture, extension points, tests, versioning
@@ -224,7 +230,7 @@ obstacle physics from prototype coefficients.
 - Lateral/yaw dynamics and curvature-derived corner-speed prediction are not
   active vehicle forces.
 - The tire law is longitudinal and compact.
-- The bounded ideal CVT does not model rubber-belt transient shift dynamics.
+- The bounded ideal CVT is an intentionally reduced-order comparison mechanism.
 - Measured speed gates reproduce evidence; they do not optimize a driver.
 - A result cannot be more trustworthy than its declared inputs, reviewed track
   evidence, numerical checks, and sample count.

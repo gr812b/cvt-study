@@ -1,7 +1,8 @@
 """Operational services kept downstream of scientific model contracts."""
 
 from .cache import SimulationCache
+from .evidence import assess_evidence
 from .progress import ProgressReporter
 from .workspace import ResultWorkspace
 
-__all__ = ["ProgressReporter", "ResultWorkspace", "SimulationCache"]
+__all__ = ["ProgressReporter", "ResultWorkspace", "SimulationCache", "assess_evidence"]

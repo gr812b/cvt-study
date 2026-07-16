@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from cvt_track_study.runtime.evidence import numerical_valid
+
 
 TIME_METRIC = "lap_time_penalty_vs_infinite_s"
 ENERGY_METRIC = "finite_ratio_opportunity_loss_energy_kj"
@@ -17,16 +19,28 @@ def synthesize_decision(
     manifest: Mapping[str, Any],
 ) -> dict[str, Any]:
     study_type = str(manifest.get("study_type", "unknown"))
-    quality = bool(summary.get("numerical_quality", {}).get("valid_for_decision", False))
+    quality = numerical_valid(summary.get("numerical_quality", {}))
+    evidence = manifest.get("evidence_assessment", {})
+    evidence_ready = bool(
+        isinstance(evidence, Mapping) and evidence.get("ready", False)
+    )
     warnings: list[str] = []
     next_actions: list[str] = []
     recommendation = "No design recommendation is produced by this study type."
     confidence = "exploratory"
     metric_winners: dict[str, str] = {}
+    statistically_ready = False
+    boundary_winner = False
+    common_winner: str | None = None
 
     if not quality:
         warnings.append("At least one numerical quality check failed; results are not valid for a design decision.")
         next_actions.append("Correct the numerical-quality failure before interpreting the ranking.")
+    if not evidence_ready:
+        warnings.append("Project inputs or track evidence have unresolved review warnings.")
+        next_actions.append("Resolve the evidence warnings recorded in the run manifest and resolved-input report.")
+    if isinstance(evidence, Mapping):
+        warnings.extend(str(item) for item in evidence.get("warnings", []))
 
     if study_type == "design_sweep":
         designs = summary.get("designs", {})
@@ -39,7 +53,8 @@ def synthesize_decision(
             same_winner = len(set(metric_winners.values())) == 1
             winner = metric_winners[TIME_METRIC]
             if same_winner:
-                recommendation = f"Best tested design: {winner}."
+                common_winner = winner
+                recommendation = f"Current tested winner: {winner}; no design recommendation yet."
             else:
                 recommendation = "Time and opportunity-loss metrics prefer different tested designs."
                 warnings.append("Headline metrics do not identify the same winner.")
@@ -61,10 +76,19 @@ def synthesize_decision(
                 if record.get("design_value_si") is not None
             )
             if values and winner in {values[0][1], values[-1][1]}:
+                boundary_winner = True
                 warnings.append("The apparent optimum lies on a tested sweep boundary.")
                 next_actions.append("Extend the sweep beyond the winning boundary.")
-            robust = quality and same_winner and win_bounds_ok and convergence_ok
-            confidence = "directionally_robust" if robust else "provisional"
+            statistically_ready = (
+                same_winner and win_bounds_ok and convergence_ok and not boundary_winner
+            )
+            robust = quality and statistically_ready
+            if robust and evidence_ready:
+                confidence = "directionally_robust"
+            elif robust:
+                confidence = "evidence_limited"
+            else:
+                confidence = "provisional"
             if not convergence_ok:
                 warnings.append("Monte Carlo convergence checks recommend more scenarios.")
                 next_actions.append("Increase paired scenario count and rerun the same declared study.")
@@ -87,14 +111,26 @@ def synthesize_decision(
             confidence = "exploratory_distribution" if scenario_count < 20 else "screening_distribution"
 
     warnings.extend(str(item) for item in attribution.get("warnings", []))
+    directionally_robust = quality and statistically_ready
+    decision_ready = (
+        study_type == "design_sweep"
+        and quality
+        and evidence_ready
+        and statistically_ready
+    )
+    if decision_ready and common_winner is not None:
+        recommendation = f"Decision-ready best tested design: {common_winner}."
     return {
         "study_name": manifest.get("study_name", manifest.get("study")),
         "study_type": study_type,
         "recommendation": recommendation,
         "confidence": confidence,
+        "numerically_valid": quality,
         "numerical_quality_valid": quality,
-        "directionally_robust": quality and confidence == "directionally_robust",
-        "valid_for_decision": quality,
+        "evidence_ready": evidence_ready,
+        "statistically_ready": statistically_ready,
+        "directionally_robust": directionally_robust,
+        "decision_ready": decision_ready,
         "metric_winners": metric_winners,
         "warnings": list(dict.fromkeys(warnings)),
         "recommended_next_actions": list(dict.fromkeys(next_actions)),

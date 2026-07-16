@@ -38,7 +38,7 @@ before designs are executed so all compared designs share identical physical
 inputs. The bundle consumer validates schema/capability before exposing runtime
 track objects.
 
-## Drivetrain extension
+## External mechanism boundary
 
 `runtime.models.DrivetrainAdapter` defines a small evaluation boundary:
 
@@ -48,18 +48,20 @@ class DrivetrainAdapter(Protocol):
     def evaluate(self, state, demand) -> Mapping[str, float]: ...
 ```
 
-A future CINDER adapter should:
+An external mechanism adapter should:
 
 1. declare a versioned identifier and resolved configuration;
 2. consume only the runtime track/vehicle state and driver demand;
 3. return wheel-force capability plus state and energy diagnostic channels;
-4. make clutch, belt slip, shift inertia, and actuator losses explicit;
+4. make every stored-energy and dissipative-loss channel explicit;
 5. support deterministic replay from serialized state/inputs;
 6. provide a valid comparison/reference policy rather than reusing ideal-CVT
    caching assumptions;
 7. satisfy completion, gate, vehicle-energy, and powertrain-energy checks.
 
-Adding CINDER must not change GPX ingestion, gate evidence, bundle geometry, or
+The current runner does not dynamically select implementations from the registry;
+the protocol is an integration boundary for separate model work. External model
+integration must not change GPX ingestion, gate evidence, bundle geometry, or
 uncertainty semantics.
 
 ## Tire extension
@@ -97,7 +99,7 @@ A study type should separate planning from execution:
 4. execute every design against the same draw;
 5. generate row-level comparisons and quality channels;
 6. summarize physical variation separately from estimator uncertainty;
-7. synthesize a decision only after numerical and evidence gates;
+7. synthesize a decision only after numerical, evidence, and statistical gates;
 8. publish machine artifacts before regenerable Markdown.
 
 Reference reuse is safe only if the design path is mathematically absent from

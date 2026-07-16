@@ -138,7 +138,7 @@ def quality_summary(
         "maximum_allowed_vehicle_energy_balance_relative_error": maximum_residual,
         "maximum_abs_powertrain_energy_balance_relative_error": max_powertrain,
         "maximum_allowed_powertrain_energy_balance_relative_error": maximum_powertrain_residual,
-        "valid_for_decision": all(checks.values()),
+        "numerically_valid": all(checks.values()),
     }
 
 

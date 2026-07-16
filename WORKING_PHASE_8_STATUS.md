@@ -14,10 +14,13 @@ Implemented:
 - provenance JSON and SVG graph;
 - extension protocols for future drivetrain and tire models;
 - Phase 8 operational and methods documentation.
+- explicit numerical, evidence, statistical, directional, and decision-readiness gates;
+- project-validation and track-review warning propagation through result reports;
+- a track-first/vehicle-second data handoff guide.
 
 Validation completed for this reconstruction:
 
-- 150 clean-package tests (140 preserved plus 10 dedicated Phase 7/8 runtime/report tests);
+- 153 clean-package tests (140 preserved plus 13 dedicated Phase 7/8 runtime/report tests);
 - source compilation;
 - real reference GPX track build;
 - nominal bounded/infinite baseline with numerical quality passing;
@@ -29,6 +32,11 @@ Validation completed for this reconstruction:
 - fresh wheel build, installation, and CLI execution outside the source tree;
 - source-versus-installed-wheel byte equivalence for scientific study artifacts.
 
-The full final release still merits platform-specific installation checks and
-production-size uncertainty runs.
-Short validation studies are mechanism checks and are not gearing recommendations.
+The framework code is ready for the next data handoff. The included Arizona
+configuration intentionally remains exploratory: a user must replace or accept
+the flagged inputs, disposition unresolved track-review records, and confirm the
+study domain before production-size studies are meaningful. Short validation
+studies are mechanism checks and are not gearing recommendations.
+
+Detailed physical drivetrain-model development, CI/release infrastructure, and
+repository-publication metadata are not part of this checkpoint's completion gate.

@@ -13,6 +13,11 @@
   synthesis, hierarchical reports, decision traces, provenance JSON/SVG, and
   machine-readable appendices.
 - Added model registry/protocol boundaries for future drivetrain and tire models.
+- Split numerical validity, evidence readiness, statistical readiness,
+  directional robustness, and final decision readiness into explicit fields.
+- Propagated project validation and unresolved track-review warnings into every
+  baseline and study report.
+- Added a track-first, vehicle-second data handoff guide.
 - Expanded user, input, output, developer, methods, release, and worked-example
   documentation.
 

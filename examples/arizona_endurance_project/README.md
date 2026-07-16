@@ -13,6 +13,11 @@ items for user review rather than presented as exact measurements.
 Elevation is retained and plotted but is not yet converted to road grade or used
 as a force in the vehicle simulation.
 
+This example intentionally retains inherited vehicle defaults and unresolved
+track-review items. It is suitable for exercising the workflow, not for a final
+team decision. Use [`docs/DATA_HANDOFF_GUIDE.md`](../../docs/DATA_HANDOFF_GUIDE.md)
+when replacing it with current track and vehicle evidence.
+
 Run from the repository root:
 
 ```powershell

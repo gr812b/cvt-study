@@ -11,7 +11,12 @@ from typing import Any, Mapping
 
 from cvt_track_study.bundle import TrackBundle, load_track_bundle
 from cvt_track_study.config import ProjectLoader
-from cvt_track_study.runtime import ProgressReporter, ResultWorkspace, SimulationCache
+from cvt_track_study.runtime import (
+    ProgressReporter,
+    ResultWorkspace,
+    SimulationCache,
+    assess_evidence,
+)
 from cvt_track_study.runtime.provenance import (
     build_provenance,
     canonical_fingerprint,
@@ -160,6 +165,10 @@ def run_study_project(
         workers=workers,
         progress=progress,
         study_fingerprint=fingerprint,
+        evidence_assessment=assess_evidence(
+            diagnostics=resolution.diagnostics,
+            bundle=bundle,
+        ),
     )
     resolution.export(workspace.path / "resolved_inputs")
     phase6_service._write_bundle_snapshot(workspace.path, bundle, bundle_path)
@@ -205,6 +214,7 @@ def _execute(
     workers: int,
     progress: bool,
     study_fingerprint: str,
+    evidence_assessment: Mapping[str, Any],
 ) -> StudyExecution:
     design_points, sampling_mode, replicates = study_plan(
         study_type, study_raw, registry, replicates_override
@@ -332,6 +342,7 @@ def _execute(
             study_raw.get("reporting", {}).get("bootstrap_resamples", 1000)
         ),
         "numerical_quality": quality,
+        "evidence_assessment": dict(evidence_assessment),
         "uncertainty_not_propagated": [
             "physical feature geometry uncertainty (resolved bundle geometry is used)",
             "GPX elevation uncertainty (grade force remains disabled)",

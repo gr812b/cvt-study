@@ -40,8 +40,11 @@ def _summary_text(decision: Mapping[str, Any], manifest: Mapping[str, Any]) -> s
         f"**Recommendation:** {decision.get('recommendation')}",
         "",
         f"**Confidence:** `{decision.get('confidence')}`  ",
-        f"**Numerical quality gate:** `{decision.get('numerical_quality_valid', decision.get('valid_for_decision'))}`  ",
+        f"**Numerically valid:** `{decision.get('numerically_valid', decision.get('numerical_quality_valid', False))}`  ",
+        f"**Evidence ready:** `{decision.get('evidence_ready', False)}`  ",
+        f"**Statistically ready:** `{decision.get('statistically_ready', False)}`  ",
         f"**Directionally robust recommendation:** `{decision.get('directionally_robust', False)}`  ",
+        f"**Decision ready:** `{decision.get('decision_ready', False)}`  ",
         f"**Study:** `{manifest.get('study_name', manifest.get('study'))}`  ",
         f"**Scenarios:** {manifest.get('scenario_count', 1)}",
         "",
@@ -103,11 +106,17 @@ def _report_text(
         "",
         "## 3. Numerical quality",
         "",
-        f"Overall decision quality gate: `{quality.get('valid_for_decision')}`.",
+        f"Numerically valid: `{quality.get('numerically_valid', quality.get('valid_for_decision', False))}`.",
         "",
         *_quality_table(quality),
         "",
-        "## 4. Headline results",
+        "## 4. Evidence readiness",
+        "",
+        *_evidence_table(manifest),
+        "",
+        "Project and track warnings do not prevent exploratory execution, but they prevent the result from being labelled decision-ready.",
+        "",
+        "## 5. Headline results",
         "",
         "Physical scenario p10–p90 bands describe variation across declared scenarios. Bootstrap bounds describe finite-sample uncertainty in estimated summaries; they are not another physical uncertainty source.",
         "",
@@ -115,13 +124,13 @@ def _report_text(
         "",
         "Full bootstrap bounds, threshold probabilities, paired regrets, and every metric are in [summary.csv](summary.csv) and `summary.json`.",
         "",
-        "## 5. Physical energy accounting",
+        "## 6. Physical energy accounting",
         "",
         "Engine-side and vehicle-side balances are additive partitions. Off-peak and finite-ratio opportunity losses are counterfactual diagnostics and are reported separately.",
         "",
         "See [energy_accounting.csv](energy_accounting.csv), [feature_energy_results.csv](feature_energy_results.csv), and `energy_accounting.json` for design-level bands and scenario detail.",
         "",
-        "## 6. Uncertainty attribution",
+        "## 7. Uncertainty attribution",
         "",
         f"Attribution status: `{attribution.get('status')}`.",
         "",
@@ -129,25 +138,25 @@ def _report_text(
         "",
         "See [uncertainty_attribution.csv](uncertainty_attribution.csv) and `uncertainty_attribution.json`.",
         "",
-        "## 7. Convergence",
+        "## 8. Convergence",
         "",
         *_convergence_table(convergence),
         "",
         "Full diagnostics are retained in `convergence.json`.",
         "",
-        "## 8. Provenance and reproducibility",
+        "## 9. Provenance and reproducibility",
         "",
         "The exact evidence bundle, resolved configuration, seed, framework version, hashes, and command are recorded in `run_manifest.json`, `provenance.json`, and [provenance_graph.svg](provenance_graph.svg).",
         "",
-        "## 9. Interpretation limits",
+        "## 10. Interpretation limits",
         "",
         "- GPX elevation is preserved but does not yet create grade force.",
         "- Obstacle mechanics are explicit approximations and require calibration.",
         "- The current tire model is longitudinal and deliberately compact.",
-        "- The bounded ideal CVT is a comparison mechanism, not the transient CINDER model.",
+        "- The bounded ideal CVT is an intentionally reduced-order comparison mechanism.",
         "- Gate ceilings reproduce measured entry behavior; they do not optimize a driver policy.",
         "",
-        "## 10. Appendix",
+        "## 11. Appendix",
         "",
         "The [appendix index](appendix/README.md) maps the report to every machine-readable artifact.",
     ]
@@ -171,6 +180,30 @@ def _quality_table(quality: Mapping[str, Any]) -> list[str]:
             f"Maximum powertrain relative residual: `{float(quality.get('maximum_abs_powertrain_energy_balance_relative_error', 0.0)):.3e}`.",
         ]
     )
+    return lines
+
+
+def _evidence_table(manifest: Mapping[str, Any]) -> list[str]:
+    evidence = manifest.get("evidence_assessment", {})
+    readiness = manifest.get("decision_readiness", {})
+    counts = evidence.get("track_review_status_counts", {}) if isinstance(evidence, Mapping) else {}
+    identities = evidence.get("evidence_identity_counts", {}) if isinstance(evidence, Mapping) else {}
+    lines = [
+        "| Evidence/readiness check | Result |",
+        "| --- | --- |",
+        f"| Evidence ready | `{bool(evidence.get('ready', False)) if isinstance(evidence, Mapping) else False}` |",
+        f"| Project validation warnings | {int(evidence.get('project_warning_count', 0)) if isinstance(evidence, Mapping) else 0} |",
+        f"| Accepted track events | {int(counts.get('accepted', 0))} |",
+        f"| Recommended-review events | {int(counts.get('recommended_review', 0))} |",
+        f"| Must-fix events | {int(counts.get('must_fix', 0))} |",
+        f"| Run / vehicle / driver identities | {int(identities.get('run_id', 0))} / {int(identities.get('vehicle_id', 0))} / {int(identities.get('driver_id', 0))} |",
+        f"| Statistically ready | `{bool(readiness.get('statistically_ready', False)) if isinstance(readiness, Mapping) else False}` |",
+        f"| Decision ready | `{bool(readiness.get('decision_ready', False)) if isinstance(readiness, Mapping) else False}` |",
+    ]
+    blockers = evidence.get("blocking_reasons", []) if isinstance(evidence, Mapping) else []
+    if blockers:
+        lines.extend(["", "Blocking evidence findings:"])
+        lines.extend(f"- {item}" for item in blockers)
     return lines
 
 
@@ -238,18 +271,21 @@ def _decision_trace(decision: Mapping[str, Any]) -> str:
         "",
         f"1. **Recommendation** — {decision.get('recommendation')}",
         f"2. **Confidence gate** — `{decision.get('confidence')}`",
-        f"3. **Numerical gate** — `{decision.get('numerical_quality_valid', decision.get('valid_for_decision'))}`",
-        f"4. **Decision-evidence gate** — directionally robust: `{decision.get('directionally_robust', False)}`",
+        f"3. **Numerically valid** — `{decision.get('numerically_valid', decision.get('numerical_quality_valid', False))}`",
+        f"4. **Evidence ready** — `{decision.get('evidence_ready', False)}`",
+        f"5. **Statistically ready** — `{decision.get('statistically_ready', False)}`",
+        f"6. **Directionally robust** — `{decision.get('directionally_robust', False)}`",
+        f"7. **Decision ready** — `{decision.get('decision_ready', False)}`",
     ]
     winners = decision.get("metric_winners", {})
     for metric in sorted(winners):
         winner = winners[metric]
-        lines.append(f"4. **{metric}** — best tested design: `{winner}`")
+        lines.append(f"8. **{metric}** — best tested design: `{winner}`")
     if decision.get("warnings"):
-        lines.append("5. **Constraints on interpretation**")
+        lines.append("9. **Constraints on interpretation**")
         lines.extend(f"   - {item}" for item in decision["warnings"])
     if decision.get("recommended_next_actions"):
-        lines.append("6. **Next evidence to collect or run**")
+        lines.append("10. **Next evidence to collect or run**")
         lines.extend(f"   - {item}" for item in decision["recommended_next_actions"])
     return "\n".join(lines) + "\n"
 

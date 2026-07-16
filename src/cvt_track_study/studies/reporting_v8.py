@@ -46,12 +46,25 @@ def write_study_outputs(
         attribution=attribution,
         manifest=manifest,
     )
+    manifest_output = {
+        **manifest,
+        "decision_readiness": {
+            key: bool(decision.get(key, False))
+            for key in (
+                "numerically_valid",
+                "evidence_ready",
+                "statistically_ready",
+                "directionally_robust",
+                "decision_ready",
+            )
+        },
+    }
 
     phase6_reporting._write_rows(output / "replicate_results.csv", rows)
     phase6_reporting._write_json_lines(output / "scenario_draws.jsonl", scenario_draws)
     phase6_reporting._write_json(output / "summary.json", summary)
     phase6_reporting._write_json(output / "convergence.json", convergence)
-    phase6_reporting._write_json(output / "run_manifest.json", manifest)
+    phase6_reporting._write_json(output / "run_manifest.json", manifest_output)
     phase6_reporting._write_json(output / "input_contracts.json", input_contracts)
     phase6_reporting._write_json(output / "energy_accounting.json", energy)
     phase6_reporting._write_json(output / "uncertainty_attribution.json", attribution)
@@ -73,7 +86,7 @@ def write_study_outputs(
         convergence=convergence,
         energy=energy,
         attribution=attribution,
-        manifest=manifest,
+        manifest=manifest_output,
     )
 
 

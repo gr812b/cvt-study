@@ -84,7 +84,7 @@ traceability from every output term to a resolved input.
 **Review gate:** convergence checks, paired-design invariance tests, and comparison
 against deterministic zero-uncertainty cases.
 
-## Phase 7 — Sensitivity attribution and reporting
+## Phase 7 — Sensitivity attribution and reporting **[implemented]**
 
 - Physical energy attribution.
 - Signed sensitivity and normalized elasticity.
@@ -94,7 +94,7 @@ against deterministic zero-uncertainty cases.
 
 **Review gate:** verify attribution using synthetic problems with known sensitivities.
 
-## Phase 8 — Methods document, migration, and release
+## Phase 8 — Operational reporting and handoff **[implemented]**
 
 - Compact operational README.
 - Full LaTeX methods document in data-flow order.
@@ -104,3 +104,41 @@ against deterministic zero-uncertainty cases.
 
 **Review gate:** a new user completes the reference workflow from GPX to report
 without reading source code.
+
+## Current readiness closure
+
+Implemented in the current checkpoint:
+
+- numerical, evidence, statistical, directional, and final decision-readiness
+  fields have distinct meanings;
+- project validation warnings and unresolved track-review findings propagate to
+  baseline and study summaries, reports, manifests, and decision traces;
+- result indexes distinguish numerical validity from evidence and decision readiness;
+- the track-first/vehicle-second user handoff is documented;
+- the Arizona example remains explicitly exploratory until its inputs and review
+  findings are replaced by a user.
+
+Remaining before a team decision run:
+
+- a user re-enters and reviews current Arizona track, vehicle, and drivetrain data;
+- all `must_fix` and `recommended_review` track records are dispositioned;
+- inherited defaults are replaced or explicitly accepted with defensible sources;
+- the design domain and thresholds are confirmed by the study owner;
+- production-size paired studies are run only after the evidence handoff is complete.
+
+Tracked functional follow-ups that do not block the data handoff:
+
+- benchmark thread-based study workers on the intended compute environment and
+  evaluate a process-backed runner before production-size studies if CPU scaling
+  is inadequate;
+- consolidate the retained Phase 6 study helpers and Phase 8 orchestration after
+  output compatibility is frozen;
+- defer plotting imports so lightweight CLI commands do not initialize the
+  plotting stack;
+- decide whether physical feature-coordinate uncertainty should become sampled
+  or remain a carried evidence limitation.
+
+Intentional model-scope limitations remain documented: grade force is disabled,
+feature-coordinate uncertainty is carried but not sampled, obstacle and tire
+mechanisms are reduced-order unless calibrated, and lateral/yaw dynamics are not
+active. Detailed physical drivetrain-model development is outside this repository.

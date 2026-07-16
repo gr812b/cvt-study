@@ -15,6 +15,7 @@ from cvt_track_study.runtime.provenance import (
     canonical_fingerprint,
     write_provenance,
 )
+from cvt_track_study.runtime.evidence import assess_evidence
 from cvt_track_study.runtime.results import write_results_index
 from cvt_track_study.track import build_project_track
 
@@ -138,6 +139,10 @@ def run_baseline_project(
             reference=reference_summary,
             comparison=comparison,
             manifest=manifest,
+            evidence_assessment=assess_evidence(
+                diagnostics=resolution.diagnostics,
+                bundle=bundle,
+            ),
         )
         study_fingerprint = canonical_fingerprint(
             {

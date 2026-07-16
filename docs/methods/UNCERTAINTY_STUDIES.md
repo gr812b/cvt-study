@@ -155,9 +155,10 @@ Every study checks:
 - vehicle energy-balance residual;
 - engine-to-wheel energy-balance residual.
 
-`numerical_quality.valid_for_decision` becomes true only when every check passes.
-A short coarse-step run may validate code paths while correctly remaining invalid
-for engineering decisions.
+`numerical_quality.numerically_valid` becomes true only when every numerical
+check passes. Evidence and statistical readiness are separate gates. A short
+coarse-step run may validate code paths while correctly remaining unsuitable for
+an engineering decision.
 
 ## Current uncertainty boundary
 

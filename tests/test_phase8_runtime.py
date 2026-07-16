@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,14 @@ def test_content_cache_is_stable_and_strict(tmp_path: Path) -> None:
     assert cache.status()["entry_count"] == 1
     with pytest.raises(ValueError):
         cache.get("not-a-sha")
+
+
+def test_cache_session_counters_are_thread_safe(tmp_path: Path) -> None:
+    cache = SimulationCache(tmp_path / "cache", enabled=False)
+    key = cache.key({"case": "shared"})
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        assert list(executor.map(cache.get, [key] * 500)) == [None] * 500
+    assert cache.status()["session_misses"] == 500
 
 
 def test_result_workspace_resume_and_commit(tmp_path: Path) -> None:
@@ -80,7 +89,9 @@ def test_results_index_ignores_incomplete_workspaces(tmp_path: Path) -> None:
                 "created_utc": "2026-01-01T00:00:00+00:00",
                 "study_name": "gearing",
                 "study_type": "design_sweep",
-                "numerical_quality": {"valid_for_decision": True},
+                "numerical_quality": {"numerically_valid": True},
+                "evidence_assessment": {"ready": False},
+                "decision_readiness": {"decision_ready": False},
             }
         ),
         encoding="utf-8",

@@ -37,6 +37,9 @@ Edit in this order:
 Every physical quantity needs a nominal value, unit, source, and uncertainty.
 See `INPUT_CONTRACT.md` for the full pattern.
 
+For a track-data/vehicle-data team handoff, follow `DATA_HANDOFF_GUIDE.md`. It
+puts the files, review outputs, and completion checks in the required order.
+
 ## 3. Add and inspect GPX evidence
 
 Copy GPX files into `track/gpx/`, then make each file explicit in `runs.toml`.
@@ -193,12 +196,17 @@ List completed project results and rebuild the project index:
 drivetrain-study results PROJECT
 ```
 
-## 9. Interpret confidence correctly
+## 9. Interpret readiness correctly
 
-- `valid_for_decision` in the numerical-quality section means the simulated
-  cases passed completion, dominance, gate, and energy checks.
-- `directionally_robust` is stronger: headline metrics agree on a winner, paired
-  evidence clears its threshold, convergence is adequate, and quality passes.
+- `numerically_valid` means the simulated cases passed completion, dominance,
+  accepted-gate, and energy checks.
+- `evidence_ready` means project-input warnings and unresolved track-review
+  blockers are absent.
+- `statistically_ready` means a design sweep has an interior common winner whose
+  paired evidence and convergence checks pass.
+- `directionally_robust` combines numerical and statistical readiness.
+- `decision_ready` is true only for a design sweep that is numerically valid,
+  evidence-ready, and statistically ready.
 - Physical p10--p90 describes declared scenario variation.
 - A bootstrap interval describes uncertainty in an estimated statistic because
   only finitely many scenarios were run.

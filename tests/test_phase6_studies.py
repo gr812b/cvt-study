@@ -86,12 +86,13 @@ def test_quality_summary_uses_numerical_checks_not_statistical_band_width() -> N
         "reference_powertrain_energy_balance_relative_error": -0.005,
     }
     result = quality_summary([base], {"quality": {}})
-    assert result["valid_for_decision"] is True
+    assert result["numerically_valid"] is True
+    assert "valid_for_decision" not in result
 
     failed = dict(base)
     failed["bounded_powertrain_energy_balance_relative_error"] = 0.02
     result = quality_summary([failed], {"quality": {}})
-    assert result["valid_for_decision"] is False
+    assert result["numerically_valid"] is False
     assert result["powertrain_energy_balance_pass"] is False
 
 

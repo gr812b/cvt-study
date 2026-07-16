@@ -8,6 +8,8 @@ from cvt_track_study.simulation.reporting_v8 import (
     regenerate_baseline_reports,
     write_baseline_hierarchy,
 )
+from cvt_track_study.config.diagnostics import Diagnostic, Severity
+from cvt_track_study.runtime.evidence import assess_evidence
 from cvt_track_study.studies.decision import synthesize_decision
 from cvt_track_study.studies.reporting_v8 import regenerate_study_reports
 
@@ -95,7 +97,99 @@ def test_numerical_validity_is_not_mislabelled_directional_robustness() -> None:
     )
     assert decision["numerical_quality_valid"] is True
     assert decision["directionally_robust"] is False
-    assert decision["valid_for_decision"] is True
+    assert decision["evidence_ready"] is False
+    assert decision["statistically_ready"] is False
+    assert decision["decision_ready"] is False
+    assert "valid_for_decision" not in decision
+
+
+def test_evidence_assessment_preserves_project_and_track_warnings() -> None:
+    assessment = assess_evidence(
+        diagnostics=(
+            Diagnostic(
+                severity=Severity.WARNING,
+                code="INHERITED_DEFAULTS_ACTIVE",
+                message="Two vehicle inputs use broad defaults.",
+            ),
+        ),
+        bundle={
+            "evidence": {
+                "review_records": [
+                    {"recommendation": "accepted"},
+                    {"recommendation": "recommended_review"},
+                    {"recommendation": "must_fix"},
+                ],
+                "lap_summary": {
+                    "records": [
+                        {
+                            "run_id": "run_1",
+                            "vehicle_id": "vehicle_A",
+                            "driver_id": "driver_1",
+                        }
+                    ]
+                },
+            },
+            "simulation_contract": {
+                "speed_gates": [
+                    {
+                        "active_by_default": True,
+                        "confidence": {"cross_vehicle_status": "single_vehicle_neutral"},
+                    }
+                ]
+            },
+        },
+    )
+    assert assessment["ready"] is False
+    assert assessment["project_warning_count"] == 1
+    assert assessment["track_review_status_counts"]["must_fix"] == 1
+    assert assessment["track_review_status_counts"]["recommended_review"] == 1
+    assert any("cross-vehicle" in item for item in assessment["warnings"])
+    assert len(assessment["blocking_reasons"]) == 3
+
+
+def test_design_sweep_requires_numerical_evidence_and_statistical_readiness() -> None:
+    designs = {}
+    for value, identifier, time, energy in (
+        (1.0, "low", 2.0, 20.0),
+        (2.0, "middle", 1.0, 10.0),
+        (3.0, "high", 3.0, 30.0),
+    ):
+        designs[identifier] = {
+            "design_value_si": value,
+            "lap_time_penalty_vs_infinite_s": {"median": time},
+            "finite_ratio_opportunity_loss_energy_kj": {"median": energy},
+            "paired_ranking.lap_time_penalty_vs_infinite_s": {
+                "paired_win_fraction_bootstrap_95_low": 0.7
+            },
+            "paired_ranking.finite_ratio_opportunity_loss_energy_kj": {
+                "paired_win_fraction_bootstrap_95_low": 0.7
+            },
+        }
+    convergence = {
+        identifier: {
+            metric: {"status": "adequate_quick_check"}
+            for metric in (
+                "lap_time_penalty_vs_infinite_s",
+                "finite_ratio_opportunity_loss_energy_kj",
+            )
+        }
+        for identifier in designs
+    }
+    decision = synthesize_decision(
+        summary={"numerical_quality": {"numerically_valid": True}, "designs": designs},
+        convergence=convergence,
+        attribution={"warnings": []},
+        manifest={
+            "study_type": "design_sweep",
+            "scenario_count": 20,
+            "evidence_assessment": {"ready": True, "warnings": []},
+        },
+    )
+    assert decision["numerically_valid"] is True
+    assert decision["evidence_ready"] is True
+    assert decision["statistically_ready"] is True
+    assert decision["directionally_robust"] is True
+    assert decision["decision_ready"] is True
 
 
 def _case(name: str, lap: float, opportunity: float) -> dict[str, object]:

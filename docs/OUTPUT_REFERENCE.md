@@ -160,10 +160,11 @@ schema-level reference.
 
 ## Quality fields
 
-`numerical_quality.valid_for_decision` is true only when all declared checks
-pass. It does not mean the Monte Carlo estimate is converged or that a winner is
-directionally robust. Those states are separate fields in
-`decision_summary.json` and human reports.
+`numerical_quality.numerically_valid` is true only when all declared numerical
+checks pass. `evidence_assessment.ready` separately records whether project and
+track-review blockers are absent. `decision_readiness` and
+`decision_summary.json` separately expose statistical, directional, and final
+decision readiness. A numerical pass alone is never a design recommendation.
 
 ## Result ownership
 

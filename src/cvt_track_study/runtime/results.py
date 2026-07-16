@@ -24,9 +24,12 @@ def discover_results(results_root: Path) -> list[dict[str, Any]]:
                 "study": manifest.get("study_name", manifest.get("study", "unknown")),
                 "type": manifest.get("study_type", "baseline"),
                 "created_utc": manifest.get("created_utc", "unknown"),
-                "valid_for_decision": manifest.get("numerical_quality", {}).get(
-                    "valid_for_decision"
+                "numerically_valid": manifest.get("numerical_quality", {}).get(
+                    "numerically_valid",
+                    manifest.get("numerical_quality", {}).get("valid_for_decision"),
                 ),
+                "evidence_ready": manifest.get("evidence_assessment", {}).get("ready"),
+                "decision_ready": manifest.get("decision_readiness", {}).get("decision_ready"),
             }
         )
     return sorted(records, key=lambda row: (str(row["created_utc"]), str(row["path"])), reverse=True)
@@ -40,19 +43,26 @@ def write_results_index(results_root: Path) -> Path:
         "",
         "Completed framework results discovered below this directory.",
         "",
-        "| Created (UTC) | Study | Type | Decision quality | Result |",
-        "| --- | --- | --- | --- | --- |",
+        "| Created (UTC) | Study | Type | Numerical | Evidence | Decision ready | Result |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in records:
-        quality = row["valid_for_decision"]
-        quality_text = "n/a" if quality is None else ("valid" if quality else "review required")
+        numerical = _status(row["numerically_valid"], "valid", "failed")
+        evidence = _status(row["evidence_ready"], "ready", "review required")
+        decision = _status(row["decision_ready"], "yes", "no")
         relative = str(row["path"]).replace("\\", "/")
         lines.append(
             f"| {row['created_utc']} | {row['study']} | {row['type']} | "
-            f"{quality_text} | [{relative}]({relative}/SUMMARY.md) |"
+            f"{numerical} | {evidence} | {decision} | [{relative}]({relative}/SUMMARY.md) |"
         )
     if not records:
-        lines.append("| — | — | — | — | No completed results |")
+        lines.append("| — | — | — | — | — | — | No completed results |")
     path = results_root / "INDEX.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def _status(value: Any, true_text: str, false_text: str) -> str:
+    if value is None:
+        return "n/a"
+    return true_text if bool(value) else false_text

@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from cvt_track_study.runtime.evidence import unavailable_evidence_assessment
+
 
 def write_baseline_hierarchy(
     *,
@@ -15,6 +17,7 @@ def write_baseline_hierarchy(
     reference: Mapping[str, Any],
     comparison: Mapping[str, Any],
     manifest: dict[str, Any],
+    evidence_assessment: Mapping[str, Any] | None = None,
 ) -> None:
     """Add a compact summary, decision trace, and navigable appendix.
 
@@ -45,7 +48,7 @@ def write_baseline_hierarchy(
         "maximum_allowed_powertrain_energy_balance_relative_error": powertrain_limit,
         "powertrain_energy_balance_pass": powertrain_error <= powertrain_limit,
     }
-    quality["valid_for_decision"] = all(
+    quality["numerically_valid"] = all(
         quality[key]
         for key in (
             "all_cases_completed",
@@ -55,6 +58,26 @@ def write_baseline_hierarchy(
             "powertrain_energy_balance_pass",
         )
     )
+    evidence = dict(
+        evidence_assessment
+        or manifest.get("evidence_assessment", {})
+        or unavailable_evidence_assessment()
+    )
+    readiness = {
+        "numerically_valid": bool(quality["numerically_valid"]),
+        "evidence_ready": bool(evidence.get("ready", False)),
+        "statistically_ready": False,
+        "decision_ready": False,
+        "blocking_reasons": list(
+            dict.fromkeys(
+                [
+                    *(str(item) for item in evidence.get("blocking_reasons", [])),
+                    "A nominal baseline is a mechanism comparison, not a design recommendation.",
+                    "Track and model uncertainty have not been propagated in a baseline run.",
+                ]
+            )
+        ),
+    }
     manifest.update(
         {
             "framework_contract": "measured-track-drivetrain-framework-v0.8",
@@ -63,22 +86,28 @@ def write_baseline_hierarchy(
             "scenario_count": 1,
             "design_point_count": 1,
             "numerical_quality": quality,
+            "evidence_assessment": evidence,
+            "decision_readiness": readiness,
         }
     )
     _write_json(output / "run_manifest.json", manifest)
 
     warnings: list[str] = []
-    if not quality["valid_for_decision"]:
+    if not quality["numerically_valid"]:
         warnings.append("At least one numerical quality check failed; inspect the detailed report before using the comparison.")
+    warnings.extend(str(item) for item in evidence.get("warnings", []))
     warnings.extend(
         [
             "This is one nominal scenario, so it does not quantify track or model uncertainty.",
             "The infinite-ratio result is a counterfactual opportunity bound, not a realizable drivetrain.",
         ]
     )
-    summary = _summary_text(comparison, quality, warnings)
-    report = _report_text(bounded, reference, comparison, quality, warnings)
-    trace = _decision_trace(comparison, quality, warnings)
+    next_actions = _baseline_next_actions(evidence)
+    summary = _summary_text(
+        comparison, quality, evidence, readiness, warnings, next_actions
+    )
+    report = _report_text(bounded, reference, comparison, quality, evidence, readiness, warnings)
+    trace = _decision_trace(comparison, quality, evidence, readiness, warnings)
     (output / "SUMMARY.md").write_text(summary, encoding="utf-8")
     (output / "REPORT.md").write_text(report, encoding="utf-8")
     (output / "decision_trace.md").write_text(trace, encoding="utf-8")
@@ -100,6 +129,7 @@ def regenerate_baseline_reports(output: Path) -> None:
         reference=reference,
         comparison=comparison,
         manifest=manifest,
+        evidence_assessment=manifest.get("evidence_assessment"),
     )
 
 
@@ -114,7 +144,12 @@ def _gate_quality(path: Path) -> bool:
 
 
 def _summary_text(
-    comparison: Mapping[str, Any], quality: Mapping[str, Any], warnings: list[str]
+    comparison: Mapping[str, Any],
+    quality: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    readiness: Mapping[str, Any],
+    warnings: list[str],
+    next_actions: list[str],
 ) -> str:
     return "\n".join(
         [
@@ -124,7 +159,9 @@ def _summary_text(
             "",
             f"**Nominal lap-time penalty:** {float(comparison['lap_time_penalty_vs_infinite_s']):.3f} s  ",
             f"**Finite-ratio opportunity loss:** {float(comparison['finite_ratio_opportunity_loss_energy_kj']):.3f} kJ  ",
-            f"**Numerical quality gate:** `{quality['valid_for_decision']}`  ",
+            f"**Numerically valid:** `{quality['numerically_valid']}`  ",
+            f"**Evidence ready:** `{evidence.get('ready', False)}`  ",
+            f"**Decision ready:** `{readiness['decision_ready']}`  ",
             "**Confidence:** `nominal mechanism check`",
             "",
             "## Warnings",
@@ -133,9 +170,7 @@ def _summary_text(
             "",
             "## Recommended next actions",
             "",
-            "- Run measured-track robustness to test whether the result survives plausible measured laps.",
-            "- Run structural sensitivity to identify assumptions that move the result.",
-            "- Run a design sweep before treating a ratio choice as a recommendation.",
+            *[f"- {item}" for item in next_actions],
             "",
             "## Drill down",
             "",
@@ -147,11 +182,27 @@ def _summary_text(
     )
 
 
+def _baseline_next_actions(evidence: Mapping[str, Any]) -> list[str]:
+    if not bool(evidence.get("ready", False)):
+        return [
+            "Resolve or explicitly disposition the project-input and track-review blockers listed above.",
+            "Rebuild and review the Track Evidence Bundle after correcting source track inputs.",
+            "Run the nominal baseline again before launching paired studies.",
+        ]
+    return [
+        "Run measured-track robustness to test whether the result survives plausible measured laps.",
+        "Run structural sensitivity to identify assumptions that move the result.",
+        "Run a design sweep before treating a ratio choice as a recommendation.",
+    ]
+
+
 def _report_text(
     bounded: Mapping[str, Any],
     reference: Mapping[str, Any],
     comparison: Mapping[str, Any],
     quality: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    readiness: Mapping[str, Any],
     warnings: list[str],
 ) -> str:
     components = (
@@ -188,7 +239,15 @@ def _report_text(
         "",
         "A failed quality check overrides an attractive performance number.",
         "",
-        "## 3. Physical energy accounting",
+        "## 3. Evidence readiness",
+        "",
+        f"Evidence ready: `{evidence.get('ready', False)}`. Decision ready: `{readiness.get('decision_ready', False)}`.",
+        "",
+        *_evidence_table(evidence),
+        "",
+        "A numerically valid run remains exploratory while project-input or track-review warnings are unresolved.",
+        "",
+        "## 4. Physical energy accounting",
         "",
         "These rows are physical loss channels. Finite-ratio opportunity loss is counterfactual and is deliberately not added to this balance.",
         "",
@@ -204,28 +263,28 @@ def _report_text(
             "",
             "Feature-level obstacle energy is in [obstacle_energy_by_feature.csv](obstacle_energy_by_feature.csv).",
             "",
-            "## 4. Ratio occupancy and trace evidence",
+            "## 5. Ratio occupancy and trace evidence",
             "",
             f"The bounded case spent {float(bounded.get('time_minimum_ratio_s', 0.0)):.3f} s at minimum reduction, {float(bounded.get('time_maximum_ratio_s', 0.0)):.3f} s at maximum reduction, and {float(bounded.get('time_variable_ratio_s', 0.0)):.3f} s in the variable-ratio region.",
             "",
             "Use [01_speed_comparison.png](01_speed_comparison.png), [02_ratio_trace.png](02_ratio_trace.png), and the two trace CSV files to inspect where the comparison was created.",
             "",
-            "## 5. Gate behavior",
+            "## 6. Gate behavior",
             "",
             "[gate_compliance.csv](gate_compliance.csv) records every accepted measured speed gate, its target, the two simulated speeds, and the compliance tolerance.",
             "",
-            "## 6. Warnings and scope",
+            "## 7. Warnings and scope",
             "",
             *[f"- {item}" for item in warnings],
             "- GPX elevation is preserved but does not yet create grade force.",
             "- The current tire model is longitudinal and intentionally compact.",
-            "- The ideal bounded CVT does not model CINDER transient shift dynamics.",
+            "- The bounded ideal CVT is an intentionally reduced-order comparison mechanism.",
             "",
-            "## 7. Provenance",
+            "## 8. Provenance",
             "",
             "The exact evidence bundle, resolved inputs, run identity, and hashes are recorded in `track_bundle.json`, `resolved_inputs/`, `run_manifest.json`, `provenance.json`, and [provenance_graph.svg](provenance_graph.svg).",
             "",
-            "## 8. Appendix",
+            "## 9. Appendix",
             "",
             "The [appendix index](appendix/README.md) maps this report to all machine-readable outputs.",
             "",
@@ -235,7 +294,11 @@ def _report_text(
 
 
 def _decision_trace(
-    comparison: Mapping[str, Any], quality: Mapping[str, Any], warnings: list[str]
+    comparison: Mapping[str, Any],
+    quality: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    readiness: Mapping[str, Any],
+    warnings: list[str],
 ) -> str:
     lines = [
         "# Decision trace",
@@ -244,12 +307,30 @@ def _decision_trace(
         f"2. **Observed nominal time penalty** — {float(comparison['lap_time_penalty_vs_infinite_s']):.4f} s.",
         f"3. **Observed nominal opportunity loss** — {float(comparison['finite_ratio_opportunity_loss_energy_kj']):.4f} kJ.",
         f"4. **Reference dominance check** — `{quality['all_reference_dominance_checks_pass']}`.",
-        f"5. **Numerical quality gate** — `{quality['valid_for_decision']}`.",
-        "6. **Interpretation** — This establishes a nominal mechanism comparison, not a robust design ranking.",
-        "7. **Constraints on interpretation**",
+        f"5. **Numerically valid** — `{quality['numerically_valid']}`.",
+        f"6. **Evidence ready** — `{evidence.get('ready', False)}`.",
+        f"7. **Decision ready** — `{readiness.get('decision_ready', False)}`.",
+        "8. **Interpretation** — This establishes a nominal mechanism comparison, not a robust design ranking.",
+        "9. **Constraints on interpretation**",
         *[f"   - {item}" for item in warnings],
     ]
     return "\n".join(lines) + "\n"
+
+
+def _evidence_table(evidence: Mapping[str, Any]) -> list[str]:
+    counts = evidence.get("track_review_status_counts", {})
+    identities = evidence.get("evidence_identity_counts", {})
+    return [
+        "| Evidence check | Result |",
+        "| --- | --- |",
+        f"| Project validation warnings | {int(evidence.get('project_warning_count', 0))} |",
+        f"| Track events accepted | {int(counts.get('accepted', 0))} |",
+        f"| Track events recommended for review | {int(counts.get('recommended_review', 0))} |",
+        f"| Track events marked must-fix | {int(counts.get('must_fix', 0))} |",
+        f"| Run identities | {int(identities.get('run_id', 0))} |",
+        f"| Vehicle identities | {int(identities.get('vehicle_id', 0))} |",
+        f"| Driver identities | {int(identities.get('driver_id', 0))} |",
+    ]
 
 
 def _appendix_text() -> str:
