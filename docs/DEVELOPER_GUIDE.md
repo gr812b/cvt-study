@@ -7,7 +7,7 @@ ideal CVT is one mechanism implementation, not the identity of the upstream
 evidence system.
 
 ```text
-configuration → GPX ingestion → track reconstruction → Track Evidence Bundle
+configuration → GPX/FIT ingestion → track reconstruction → Track Evidence Bundle
               → mechanism adapter → paired studies → attribution → reports
 ```
 
@@ -61,7 +61,7 @@ An external mechanism adapter should:
 
 The current runner does not dynamically select implementations from the registry;
 the protocol is an integration boundary for separate model work. External model
-integration must not change GPX ingestion, gate evidence, bundle geometry, or
+integration must not change telemetry ingestion, gate evidence, bundle geometry, or
 uncertainty semantics.
 
 ## Tire extension
@@ -102,9 +102,9 @@ A study type should separate planning from execution:
 7. synthesize a decision only after numerical, evidence, and statistical gates;
 8. publish machine artifacts before regenerable Markdown.
 
-Reference reuse is safe only if the design path is mathematically absent from
-the reference mechanism. Add an explicit proof/test before expanding the cache
-policy.
+Design sweeps use one scenario-level infinite reference whose launch cap is frozen
+before candidate transmission values are applied. Structural sensitivity does not
+share references across levels. Tests must preserve both rules.
 
 ## Cache and run fingerprints
 

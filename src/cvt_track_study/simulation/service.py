@@ -187,8 +187,10 @@ def resolve_simulation_cases(
     choice_values: Mapping[str, str] | None = None,
     gate_target_speeds_mps: Mapping[str, float] | None = None,
     design_values_si: Mapping[str, float] | None = None,
+    shared_reference: bool = False,
 ) -> tuple[StudyCase, StudyCase, SimulationSettings, RuntimeTrack]:
-    quantities = dict(quantity_values_si or {})
+    scenario_quantities = dict(quantity_values_si or {})
+    quantities = dict(scenario_quantities)
     quantities.update(design_values_si or {})
     choices = dict(choice_values or {})
 
@@ -197,6 +199,12 @@ def resolve_simulation_cases(
 
     def qnom(path: str, raw: Mapping[str, Any], dimension: str = "dimensionless") -> float:
         return float(quantities.get(path, quantity_nominal(raw, dimension)))
+
+    def qrefnom(
+        path: str, raw: Mapping[str, Any], dimension: str = "dimensionless"
+    ) -> float:
+        values = scenario_quantities if shared_reference else quantities
+        return float(values.get(path, quantity_nominal(raw, dimension)))
 
     def cval(path: str, raw: Mapping[str, Any]) -> str:
         return str(choices.get(path, choice_nominal(raw)))
@@ -266,6 +274,37 @@ def resolve_simulation_cases(
             efficiency=qnom("drivetrain.efficiency", _mapping(drivetrain, "efficiency")),
             ideal_launch_clutch=launch_model == "ideal_slip",
         )
+        reference_cvt = CVTModel(
+            minimum_reduction_ratio=qrefnom(
+                "drivetrain.cvt.minimum_reduction_ratio",
+                _mapping(cvt_raw, "minimum_reduction_ratio"),
+            ),
+            maximum_reduction_ratio=qrefnom(
+                "drivetrain.cvt.maximum_reduction_ratio",
+                _mapping(cvt_raw, "maximum_reduction_ratio"),
+            ),
+            final_drive_ratio=qrefnom(
+                "drivetrain.final_drive_ratio",
+                _mapping(drivetrain, "final_drive_ratio"),
+            ),
+            efficiency=qrefnom(
+                "drivetrain.efficiency", _mapping(drivetrain, "efficiency")
+            ),
+            ideal_launch_clutch=launch_model == "ideal_slip",
+        )
+        reference_cvt = CVTModel(
+            minimum_reduction_ratio=reference_cvt.minimum_reduction_ratio,
+            maximum_reduction_ratio=reference_cvt.maximum_reduction_ratio,
+            final_drive_ratio=reference_cvt.final_drive_ratio,
+            efficiency=reference_cvt.efficiency,
+            ideal_launch_clutch=reference_cvt.ideal_launch_clutch,
+            infinite_launch_wheel_torque_cap_nm=(
+                max(0.0, engine.torque_nm(engine.target_rpm))
+                * reference_cvt.maximum_reduction_ratio
+                * reference_cvt.final_drive_ratio
+                * reference_cvt.efficiency
+            ),
+        )
         driver_raw = _mapping(study_raw, "driver")
         driver = DriverModel(
             maximum_braking_deceleration_mps2=qsi(
@@ -321,7 +360,7 @@ def resolve_simulation_cases(
     )
     reference = StudyCase(
         name=f"{vehicle_id}_infinite_reference", engine=engine, vehicle=vehicle,
-        tire=tire, cvt=cvt, driver=driver, infinite_cvt=True,
+        tire=tire, cvt=reference_cvt, driver=driver, infinite_cvt=True,
     )
     return bounded, reference, settings, runtime_track
 

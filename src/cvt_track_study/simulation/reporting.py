@@ -340,7 +340,7 @@ def _write_report(
 This run uses nominal values from every uncertainty declaration. Confidence bands
 are produced in Phase 6. Obstacle losses come only from the explicit per-feature
 model contracts in the track bundle; measured speed reductions are not silently
-converted into terrain dissipation. GPX elevation remains stored for review and
+converted into terrain dissipation. Telemetry elevation remains stored for review and
 does not create grade force. The reported finite-ratio opportunity loss subtracts
 the launch-clutch loss shared by the infinite reference, while drivetrain-efficiency
 loss remains a separate physical term common to both designs. Centreline curvature

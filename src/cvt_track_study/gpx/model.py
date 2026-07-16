@@ -1,4 +1,8 @@
-"""Canonical GPX ingestion data structures."""
+"""Canonical telemetry ingestion data structures.
+
+The historical GPX names remain public aliases so existing callers do not need
+to change when FIT recordings are introduced.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +21,7 @@ CANONICAL_POINT_COLUMNS = (
     "driver_id",
     "source_file",
     "source_sha256",
+    "source_format",
     "track_index",
     "segment_index",
     "point_index",
@@ -24,12 +29,18 @@ CANONICAL_POINT_COLUMNS = (
     "latitude_deg",
     "longitude_deg",
     "elevation_m",
+    "elevation_source",
+    "device_distance_m",
+    "device_speed_mps",
     "reported_speed_mps",
     "derived_speed_mps",
     "analysis_speed_mps",
+    "analysis_speed_source",
+    "speed_certainty",
     "course_deg",
     "fix_type",
     "satellites",
+    "horizontal_accuracy_m",
     "hdop",
     "vdop",
     "pdop",
@@ -64,3 +75,8 @@ class GPXIngestionResult:
     @property
     def warning_count(self) -> int:
         return sum(item.severity.value == "warning" for item in self.diagnostics)
+
+
+# Format-neutral names for new code; legacy names are intentionally retained.
+TelemetryRunMetadata = GPXRunMetadata
+TelemetryIngestionResult = GPXIngestionResult

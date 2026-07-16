@@ -13,8 +13,8 @@ The track-data owner supplies and reviews these source files:
 
 | File | What the user enters | Detailed reference |
 | --- | --- | --- |
-| `track/gpx/*.gpx` | Original closed-course recordings with track points and usable timestamps | [`input/GPX_CONTRACT.md`](input/GPX_CONTRACT.md) |
-| `track/runs.toml` | One unique run ID plus vehicle/driver identity and evidence-use flags per GPX | [`input/GPX_CONTRACT.md`](input/GPX_CONTRACT.md) |
+| `track/gpx/*.{gpx,fit}` | Original closed-course recordings with positioned records and usable timestamps | [`input/GPX_CONTRACT.md`](input/GPX_CONTRACT.md) |
+| `track/runs.toml` | One unique run ID plus vehicle/driver identity and evidence-use flags per GPX/FIT recording | [`input/GPX_CONTRACT.md`](input/GPX_CONTRACT.md) |
 | `track/track.toml` | Course identity, surface declaration, lap/reconstruction limits, review thresholds, and window settings | [`INPUT_CONTRACT.md`](INPUT_CONTRACT.md#track-fields) |
 | `track/events.toml` | Lap gate, physical features, response groups, coordinates/extents, source statements, uncertainty, and obstacle declarations | [`input/EVENT_CONTRACT.md`](input/EVENT_CONTRACT.md) |
 
@@ -100,7 +100,7 @@ supporting questions; they do not independently choose a design.
 Record these items with the project before launching large studies:
 
 - name/date of the track-data review;
-- GPX file list and run/vehicle/driver identities;
+- GPX/FIT file list and run/vehicle/driver identities;
 - disposition of every `must_fix` and `recommended_review` event;
 - vehicle measurement references and dates;
 - accepted inherited defaults, with reasons for accepting them;

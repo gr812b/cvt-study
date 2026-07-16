@@ -22,7 +22,7 @@ def quantity(nominal: float, uncertainty: dict, unit: str = "1") -> UncertainQua
     )
 
 
-def test_reference_cache_only_shares_mathematically_invariant_design_path() -> None:
+def test_reference_cache_shares_every_design_within_a_scenario() -> None:
     minimum_a = DesignPoint(
         "minimum=0.8", "drivetrain.cvt.minimum_reduction_ratio", 0.8, 0.8
     )
@@ -33,8 +33,11 @@ def test_reference_cache_only_shares_mathematically_invariant_design_path() -> N
     final_b = DesignPoint("final=8", "drivetrain.final_drive_ratio", 8.0, 8.0)
 
     assert reference_cache_key(3, minimum_a) == reference_cache_key(3, minimum_b)
-    assert reference_cache_key(3, final_a) != reference_cache_key(3, final_b)
+    assert reference_cache_key(3, final_a) == reference_cache_key(3, final_b)
     assert reference_cache_key(3, minimum_a) != reference_cache_key(4, minimum_a)
+    assert reference_cache_key(
+        3, final_a, share_across_designs=False
+    ) != reference_cache_key(3, final_b, share_across_designs=False)
 
 
 def test_structural_plan_keeps_exact_nominal_separate_from_distribution_quantiles() -> None:

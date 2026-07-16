@@ -1,4 +1,4 @@
-"""Project-level GPX ingestion orchestration."""
+"""Project-level GPX/FIT telemetry ingestion orchestration."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from cvt_track_study.config.project import ProjectError, ProjectLoader, Resoluti
 
 from .export import export_ingestion_results
 from .model import GPXIngestionResult, GPXRunMetadata
-from .parser import GPXParseError, ingest_gpx_run
+from .ingestion import TelemetryParseError, ingest_telemetry_run
 
 
 def ingest_project(
@@ -43,8 +43,8 @@ def ingest_project(
             use_for_gate_evidence=bool(raw["use_for_gate_evidence"]),
         )
         try:
-            results.append(ingest_gpx_run(metadata))
-        except GPXParseError as exc:
+            results.append(ingest_telemetry_run(metadata))
+        except TelemetryParseError as exc:
             raise ProjectError(str(exc)) from exc
     if selected:
         found = {item.metadata.run_id for item in results}
@@ -52,7 +52,7 @@ def ingest_project(
         if missing:
             raise ProjectError("Unknown run id(s): " + ", ".join(missing))
     if not results:
-        raise ProjectError("No GPX runs were selected for ingestion.")
+        raise ProjectError("No telemetry runs were selected for ingestion.")
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output = output_directory or resolution.paths.results_directory / "ingestion" / stamp
@@ -64,8 +64,11 @@ def ingest_project(
         "project_root": str(resolution.paths.root),
         "selected_run_ids": [item.metadata.run_id for item in results],
         "run_count": len(results),
-        "source_gpx_sha256": {
+        "source_telemetry_sha256": {
             item.metadata.run_id: item.summary["source_sha256"] for item in results
+        },
+        "source_formats": {
+            item.metadata.run_id: item.summary["source_format"] for item in results
         },
     }
     export_ingestion_results(

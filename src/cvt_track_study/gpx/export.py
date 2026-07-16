@@ -1,4 +1,4 @@
-"""Atomic GPX ingestion artifact export."""
+"""Atomic telemetry ingestion artifact export."""
 
 from __future__ import annotations
 

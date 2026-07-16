@@ -31,12 +31,22 @@ def test_track_build_exports_valid_self_contained_bundle(tmp_path: Path) -> None
     result, path, bundle = _built_bundle(ARIZONA, tmp_path)
     assert path.exists()
     assert path.with_name("track_bundle.sha256").exists()
-    assert bundle.schema_version == "1.2.0"
+    assert bundle.schema_version == "1.2.1"
     assert bundle.track_length_m == pytest.approx(result.centreline.length_m)
     assert len(bundle.physical_features) == 40
     assert len(bundle.response_groups) == 37
-    assert len(bundle.active_speed_gates) == 13
+    gate_types = [gate["gate_type"] for gate in bundle.active_speed_gates]
+    assert gate_types.count("entry_speed") == 13
+    assert gate_types.count("sustained_response") == 5
     assert bundle.data["simulation_contract"]["grade_force_enabled"] is False
+    grade_screen = bundle.data["simulation_contract"]["grade_screen"]
+    assert grade_screen["grade_force_enabled"] is False
+    assert grade_screen["status"] in {
+        "insufficient_elevation_evidence",
+        "elevation_not_repeatable",
+        "paired_grade_sensitivity_recommended",
+        "grade_proxy_immaterial",
+    }
     assert bundle.data["simulation_contract"]["capabilities"] == {
         "grade_force_ready": False,
         "obstacle_models_ready": True,
@@ -55,10 +65,12 @@ def test_bundle_json_schema_matches_phase6_role_contract() -> None:
         / "track_bundle_v1.schema.json"
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    assert schema["$id"].endswith(":1.2.0")
+    assert schema["$id"].endswith(":1.2.1")
     assert schema["properties"]["schema_version"]["pattern"] == r"^1\.2\.[0-9]+$"
     required = schema["properties"]["simulation_contract"]["properties"]["capabilities"]["required"]
     assert "uncertainty_roles_ready" in required
+    simulation_required = schema["properties"]["simulation_contract"]["required"]
+    assert "grade_screen" in simulation_required
 
 
 def test_bundle_rejects_missing_uncertainty_role_capability(tmp_path: Path) -> None:
@@ -82,6 +94,24 @@ def test_bundle_gate_distribution_retains_paired_lap_evidence(tmp_path: Path) ->
     )
     assert gate["position_semantics"] == "physical_feature_entry_boundary"
     assert gate["enforcement_contract"]["slow_vehicle_reset_allowed"] is False
+
+
+def test_sustained_gate_requires_significance_and_leave_one_out_stability(
+    tmp_path: Path,
+) -> None:
+    _, _, bundle = _built_bundle(ARIZONA, tmp_path)
+    sustained = [
+        gate
+        for gate in bundle.active_speed_gates
+        if gate["gate_type"] == "sustained_response"
+    ]
+    assert sustained
+    for gate in sustained:
+        confidence = gate["confidence"]
+        assert confidence["slowdown_p_value"] <= 0.05
+        assert confidence["slowdown_success_fraction"] >= 0.80
+        assert confidence["leave_one_out_max_speed_shift_mps"] <= 0.5
+        assert gate["enforcement_contract"]["paired_entry_gate_id"]
 
 
 def test_bundle_carries_declared_physical_obstacle_models(tmp_path: Path) -> None:

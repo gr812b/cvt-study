@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from cvt_track_study.config.diagnostics import DiagnosticBag
 from cvt_track_study.config.project import ProjectError, ProjectLoader
 from cvt_track_study.gpx.model import GPXRunMetadata
-from cvt_track_study.gpx.parser import GPXParseError, ingest_gpx_run
+from cvt_track_study.gpx.ingestion import TelemetryParseError, ingest_telemetry_run
 
 from .export import export_track_build
 from .model import TrackBuildResult
@@ -40,17 +40,17 @@ def build_project_track(
             use_for_gate_evidence=bool(raw["use_for_gate_evidence"]),
         )
         try:
-            ingestion_results.append(ingest_gpx_run(metadata))
-        except GPXParseError as exc:
+            ingestion_results.append(ingest_telemetry_run(metadata))
+        except TelemetryParseError as exc:
             raise ProjectError(str(exc)) from exc
     if not ingestion_results:
-        raise ProjectError("Track reconstruction requires at least one GPX run.")
+        raise ProjectError("Track reconstruction requires at least one telemetry run.")
     ingestion_errors = [
         item.metadata.run_id for item in ingestion_results if item.error_count
     ]
     if ingestion_errors:
         raise ProjectError(
-            "GPX ingestion reported fatal timing/data errors for run(s): "
+            "Telemetry ingestion reported fatal timing/data errors for run(s): "
             + ", ".join(ingestion_errors)
             + ". Run cvt-study ingest and resolve those errors before build-track."
         )
@@ -87,8 +87,12 @@ def build_project_track(
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "project_root": str(resolution.paths.root),
         "run_ids": [item.metadata.run_id for item in ingestion_results],
-        "source_gpx_sha256": {
+        "source_telemetry_sha256": {
             item.metadata.run_id: item.summary["source_sha256"]
+            for item in ingestion_results
+        },
+        "source_formats": {
+            item.metadata.run_id: item.summary["source_format"]
             for item in ingestion_results
         },
         "reference_lap_id": int(laps.loc[laps["reference_lap"], "lap_id"].iloc[0]),

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:cvt-track-study:track-bundle:1.2.0",
+  "$id": "urn:cvt-track-study:track-bundle:1.2.1",
   "title": "CVT Track Bundle 1.2.x",
   "type": "object",
   "required": [
@@ -42,6 +42,7 @@
       "required": [
         "track_length_m",
         "grade_force_enabled",
+        "grade_screen",
         "capabilities",
         "centreline",
         "observed_profile",
@@ -52,6 +53,34 @@
       "properties": {
         "track_length_m": {"type": "number", "exclusiveMinimum": 0},
         "grade_force_enabled": {"const": false},
+        "grade_screen": {
+          "type": "object",
+          "required": [
+            "method_version",
+            "grade_force_enabled",
+            "status",
+            "spatial_grade_sensitivity_recommended",
+            "elevation_coverage_fraction",
+            "reason"
+          ],
+          "properties": {
+            "grade_force_enabled": {"const": false},
+            "status": {
+              "enum": [
+                "insufficient_elevation_evidence",
+                "elevation_not_repeatable",
+                "paired_grade_sensitivity_recommended",
+                "grade_proxy_immaterial"
+              ]
+            },
+            "spatial_grade_sensitivity_recommended": {"type": "boolean"},
+            "elevation_coverage_fraction": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
         "capabilities": {
           "type": "object",
           "required": ["grade_force_ready", "obstacle_models_ready", "speed_gates_ready", "uncertainty_roles_ready"],
@@ -94,7 +123,26 @@
             }
           }
         },
-        "speed_gates": {"type": "array"}
+        "speed_gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "gate_type",
+              "response_group_id",
+              "status",
+              "active_by_default",
+              "position_s_m",
+              "target_speed_distribution"
+            ],
+            "properties": {
+              "gate_type": {
+                "enum": ["entry_speed", "sustained_response"]
+              }
+            }
+          }
+        }
       }
     },
     "evidence": {"type": "object"},

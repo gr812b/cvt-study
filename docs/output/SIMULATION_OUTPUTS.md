@@ -20,7 +20,7 @@ not leave a partially named final result.
 - `run_manifest.json`: portable bundle reference, bundle identity, sampling mode,
   and capability flags.
 
-The trace contains reference GPX elevation, modeled feature elevation, grade,
+The trace contains reference telemetry elevation, modeled feature elevation, grade,
 curvature, longitudinal tire state, controls, CVT state, engine state, individual
 resistance forces and powers, and kinetic energies.
 

@@ -257,4 +257,28 @@ def test_existing_gpx_run_and_vehicle_reference_validate(tmp_path: Path) -> None
     )
     result = ProjectLoader().resolve(project)
     assert result.is_valid
-    assert "NO_GPX_RUNS" not in codes(result)
+    assert "NO_TELEMETRY_RUNS" not in codes(result)
+
+
+def test_existing_fit_run_and_vehicle_reference_validate(tmp_path: Path) -> None:
+    project = copy_project(tmp_path)
+    fit = project / "track" / "gpx" / "run_A01.fit"
+    fit.write_bytes(b"declared FIT fixture")
+    dump_toml(
+        {
+            "runs": [
+                {
+                    "file": "gpx/run_A01.fit",
+                    "vehicle_id": "vehicle_A",
+                    "run_id": "A01",
+                    "driver_id": "driver_1",
+                    "use_for_centreline": True,
+                    "use_for_gate_evidence": True,
+                }
+            ]
+        },
+        project / "track" / "runs.toml",
+    )
+    result = ProjectLoader().resolve(project)
+    assert result.is_valid
+    assert "NO_TELEMETRY_RUNS" not in codes(result)

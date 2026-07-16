@@ -51,6 +51,7 @@ class RuntimeSpeedGate:
     position_s_m: float
     target_speed_mps: float
     confidence_score: float
+    gate_type: str = "entry_speed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,6 +253,7 @@ def runtime_track_from_bundle(
                     gate_overrides.get(str(raw["id"]), summary[speed_key])
                 ),
                 confidence_score=float(raw["confidence"]["overall_score"]),
+                gate_type=str(raw.get("gate_type", "entry_speed")),
             )
         )
     capabilities = simulation["capabilities"]

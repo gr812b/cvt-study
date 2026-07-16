@@ -32,12 +32,12 @@ Profile roots are the exception: they may be project-relative or absolute becaus
 a team may deliberately maintain one shared profile library for several tracks.
 Configured missing profile roots are errors rather than silently ignored inputs.
 
-## GPX-only raw telemetry
+## GPX/FIT raw telemetry
 
-`track/runs.toml` may reference only `.gpx` files. Each declared run identifies its
+`track/runs.toml` may reference `.gpx` or `.fit` files. Each declared run identifies its
 vehicle, run, and driver and states whether it contributes to centreline and gate
-evidence. The validator checks paths and references, and Phase 2 parses GPX
-segments, timestamps, and elevation.
+evidence. The validator checks paths and references, and ingestion normalizes both
+formats while retaining source channels and certainty.
 
 An empty run list is allowed while a project is being configured and produces a
 clear warning. A later `build-track` command will require at least one run selected

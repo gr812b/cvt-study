@@ -140,12 +140,12 @@ def create_elevation_profile(path: Path, track_profile: pd.DataFrame) -> None:
     lower = track_profile["p10_elevation_m"].to_numpy(float)
     upper = track_profile["p90_elevation_m"].to_numpy(float)
     if np.isfinite(median).any():
-        axis.plot(s, median, linewidth=1.7, label="median GPX elevation")
+        axis.plot(s, median, linewidth=1.7, label="median telemetry elevation")
         axis.fill_between(s, lower, upper, alpha=0.2, label="p10-p90 between laps")
     else:
-        axis.text(0.5, 0.5, "No usable GPX elevation", transform=axis.transAxes, ha="center")
+        axis.text(0.5, 0.5, "No usable telemetry elevation", transform=axis.transAxes, ha="center")
     axis.set_xlabel("Along-track coordinate, s [m]")
-    axis.set_ylabel("GPX elevation [m]")
+    axis.set_ylabel("Telemetry elevation [m]")
     axis.set_title("Elevation retained for review only — grade force remains disabled")
     axis.grid(True, alpha=0.25)
     if np.isfinite(median).any():

@@ -323,7 +323,7 @@ def _execute(
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
         "reference_cache_policy": (
-            "shared only when the design path is mathematically absent from the infinite-reference mechanism"
+            "one scenario-level infinite reference shared by every design candidate"
         ),
         "paired_scenarios": True,
         "sampled_input_paths": list(sampler.sampled_paths),
@@ -345,7 +345,7 @@ def _execute(
         "evidence_assessment": dict(evidence_assessment),
         "uncertainty_not_propagated": [
             "physical feature geometry uncertainty (resolved bundle geometry is used)",
-            "GPX elevation uncertainty (grade force remains disabled)",
+            "telemetry elevation uncertainty (grade force remains disabled pending the materiality screen)",
         ],
     }
     return StudyExecution(
@@ -393,6 +393,7 @@ def _execute_scenario(
                 choice_values=choices,
                 gate_target_speeds_mps=scenario.gate_target_speeds_mps,
                 design_values_si=design_values,
+                shared_reference=study_type == "design_sweep",
             )
         except Exception as exc:
             raise SimulationError(
@@ -403,7 +404,11 @@ def _execute_scenario(
         )
         bounded_runs += int(not cached)
         persistent_hits += int(cached)
-        key = reference_cache_key(scenario.replicate, design)
+        key = reference_cache_key(
+            scenario.replicate,
+            design,
+            share_across_designs=study_type == "design_sweep",
+        )
         if key in references:
             reference_record, reference_fingerprint = references[key]
             reference_reuses += 1
@@ -455,7 +460,9 @@ def _execute_scenario(
     return {
         "rows": rows,
         "bounded_case_count": len(design_points),
-        "reference_case_count": len(design_points),
+        "reference_case_count": (
+            1 if study_type == "design_sweep" and design_points else len(design_points)
+        ),
         "bounded_simulation_count": bounded_runs,
         "reference_simulation_count": reference_runs,
         "reference_cache_hits": reference_reuses,

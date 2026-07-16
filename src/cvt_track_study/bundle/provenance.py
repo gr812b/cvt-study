@@ -49,7 +49,7 @@ def track_provenance(result: TrackBuildResult) -> dict[str, Any]:
         ),
         key=lambda item: (item["scope"], item["path"], item["sha256"]),
     )
-    gpx_sources = sorted(
+    telemetry_sources = sorted(
         (
             {
                 "run_id": item.metadata.run_id,
@@ -57,6 +57,7 @@ def track_provenance(result: TrackBuildResult) -> dict[str, Any]:
                 "driver_id": item.metadata.driver_id,
                 "path": str(item.metadata.source_file.relative_to(root)),
                 "sha256": str(item.summary["source_sha256"]),
+                "format": str(item.summary.get("source_format", "gpx")),
             }
             for item in result.ingestion_results
         ),
@@ -73,7 +74,7 @@ def track_provenance(result: TrackBuildResult) -> dict[str, Any]:
             "definitions are deliberately excluded so one bundle can be reused across vehicles."
         ),
         "source_files": source_files,
-        "source_gpx": gpx_sources,
+        "source_telemetry": telemetry_sources,
         "resolved_configuration_provenance": {
             path: [_portable_step(step, root) for step in steps]
             for path, steps in sorted(relevant.items())

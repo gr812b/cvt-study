@@ -101,10 +101,10 @@ class ProjectValidator:
             return
         if not raw_runs:
             diagnostics.warning(
-                "NO_GPX_RUNS",
-                "No GPX runs are declared yet.",
+                "NO_TELEMETRY_RUNS",
+                "No GPX or FIT telemetry runs are declared yet.",
                 path="runs",
-                hint="Add one [[runs]] entry per GPX recording before build-track.",
+                hint="Add one [[runs]] entry per GPX or FIT recording before build-track.",
             )
             return
         vehicle_ids = set(raw_vehicles) if isinstance(raw_vehicles, Mapping) else set()
@@ -132,22 +132,22 @@ class ProjectValidator:
                 continue
             file_text = str(run["file"])
             run_file = (paths.runs_file.parent / file_text).resolve()
-            if Path(file_text).suffix.lower() != ".gpx":
+            if Path(file_text).suffix.lower() not in {".gpx", ".fit"}:
                 diagnostics.error(
-                    "RUN_NOT_GPX",
-                    "Raw telemetry files must use the .gpx extension.",
+                    "RUN_FORMAT_UNSUPPORTED",
+                    "Raw telemetry files must use the .gpx or .fit extension.",
                     path=f"{path}.file",
                 )
             if not _is_within(run_file, paths.root):
                 diagnostics.error(
                     "RUN_PATH_ESCAPES_PROJECT",
-                    "GPX files must remain inside the project directory.",
+                    "Telemetry files must remain inside the project directory.",
                     path=f"{path}.file",
                 )
             elif not run_file.exists():
                 diagnostics.error(
-                    "GPX_FILE_MISSING",
-                    "Declared GPX file does not exist.",
+                    "TELEMETRY_FILE_MISSING",
+                    "Declared telemetry file does not exist.",
                     path=f"{path}.file",
                     source=str(run_file),
                 )
@@ -181,7 +181,7 @@ class ProjectValidator:
         ):
             diagnostics.error(
                 "NO_CENTRELINE_RUN",
-                "At least one GPX run must be selected for centreline construction.",
+                "At least one telemetry run must be selected for centreline construction.",
                 path="runs",
             )
         if raw_runs and not any(
@@ -190,7 +190,7 @@ class ProjectValidator:
         ):
             diagnostics.error(
                 "NO_GATE_EVIDENCE_RUN",
-                "At least one GPX run must be selected for event and gate evidence.",
+                "At least one telemetry run must be selected for event and gate evidence.",
                 path="runs",
             )
 
@@ -482,7 +482,7 @@ class ProjectValidator:
         if elevation.get("store_from_gpx") is not True:
             diagnostics.warning(
                 "GPX_ELEVATION_NOT_STORED",
-                "GPX elevation is available to preserve and should normally be stored.",
+                "Telemetry elevation is available to preserve and should normally be stored.",
                 path="track.elevation.store_from_gpx",
             )
         if elevation.get("use_for_grade_force") is True:
@@ -1124,6 +1124,18 @@ class ProjectValidator:
                             path=f"{path}.design_variable.values",
                         )
                     dotted = str(design.get("path", ""))
+                    supported_design_paths = {
+                        "drivetrain.final_drive_ratio",
+                        "drivetrain.cvt.minimum_reduction_ratio",
+                        "drivetrain.cvt.maximum_reduction_ratio",
+                    }
+                    if dotted and dotted not in supported_design_paths:
+                        diagnostics.error(
+                            "DESIGN_PATH_NOT_TRANSMISSION",
+                            "Design sweeps currently support final-drive and CVT ratio design variables only.",
+                            path=f"{path}.design_variable.path",
+                            hint="Use structural_sensitivity for non-transmission inputs.",
+                        )
                     vehicle = (
                         raw_vehicles.get(vehicle_id, {})
                         if isinstance(raw_vehicles, Mapping)
@@ -1792,4 +1804,3 @@ def _is_within(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
-

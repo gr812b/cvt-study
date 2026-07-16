@@ -18,7 +18,7 @@ The current role-aware format is:
 ```json
 {
   "format": "cvt-track-bundle",
-  "schema_version": "1.2.0"
+  "schema_version": "1.2.1"
 }
 ```
 
@@ -105,7 +105,7 @@ The current capability flags are intentionally explicit:
 ```
 
 The bundle is ready to supply geometry, gate evidence, explicit physical-feature
-models, and role-separated uncertainty contracts. GPX elevation is still not validated as road grade, so `grade_force_ready`
+models, and role-separated uncertainty contracts. Telemetry elevation is screened but not yet validated as road grade, so `grade_force_ready`
 remains false.
 
 ## Physical features and response groups

@@ -21,7 +21,11 @@ from .model import CANONICAL_POINT_COLUMNS, GPXIngestionResult, GPXRunMetadata
 EARTH_RADIUS_M = 6_371_008.8
 
 
-class GPXParseError(RuntimeError):
+class TelemetryParseError(RuntimeError):
+    """Fatal raw telemetry parsing or contract failure."""
+
+
+class GPXParseError(TelemetryParseError):
     """Fatal GPX parsing or contract failure."""
 
 
@@ -118,6 +122,7 @@ def ingest_gpx_run(metadata: GPXRunMetadata) -> GPXIngestionResult:
                         "driver_id": metadata.driver_id,
                         "source_file": str(path),
                         "source_sha256": sha256,
+                        "source_format": "gpx",
                         "track_index": track_index,
                         "segment_index": segment_index,
                         "point_index": point_index,
@@ -125,12 +130,20 @@ def ingest_gpx_run(metadata: GPXRunMetadata) -> GPXIngestionResult:
                         "latitude_deg": lat,
                         "longitude_deg": lon,
                         "elevation_m": elevation,
+                        "elevation_source": (
+                            "gpx_elevation" if elevation is not None else "unavailable"
+                        ),
+                        "device_distance_m": math.nan,
+                        "device_speed_mps": math.nan,
                         "reported_speed_mps": reported_speed,
                         "derived_speed_mps": math.nan,
                         "analysis_speed_mps": math.nan,
+                        "analysis_speed_source": "unavailable",
+                        "speed_certainty": "unavailable",
                         "course_deg": course,
                         "fix_type": _child_text(point, "fix"),
                         "satellites": _int_or_none(_child_text(point, "sat")),
+                        "horizontal_accuracy_m": math.nan,
                         "hdop": _float_or_none(_child_text(point, "hdop")),
                         "vdop": _float_or_none(_child_text(point, "vdop")),
                         "pdop": _float_or_none(_child_text(point, "pdop")),
@@ -191,6 +204,7 @@ def ingest_gpx_run(metadata: GPXRunMetadata) -> GPXIngestionResult:
         "driver_id": metadata.driver_id,
         "source_file": str(path),
         "source_sha256": sha256,
+        "source_format": "gpx",
         "gpx_version": version,
         "track_count": len(tracks),
         "segment_count": len(segments),
@@ -201,6 +215,7 @@ def ingest_gpx_run(metadata: GPXRunMetadata) -> GPXIngestionResult:
         "unusable_timestamp_count": int(points["timestamp_utc"].isna().sum()),
         "missing_elevation_count": int(points["elevation_m"].isna().sum()),
         "reported_speed_count": int(points["reported_speed_mps"].notna().sum()),
+        "device_speed_count": 0,
         "derived_speed_count": int(points["derived_speed_mps"].notna().sum()),
         "route_count_ignored": route_count,
         "waypoint_count_ignored": waypoint_count,
@@ -223,11 +238,14 @@ def _normalize_numeric_columns(points: pd.DataFrame) -> pd.DataFrame:
         "latitude_deg",
         "longitude_deg",
         "elevation_m",
+        "device_distance_m",
+        "device_speed_mps",
         "reported_speed_mps",
         "derived_speed_mps",
         "analysis_speed_mps",
         "course_deg",
         "satellites",
+        "horizontal_accuracy_m",
         "hdop",
         "vdop",
         "pdop",
@@ -246,9 +264,14 @@ def _derive_kinematics(points: pd.DataFrame, diagnostics: DiagnosticBag) -> pd.D
     ).groups.items():
         idx = list(indices)
         segment = output.loc[idx]
+        source_format = str(segment["source_format"].iloc[0]).upper()
         lat = segment["latitude_deg"].to_numpy(float)
         lon = segment["longitude_deg"].to_numpy(float)
-        distance = np.r_[math.nan, _haversine_steps(lat, lon)]
+        position_distance = np.r_[math.nan, _haversine_steps(lat, lon)]
+        device_distance = segment["device_distance_m"].to_numpy(float)
+        device_steps = np.r_[math.nan, np.diff(device_distance)]
+        usable_device_steps = np.isfinite(device_steps) & (device_steps >= 0)
+        distance = np.where(usable_device_steps, device_steps, position_distance)
         times = pd.to_datetime(segment["timestamp_utc"], utc=True, errors="coerce")
         dt = times.diff().dt.total_seconds().to_numpy(float)
         derived = np.divide(
@@ -260,27 +283,54 @@ def _derive_kinematics(points: pd.DataFrame, diagnostics: DiagnosticBag) -> pd.D
         output.loc[idx, "step_distance_m"] = distance
         output.loc[idx, "time_step_s"] = dt
         output.loc[idx, "derived_speed_mps"] = derived
+        device = output.loc[idx, "device_speed_mps"].to_numpy(float)
         reported = output.loc[idx, "reported_speed_mps"].to_numpy(float)
-        analysis = np.where(np.isfinite(reported) & (reported >= 0), reported, derived)
+        usable_device = np.isfinite(device) & (device >= 0)
+        usable_reported = np.isfinite(reported) & (reported >= 0)
+        analysis = np.where(
+            usable_device,
+            device,
+            np.where(usable_reported, reported, derived),
+        )
+        source = np.where(
+            usable_device,
+            "fit_device",
+            np.where(
+                usable_reported,
+                "gpx_reported",
+                np.where(np.isfinite(derived), "position_derived", "unavailable"),
+            ),
+        )
+        certainty = np.where(
+            usable_device,
+            "native_high",
+            np.where(
+                usable_reported,
+                "reported_medium",
+                np.where(np.isfinite(derived), "derived_lower", "unavailable"),
+            ),
+        )
         output.loc[idx, "analysis_speed_mps"] = analysis
+        output.loc[idx, "analysis_speed_source"] = source
+        output.loc[idx, "speed_certainty"] = certainty
 
         duplicate = int(np.sum(np.isfinite(dt) & (dt == 0)))
         regressions = int(np.sum(np.isfinite(dt) & (dt < 0)))
         gaps = int(np.sum(np.isfinite(dt) & (dt > 5.0)))
         if duplicate:
             diagnostics.warning(
-                "DUPLICATE_GPX_TIMESTAMPS",
+                f"DUPLICATE_{source_format}_TIMESTAMPS",
                 f"Segment {track_index}:{segment_index} contains {duplicate} duplicate timestamp step(s).",
             )
         if regressions:
             diagnostics.error(
-                "GPX_TIMESTAMP_REGRESSION",
+                f"{source_format}_TIMESTAMP_REGRESSION",
                 f"Segment {track_index}:{segment_index} contains {regressions} backward timestamp step(s).",
-                hint="Fix the source recording or split it into separate GPX segments.",
+                hint="Fix the source recording or split it into separate telemetry runs/segments.",
             )
         if gaps:
             diagnostics.warning(
-                "GPX_SAMPLING_GAPS",
+                f"{source_format}_SAMPLING_GAPS",
                 f"Segment {track_index}:{segment_index} contains {gaps} time gap(s) longer than 5 s.",
             )
     return output

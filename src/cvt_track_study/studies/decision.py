@@ -50,22 +50,15 @@ def synthesize_decision(
                     designs,
                     key=lambda design_id: float(designs[design_id][metric]["median"]),
                 )
-            same_winner = len(set(metric_winners.values())) == 1
             winner = metric_winners[TIME_METRIC]
-            if same_winner:
-                common_winner = winner
-                recommendation = f"Current tested winner: {winner}; no design recommendation yet."
-            else:
-                recommendation = "Time and opportunity-loss metrics prefer different tested designs."
-                warnings.append("Headline metrics do not identify the same winner.")
-                next_actions.append("Review the time-versus-energy tradeoff before selecting a design.")
+            common_winner = winner
+            recommendation = f"Current tested lap-time winner: {winner}; no design recommendation yet."
 
             win_bounds_ok = True
-            for metric in (TIME_METRIC, ENERGY_METRIC):
-                record = designs[winner].get(f"paired_ranking.{metric}", {})
-                low = record.get("paired_win_fraction_bootstrap_95_low")
-                if low is None or float(low) <= 0.5:
-                    win_bounds_ok = False
+            record = designs[winner].get(f"paired_ranking.{TIME_METRIC}", {})
+            low = record.get("paired_win_fraction_bootstrap_95_low")
+            if low is None or float(low) <= 0.5:
+                win_bounds_ok = False
             convergence_ok = _convergence_ok(convergence)
             values = sorted(
                 (
@@ -80,7 +73,7 @@ def synthesize_decision(
                 warnings.append("The apparent optimum lies on a tested sweep boundary.")
                 next_actions.append("Extend the sweep beyond the winning boundary.")
             statistically_ready = (
-                same_winner and win_bounds_ok and convergence_ok and not boundary_winner
+                win_bounds_ok and convergence_ok and not boundary_winner
             )
             robust = quality and statistically_ready
             if robust and evidence_ready:

@@ -115,14 +115,19 @@ def _infinite(
     ratio_required = target_omega / max(secondary_speed, 1.0e-12)
     engine_torque = max(0.0, engine.torque_nm(engine.target_rpm)) * throttle
     engine_power = engine_torque * target_omega
-    # An unbounded ratio must not imply infinite launch torque.  The reference
-    # shares the bounded design's maximum-ratio launch torque capacity and only
-    # removes the finite ratio window once wheel speed is established.
+    # An unbounded ratio must not imply infinite launch torque. Design studies
+    # provide one scenario-level cap so every candidate is compared with the
+    # same counterfactual reference; standalone runs fall back to their nominal
+    # bounded launch capacity.
     launch_torque_cap = (
-        engine_torque
-        * cvt.maximum_reduction_ratio
-        * cvt.final_drive_ratio
-        * cvt.efficiency
+        cvt.infinite_launch_wheel_torque_cap_nm * throttle
+        if cvt.infinite_launch_wheel_torque_cap_nm is not None
+        else (
+            engine_torque
+            * cvt.maximum_reduction_ratio
+            * cvt.final_drive_ratio
+            * cvt.efficiency
+        )
     )
     requested_wheel_torque = (
         float("inf")

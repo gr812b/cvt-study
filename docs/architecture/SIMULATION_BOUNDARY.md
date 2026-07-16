@@ -18,6 +18,6 @@ Vehicle, engine, tire, driver, CVT, and study settings remain outside the bundle
 This permits one reviewed track bundle to be used with multiple vehicles and
 designs. The runtime combines the bundle with one fully resolved scenario.
 
-Raw GPX elevation is retained in the bundle, but `grade_force_ready` remains
+Raw GPX/FIT elevation is retained and screened in the bundle, but `grade_force_ready` remains
 false. Explicit smooth obstacle profiles may still contribute local conservative
 height/grade because their geometry is separately declared.

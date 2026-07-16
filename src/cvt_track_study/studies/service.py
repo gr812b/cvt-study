@@ -34,11 +34,7 @@ from .analysis import (
     summarize_study,
 )
 from .model import DesignPoint, StudyExecution
-from .planning import (
-    REFERENCE_INVARIANT_DESIGN_PATHS,
-    reference_cache_key,
-    study_plan,
-)
+from .planning import reference_cache_key, study_plan
 from .reporting import write_study_outputs
 
 _SUPPORTED_TYPES = {
@@ -194,6 +190,7 @@ def _execute(
                     choice_values=resolved_choices,
                     gate_target_speeds_mps=scenario.gate_target_speeds_mps,
                     design_values_si=design_values,
+                    shared_reference=study_type == "design_sweep",
                 )
             except Exception as exc:
                 raise SimulationError(
@@ -206,7 +203,11 @@ def _execute(
                 target_engine_rpm=bounded_case.engine.target_rpm,
                 target_power_w=bounded_case.engine.target_power_w,
             )
-            cache_key = reference_cache_key(scenario.replicate, design)
+            cache_key = reference_cache_key(
+                scenario.replicate,
+                design,
+                share_across_designs=study_type == "design_sweep",
+            )
             if cache_key in reference_cache:
                 (
                     reference_summary,
@@ -317,7 +318,7 @@ def _execute(
         "reference_simulation_count": reference_count,
         "reference_cache_hits": cache_hits,
         "reference_cache_policy": (
-            "shared only when the design path is mathematically absent from the infinite-reference mechanism"
+            "one scenario-level infinite reference shared by every design candidate"
         ),
         "paired_scenarios": True,
         "sampled_input_paths": list(sampler.sampled_paths),
@@ -334,7 +335,7 @@ def _execute(
         "numerical_quality": quality,
         "uncertainty_not_propagated": [
             "physical feature geometry uncertainty (the simulation uses the resolved bundle geometry)",
-            "GPX elevation uncertainty (grade force remains disabled)",
+            "telemetry elevation uncertainty (grade force remains disabled pending the materiality screen)",
         ],
     }
     return StudyExecution(
@@ -355,15 +356,7 @@ def _reference_fingerprint(
 ) -> str:
     payload = {
         "scenario": scenario.serializable(),
-        "design": (
-            {"path": None, "value_si": None}
-            if design.path in REFERENCE_INVARIANT_DESIGN_PATHS
-            else {
-                "path": design.path,
-                "value_si": design.value_si,
-                "choice_value": design.choice_value,
-            }
-        ),
+        "reference_contract": "scenario_level_common_infinite_v1",
         "engine": asdict(reference_case.engine),
         "vehicle": asdict(reference_case.vehicle),
         "tire": asdict(reference_case.tire),

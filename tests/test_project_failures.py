@@ -61,7 +61,7 @@ def test_fixed_without_reason_is_error(tmp_path: Path) -> None:
     assert "INVALID_UNCERTAIN_INPUT" in codes(result)
 
 
-def test_non_gpx_run_is_error(tmp_path: Path) -> None:
+def test_unsupported_telemetry_run_is_error(tmp_path: Path) -> None:
     project = copy_project(tmp_path)
     runs_path = project / "track" / "runs.toml"
     dump_toml(
@@ -80,7 +80,7 @@ def test_non_gpx_run_is_error(tmp_path: Path) -> None:
         runs_path,
     )
     result = ProjectLoader().resolve(project)
-    assert "RUN_NOT_GPX" in codes(result)
+    assert "RUN_FORMAT_UNSUPPORTED" in codes(result)
 
 
 def test_grade_force_cannot_be_enabled_yet(tmp_path: Path) -> None:

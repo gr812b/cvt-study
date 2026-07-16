@@ -38,7 +38,7 @@ def build_track_evidence(
     pd.DataFrame,
     pd.DataFrame,
 ]:
-    """Build the complete Phase 3 evidence set from canonical GPX runs."""
+    """Build the complete Phase 3 evidence set from canonical telemetry runs."""
 
     settings = ReconstructionSettings.from_mapping(track_config)
     events = normalize_events(raw_events)

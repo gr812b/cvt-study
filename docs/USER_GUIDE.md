@@ -1,6 +1,6 @@
 # User guide
 
-This guide takes a project from raw GPX evidence to a reviewed engineering
+This guide takes a project from raw GPX/FIT evidence to a reviewed engineering
 result. The framework separates evidence preparation, mechanism simulation,
 uncertainty studies, and decision reporting so each stage can be checked before
 the next one is trusted.
@@ -23,13 +23,13 @@ A warning permits exploratory work but should be reviewed before a decision run.
 drivetrain-study init .\projects\arizona --name "Arizona endurance"
 ```
 
-The command creates configuration, track, vehicle, study, results, and GPX
+The command creates configuration, track, vehicle, study, results, and telemetry
 directories. It does not invent event geometry or vehicle measurements.
 
 Edit in this order:
 
 1. `project.toml`: paths and profile roots.
-2. `track/runs.toml`: each GPX file and its vehicle/driver/run identity.
+2. `track/runs.toml`: each GPX/FIT file and its vehicle/driver/run identity.
 3. `track/events.toml`: lap gate, features, response groups, and obstacle models.
 4. `vehicles/<id>/vehicle.toml` and `drivetrain.toml`: physical inputs.
 5. `studies/*.toml`: numerical settings, study question, samples, and thresholds.
@@ -40,10 +40,12 @@ See `INPUT_CONTRACT.md` for the full pattern.
 For a track-data/vehicle-data team handoff, follow `DATA_HANDOFF_GUIDE.md`. It
 puts the files, review outputs, and completion checks in the required order.
 
-## 3. Add and inspect GPX evidence
+## 3. Add and inspect telemetry evidence
 
-Copy GPX files into `track/gpx/`, then make each file explicit in `runs.toml`.
-Do not merge files manually; run identity is needed for lap-paired sampling.
+Copy GPX or FIT files into `track/gpx/`, then make each file explicit in `runs.toml`.
+Prefer FIT when the same device recording was exported in both formats; declaring
+both copies as separate runs would double-count one session. Do not merge genuinely
+separate recordings manually; run identity is needed for lap-paired sampling.
 
 ```powershell
 drivetrain-study ingest .\projects\arizona
@@ -54,7 +56,7 @@ Inspect the ingestion diagnostics for:
 - missing or non-monotonic timestamps;
 - invalid coordinates;
 - large time gaps or speed spikes;
-- whether speed was reported or derived from position and time;
+- whether speed came from native FIT, reported GPX, or position/time derivation;
 - retained elevation and segment boundaries.
 
 The ingestion output is diagnostic. Simulation consumes the reviewed Track
@@ -228,7 +230,8 @@ drivetrain-study results PROJECT
 
 ## 11. What is not yet modeled
 
-GPX altitude does not create grade force, lateral/yaw dynamics are not active,
+GPX/FIT altitude does not automatically create grade force. A materiality screen
+can request a paired grade sensitivity, but lateral/yaw dynamics are not active,
 obstacles are uncalibrated unless the project supplies evidence, the tire model
 is reduced-order, and the current CVT is idealized. These limits are repeated in
 every technical report because they constrain the decision.

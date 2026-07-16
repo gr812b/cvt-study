@@ -1,6 +1,6 @@
 # Measured Track-Based Drivetrain Design Framework
 
-Research software for turning repeated closed-course GPX recordings into a
+Research software for turning repeated closed-course GPX or FIT recordings into a
 reviewed **Track Evidence Bundle**, then using that evidence to compare
 drivetrain designs under explicit physical and statistical assumptions.
 
@@ -34,7 +34,7 @@ On macOS or Linux, activate with `source .venv/bin/activate`.
 ```powershell
 drivetrain-study init .\projects\my_track --name "My endurance track"
 
-# Put GPX files in projects/my_track/track/gpx, then edit the TOML contracts.
+# Put GPX/FIT files in projects/my_track/track/gpx, then edit the TOML contracts.
 drivetrain-study validate .\projects\my_track
 drivetrain-study build-track .\projects\my_track
 
@@ -224,7 +224,8 @@ obstacle physics from prototype coefficients.
 
 ## Declared limitations
 
-- GPX elevation is preserved but not yet differentiated into road grade force.
+- GPX/FIT elevation is preserved and screened for coverage, repeatability, and
+  materiality; grade force stays off until a paired grade sensitivity justifies it.
 - Obstacle equations are explicit approximations and need calibration for a
   specific vehicle and course.
 - Lateral/yaw dynamics and curvature-derived corner-speed prediction are not

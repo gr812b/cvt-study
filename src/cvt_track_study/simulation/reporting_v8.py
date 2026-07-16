@@ -276,7 +276,7 @@ def _report_text(
             "## 7. Warnings and scope",
             "",
             *[f"- {item}" for item in warnings],
-            "- GPX elevation is preserved but does not yet create grade force.",
+            "- Telemetry elevation is screened, but grade force remains disabled pending a material paired sensitivity.",
             "- The current tire model is longitudinal and intentionally compact.",
             "- The bounded ideal CVT is an intentionally reduced-order comparison mechanism.",
             "",

@@ -88,7 +88,7 @@ only to an existing resolved leaf and is exported in provenance.
 | `track.closed_course` | bool | enables closed-lap reconstruction |
 | `track.surface_class` | text | descriptive surface class |
 | `track.surface.friction_coefficient` | quantity, `1` | longitudinal friction prior |
-| `track.elevation.store_from_gpx` | bool | retain elevation evidence |
+| `track.elevation.store_from_gpx` | bool | retain GPX/FIT elevation evidence (legacy field name) |
 | `track.elevation.use_for_grade_force` | bool | currently must remain false |
 | `track.reconstruction.lap_gate_event_id` | id | event defining `s=0` and lap crossing |
 | `lap_gate_radius_m` | m | geographic crossing region |
@@ -119,7 +119,7 @@ Each `[[runs]]` record contains:
 
 | Field | Meaning |
 | --- | --- |
-| `file` | GPX path relative to the track file/project |
+| `file` | GPX or FIT path relative to the track file/project |
 | `vehicle_id` | vehicle that created the recording |
 | `run_id` | unique recording/session identity |
 | `driver_id` | driver identity used for evidence grouping |
@@ -127,7 +127,9 @@ Each `[[runs]]` record contains:
 | `use_for_gate_evidence` | permit speed/gate contribution |
 
 Do not reuse a `run_id` for distinct recordings. Lap identities produced from
-these records are the unit used for paired empirical gate draws.
+these records are the unit used for paired empirical gate draws. If GPX and FIT
+are exports of one device session, declare the FIT version once rather than
+counting the two files as independent evidence.
 
 ## Events and features (`events.toml`)
 

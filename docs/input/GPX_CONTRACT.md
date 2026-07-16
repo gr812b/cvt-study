@@ -1,8 +1,17 @@
-# GPX raw-run contract
+# GPX and FIT raw-run contract
 
-The clean pipeline accepts **GPX tracks only**. A declared run must reference a
-`.gpx` file inside its project directory, and the file must contain at least one
-`<trk>` element with at least one valid `<trkpt>`.
+The pipeline accepts `.gpx` and `.fit` activity recordings inside the project.
+GPX files must contain at least one `<trk>` with a valid `<trkpt>`; FIT files must
+contain positioned record messages. Both formats produce the same canonical point
+table, so reconstruction does not need format-specific logic.
+
+## Supported FIT content
+
+The official Garmin FIT SDK decodes record messages with CRC checking. The adapter
+prefers enhanced speed and altitude fields, then their standard equivalents, and
+retains device cumulative distance, timestamps, positions, heading, GPS accuracy,
+and the decoded record as provenance JSON. FIT semicircle coordinates are converted
+to degrees.
 
 ## Supported GPX content
 
@@ -36,19 +45,23 @@ use_for_centreline = true
 use_for_gate_evidence = true
 ```
 
-One `run_id` identifies one logical recording and must be unique in the project.
-The same vehicle or driver may appear in several runs.
+One `run_id` identifies one physical recording and must be unique in the project.
+If FIT and GPX are two exports of the same recording, declare the FIT version once
+and retain the GPX as a support copy, not as independent lap evidence. The same
+vehicle or driver may appear in several genuinely separate runs.
 
 ## Canonical speed fields
 
-Three speed fields are kept:
+The canonical speed fields preserve the source hierarchy:
 
+- `device_speed_mps`: native FIT enhanced/standard device speed;
 - `reported_speed_mps`: a direct GPX or extension speed;
-- `derived_speed_mps`: great-circle point spacing divided by positive timestamp
-  spacing within one GPX segment;
-- `analysis_speed_mps`: reported speed when valid, otherwise derived speed.
+- `derived_speed_mps`: position/distance spacing divided by positive timestamp spacing;
+- `analysis_speed_mps`: device speed, else reported speed, else derived speed;
+- `analysis_speed_source` and `speed_certainty`: explicit provenance and certainty tier.
 
-The raw reported and derived values remain separate. Track reconstruction may
+Native, reported, and derived values remain separate. Device distance is also
+preserved and used for step distance when valid. Track reconstruction may
 replace isolated analysis-speed spikes, but the canonical ingestion output is
 not globally smoothed.
 
@@ -70,6 +83,7 @@ segment duration is omitted rather than made to look plausible.
 
 Elevation is retained through ingestion and track reconstruction, including
 between-lap p10, median, and p90 profiles. It is **not** differentiated into
-road grade and does not create a gravitational vehicle force in Phases 2 or 3.
-Raw GNSS altitude can contain large low-frequency and pointwise errors, so using
-it dynamically requires a separate validated method.
+road grade and does not automatically create a gravitational vehicle force.
+Every bundle includes a low-cost coverage/repeatability/materiality screen. Only a
+material, repeatable profile earns a paired with/without-grade sensitivity; grade
+force remains disabled until that sensitivity changes the design conclusion.

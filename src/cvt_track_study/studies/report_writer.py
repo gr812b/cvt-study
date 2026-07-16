@@ -150,7 +150,7 @@ def _report_text(
         "",
         "## 10. Interpretation limits",
         "",
-        "- GPX elevation is preserved but does not yet create grade force.",
+        "- Telemetry elevation is screened, but grade force remains disabled pending a material paired sensitivity.",
         "- Obstacle mechanics are explicit approximations and require calibration.",
         "- The current tire model is longitudinal and deliberately compact.",
         "- The bounded ideal CVT is an intentionally reduced-order comparison mechanism.",

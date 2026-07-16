@@ -45,7 +45,9 @@ J_w\dot\omega_w=T_w-T_b-R_wF_x.
 
 Aerodynamic resistance is \(F_a=\tfrac12\rho C_DA v^2\). Rolling resistance is
 regularized smoothly near rest. Grade force is available for explicit smooth
-feature profiles but remains disabled for raw GPX altitude.
+feature profiles but remains disabled for raw GPX/FIT altitude. A track-only
+materiality screen decides whether a paired grade sensitivity is worth running;
+it does not silently activate a new force.
 
 ## CVT models
 
@@ -54,19 +56,22 @@ required ratio is clipped to the declared maximum and minimum ratios. At launch,
 an idealized slipping clutch allows the engine to hold target speed while wheel
 speed is too low for synchronous operation. Clutch dissipation is accounted for.
 
-The infinite reference uses the same engine curve, target speed, efficiency,
-vehicle, tire, driver, track, obstacles, and gates. It removes only the finite
-ratio window. To avoid infinite launch torque, its launch wheel torque is capped
-at the bounded design's maximum-ratio launch torque. Any power that cannot pass
-through that shared launch-torque cap is recorded as launch-clutch loss in both
-cases; it is not credited as a finite-ratio advantage.
+The infinite reference uses the same engine curve, target speed, vehicle, tire,
+driver, track, obstacles, and gates. It removes only the finite ratio window. To
+avoid infinite launch torque, one scenario-level wheel-torque cap is frozen before
+design values are applied, then shared by every candidate. Any power that cannot
+pass through that cap is recorded as launch-clutch loss; it is not credited as a
+finite-ratio advantage.
 
 ## Gates
 
-An accepted gate is a one-way speed ceiling. The code backward-propagates its
+An accepted entry gate is a one-way speed ceiling. The code backward-propagates its
 target through a finite braking envelope. A vehicle below the envelope continues
 normally; it is never reset upward. Exact gate-crossing samples are inserted into
 the public trace so compliance is not distorted by the coarser reporting grid.
+When response-minimum evidence passes significance, spatial-repeatability, and
+leave-one-lap-out checks, a second sustained-response ceiling is paired with the
+entry gate. Failed checks leave the original entry gate unchanged.
 
 ## Energy accounting
 

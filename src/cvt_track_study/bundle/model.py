@@ -8,7 +8,7 @@ from typing import Any, Mapping
 
 
 TRACK_BUNDLE_FORMAT = "cvt-track-bundle"
-CURRENT_TRACK_BUNDLE_SCHEMA = "1.2.0"
+CURRENT_TRACK_BUNDLE_SCHEMA = "1.2.1"
 
 
 class TrackBundleError(RuntimeError):

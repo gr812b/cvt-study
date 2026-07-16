@@ -1,6 +1,6 @@
 # Speed-gate evidence and confidence score
 
-A speed gate is accepted only when repeated GPX passes support a repeatable,
+A speed gate is accepted only when repeated GPX/FIT passes support a repeatable,
 driver-limited entry state. The score is a transparent evidence summary; it is
 **not** a probability that the gate is correct.
 
@@ -111,5 +111,19 @@ summary, not another acceptance rule.
 
 Acceptance preserves the empirical entry-speed distribution (median, mean,
 standard deviation, p10, p90, and IQR). It does not collapse it to an exact speed.
-Full joint sampling of gate, vehicle, obstacle, and map uncertainty is a later
-phase; Phase 3 prepares and exposes the evidence required for that propagation.
+
+## Optional sustained-response gate
+
+An accepted entry gate does not automatically constrain speed deeper into a feature.
+A second `sustained_response` gate is emitted only when all of the following pass:
+
+- at least the configured minimum number of complete response passes;
+- at least 80% of laps show an entry-to-minimum drop exceeding the braking threshold;
+- a one-sided exact binomial test rejects a 50% success rate at p <= 0.05;
+- response-minimum speed and spatial location both meet repeatability limits; and
+- leave-one-lap-out medians stay within the declared method limits.
+
+When any check fails, the accepted entry gate remains and the bundle records
+`entry_only_fallback`; no response gate is added. A qualified response gate carries
+its own empirical minimum-speed samples and pairs with the entry gate through the
+same one-way braking-envelope logic.

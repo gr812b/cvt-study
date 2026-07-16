@@ -51,8 +51,8 @@
 
 \begin{abstract}
 This document specifies a reproducible method for converting repeated closed-course
-GPX recordings into drivetrain design evidence.  It explains the complete chain:
-configuration provenance, GPX ingestion, lap reconstruction, centreline and
+GPX or FIT recordings into drivetrain design evidence.  It explains the complete chain:
+configuration provenance, telemetry ingestion, lap reconstruction, centreline and
 map-matching, physical feature and response-group contracts, speed-gate confidence,
 the versioned \bundle, vehicle and tire equations, obstacle work, bounded and
 infinite ideal-CVT mechanisms, gate enforcement, energy closure, uncertainty
@@ -117,7 +117,7 @@ powertrain definition appears in Section~\ref{sec:cvt}.
 The framework keeps three statements separate:
 
 \begin{description}
-  \item[Measured evidence] what was observed in GPX passes, feature surveys, video, or
+  \item[Measured evidence] what was observed in GPX/FIT passes, feature surveys, video, or
   another declared source;
   \item[Model declaration] the equations and parameter distributions used to interpret
   the evidence; and
@@ -136,7 +136,7 @@ vehicle model or the final decision.
 \begin{center}
 \fbox{\begin{minipage}{0.92\textwidth}
 \centering
-Project and profiles $\rightarrow$ canonical GPX $\rightarrow$ reconstructed laps and
+Project and profiles $\rightarrow$ canonical telemetry $\rightarrow$ reconstructed laps and
 centreline $\rightarrow$ reviewed features and gates $\rightarrow$ \bundle\\[0.4em]
 $\rightarrow$ drivetrain/tire/obstacle mechanism $\rightarrow$ paired study execution
 $\rightarrow$ physical and uncertainty attribution $\rightarrow$ decision-first report
@@ -144,7 +144,7 @@ $\rightarrow$ physical and uncertainty attribution $\rightarrow$ decision-first 
 \end{center}
 
 Each arrow is a contract and a provenance checkpoint.  The mechanism may consume the
-bundle, but it may not reinterpret raw GPX internally.  Reporting consumes completed
+bundle, but it may not reinterpret raw telemetry internally. Reporting consumes completed
 machine artifacts and cannot change simulation state.
 
 \section{Project ownership}
@@ -186,21 +186,23 @@ where $\mathcal{C}$ is the resolved scientific contract.  Timestamps, process ID
 machine-dependent paths, and cache counters are excluded from scientific fingerprints.
 Study fingerprints own resume workspaces; simulation fingerprints own cached summaries.
 
-\chapter{GPX ingestion}\label{ch:gpx}
+\chapter{Telemetry ingestion}\label{ch:gpx}
 
 \section{Run identity}
 
-Each GPX file has a unique run identifier plus vehicle and driver identifiers.  The
+Each GPX or FIT file has a unique run identifier plus vehicle and driver identifiers.  The
 manifest independently controls whether the run contributes to centreline geometry and
 gate evidence.  These identities later define a complete paired lap draw in
-Section~\ref{sec:paired-gates}; therefore, distinct sessions must not share one run ID.
+Section~\ref{sec:paired-gates}; therefore, distinct sessions must not share one run ID,
+and FIT/GPX exports of one session must not be declared as independent runs.
 
 \section{Safe parsing and canonical telemetry}
 
-The parser uses a hardened XML implementation.  It preserves segment boundaries,
-timestamps, coordinates, optional elevation, and optional reported speed.  Invalid
-points are diagnosed rather than interpolated invisibly.  Time must be monotonic within
-a usable segment.
+The GPX parser uses a hardened XML implementation.  The FIT adapter uses the official
+decoder with CRC checking and retains native enhanced speed, cumulative distance,
+enhanced altitude, and GPS accuracy when present.  Both preserve timestamps,
+coordinates, optional elevation, and source records. Invalid points are diagnosed
+rather than interpolated invisibly. Time must be monotonic within a usable segment.
 
 If no trustworthy speed field exists, speed is derived from horizontal displacement and
 elapsed time.  For consecutive points $i-1$ and $i$,
@@ -211,17 +213,19 @@ v_i = \frac{d_{\mathrm{geo}}(\mathbf{p}_{i-1},\mathbf{p}_i)}
 \label{eq:gpx-speed}
 \end{equation}
 
-provided the elapsed time is positive and the interval passes diagnostics.  The output
-records whether each speed was reported or derived.  Equation~\eqref{eq:gpx-speed} is an
-observation channel, not a vehicle dynamic equation.
+provided the elapsed time is positive and the interval passes diagnostics. The output
+records separate native-device, reported, and derived channels plus an analysis-source
+and certainty tier. Native FIT speed has first priority, followed by reported GPX speed
+and then Equation~\eqref{eq:gpx-speed}. The equation is an observation channel, not a
+vehicle dynamic equation.
 
 \section{Diagnostics}
 
 Ingestion reports missing timestamps, coordinate errors, duplicated points, abnormal
-time gaps, implausible speed, and derived-speed spikes.  Elevation is retained but is not
-differentiated into road grade in the current release.  This limitation is repeated in
-Chapter~\ref{ch:limitations} because differentiating noisy altitude would introduce a
-new force model and uncertainty contract.
+time gaps, implausible speed, and derived-speed spikes. Elevation is retained and a
+coverage, repeatability, and materiality proxy is exported. It is not differentiated
+into road grade automatically: only a material screen can request a paired
+with/without-grade sensitivity before a new force is enabled.
 
 \chapter{Track reconstruction}\label{ch:track}
 
@@ -258,7 +262,7 @@ handled explicitly so features and windows may wrap across start/finish.
 
 \section{Map matching}
 
-Each retained GPX point is projected to the centreline, producing along-track coordinate
+Each retained telemetry point is projected to the centreline, producing along-track coordinate
 $s$, signed/unsigned cross-track error, and local quality information.  A lap whose
 coverage or map error violates the declared threshold is excluded from behavioral
 evidence.  The matched points, not the raw timestamp order alone, define the spatial
@@ -346,6 +350,13 @@ of Equation~\eqref{eq:gate-score}.  Too few valid passes requires review.  Other
 declared accept and review thresholds classify the gate.  The score never overrides a
 hard geometric failure.
 
+An accepted entry gate does not automatically become a full-feature speed profile. A
+second sustained-response gate is added only when at least $80\%$ of complete passes
+show the required entry-to-minimum slowdown, a one-sided exact binomial test gives
+$p\leq0.05$, the minimum speed and location are repeatable, and leave-one-lap-out
+medians remain stable. Failure retains the entry gate and records an entry-only
+fallback rather than inventing a new constraint.
+
 \section{Braking envelope}\label{sec:gate-envelope}
 
 An accepted gate at $s_g$ with target $v_g$ is backward propagated using the effective
@@ -423,7 +434,8 @@ For a fixed specific event energy $e_f$,
 F(x)=m e_f\,\phi(x;L).
 \end{equation}
 
-For a speed-quadratic event with coefficient $k_v$ and recorded entry speed $v_e$,
+For a speed-quadratic event with coefficient $k_v$ and simulated boundary-crossing
+entry speed $v_e$,
 
 \begin{equation}
 E=m e_f+k_v v_e^2,\qquad F(x)=E\,\phi(x;L).
@@ -586,11 +598,12 @@ P_{\mathrm{short}}=\max(0,uP_\star-P_e).
 \section{Infinite-ratio reference}
 
 The reference holds $\omega_e=\omega_\star$ outside a finite operating-ratio window,
-but it may not produce infinite launch torque.  It shares the bounded design's launch
-cap
+but it may not produce infinite launch torque. For each paired scenario, one launch cap
+is frozen from the scenario-level nominal transmission before candidate values are
+applied:
 
 \begin{equation}
-T_{w,\max}^{\mathrm{launch}}=\eta i_{\max}i_fT_e.
+T_{w,\max}^{\mathrm{launch}}=\eta^{(0)} i_{\max}^{(0)}i_f^{(0)}T_e.
 \end{equation}
 
 For nonzero wheel speed, target-power torque is $\eta P_e/\omega_w$.  Therefore
@@ -601,11 +614,11 @@ T_{w,\max}^{\mathrm{launch}}\right),
 \label{eq:infinite-torque}
 \end{equation}
 
-with the launch cap selected directly at zero speed.  Equations
-\eqref{eq:bounded-ratio} and \eqref{eq:infinite-torque} define the comparison.  A design
-variable may share a cached infinite reference only if it is mathematically absent from
-this reference mechanism.  That proof currently permits a limited minimum-ratio reuse;
-final drive and maximum ratio are not assumed absent from launch behavior.
+with the launch cap selected directly at zero speed. Equations
+\eqref{eq:bounded-ratio} and \eqref{eq:infinite-torque} define the comparison. Every
+candidate in one design-sweep scenario therefore shares the exact reference simulation.
+Structural-sensitivity levels retain separate matched references because they test
+assumptions rather than competing transmission designs.
 
 \chapter{Integration, events, and energy}\label{ch:numerics}
 
@@ -644,7 +657,7 @@ E_w+K_0=K_f+E_{\mathrm{slip}}+E_{\mathrm{brake}}+E_{rr}+E_a+E_o\\
 \label{eq:vehicle-balance}
 \end{multline}
 
-Grade work $W_g$ is signed.  Current GPX elevation does not contribute to it; a smooth
+Grade work $W_g$ is signed. Current telemetry elevation does not contribute to it; a smooth
 declared obstacle may contribute a conservative local grade term.  Residual $R_v$ is
 normalized by transmitted energy, initial kinetic energy, and the magnitude of grade
 work.
@@ -815,10 +828,12 @@ binomial interval.
 \section{Decision gates}
 
 A numerical-quality pass requires all cases to complete, reference dominance, accepted
-gate compliance, vehicle energy closure, and powertrain energy closure.  A directionally
-robust sweep additionally requires the time and opportunity metrics to select the same
-winner, acceptable convergence, and paired win-fraction bootstrap lower bounds above
-$0.5$.  Numerical validity and directional robustness are separate output fields.
+gate compliance, vehicle energy closure, and powertrain energy closure. A directionally
+robust sweep uses lap time as the decision metric and additionally requires acceptable
+convergence plus a paired lap-time win-fraction bootstrap lower bound above $0.5$. Since
+the reference is common within a scenario, bounded lap time and lap-time loss against
+that reference have identical rankings. Opportunity energy remains diagnostic and does
+not veto that winner. Numerical validity and directional robustness are separate fields.
 
 \chapter{Attribution}\label{ch:attribution}
 
@@ -929,7 +944,7 @@ tokens; unavailable values use a status and null representation.
 
 \section{Provenance graph}
 
-The provenance record connects measured GPX, track build, exact bundle hash, resolved
+The provenance record connects measured GPX/FIT, track build, exact bundle hash, resolved
 configuration fingerprint, study fingerprint, framework version, command, and report.
 The SVG graph is a human index; the JSON is the machine authority.  The bundle and
 resolved inputs make the simulation-facing evidence portable even if original project
@@ -962,7 +977,7 @@ family.
 \section{Current limitations}
 
 \begin{itemize}
-  \item GPX elevation is preserved but not converted to road grade force.
+  \item GPX/FIT elevation is screened but not automatically converted to road grade force.
   \item The active vehicle model is longitudinal; curvature is diagnostic and lateral/yaw
         dynamics are absent.
   \item The tire law is reduced-order and does not resolve terrain-dependent combined slip.
@@ -976,8 +991,9 @@ family.
 
 \section{Prioritized future work}
 
-Elevation-to-grade processing requires smoothing, lap alignment, vertical-bias handling,
-external terrain comparison, and grade confidence.  Obstacle calibration requires known
+The implemented grade screen only decides whether a paired spatial-grade sensitivity is
+warranted. Enabling grade force still requires smoothing, lap alignment, vertical-bias
+handling, and evidence that the sensitivity changes the decision. Obstacle calibration requires known
 geometry, video, vehicle/suspension evidence, and controlled before/after speed tests.
 Optional expensive global sensitivity may later add Sobol or grouped methods,
 especially when interactions materially change a drivetrain decision.

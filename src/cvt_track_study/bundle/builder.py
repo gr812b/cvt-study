@@ -9,6 +9,7 @@ from typing import Any
 from cvt_track_study import __version__
 from cvt_track_study.track.model import TrackBuildResult
 from cvt_track_study.track.settings import ReconstructionSettings
+from cvt_track_study.track.grade import screen_grade_materiality
 
 from .canonical import content_fingerprint
 from .gates import speed_gate_contracts
@@ -36,9 +37,11 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
         feature.get("obstacle_model", {}).get("status") == "declared"
         for feature in physical_features
     )
+    grade_screen = screen_grade_materiality(result.track_profile)
     simulation_contract = {
         "track_length_m": length,
         "grade_force_enabled": False,
+        "grade_screen": grade_screen,
         "capabilities": {
             "speed_gates_ready": bool(
                 (result.gate_review["recommendation"] == "accepted").any()
@@ -86,7 +89,7 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 "records": records(result.laps),
             },
             "gate_confidence_method": {
-                "method_version": "1.0.0",
+                "method_version": "1.1.0",
                 "component_scale": "0_to_100",
                 "overall_scale": "0_to_100",
                 "weights": dict(settings.weights),
@@ -101,6 +104,7 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 },
                 "records": records(result.gate_evidence),
             },
+            "grade_materiality_screen": grade_screen,
             "event_passes": records(result.event_passes),
             "review_records": records(result.gate_review),
         },

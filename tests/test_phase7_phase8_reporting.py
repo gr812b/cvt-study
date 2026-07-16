@@ -150,7 +150,7 @@ def test_evidence_assessment_preserves_project_and_track_warnings() -> None:
 def test_design_sweep_requires_numerical_evidence_and_statistical_readiness() -> None:
     designs = {}
     for value, identifier, time, energy in (
-        (1.0, "low", 2.0, 20.0),
+        (1.0, "low", 2.0, 5.0),
         (2.0, "middle", 1.0, 10.0),
         (3.0, "high", 3.0, 30.0),
     ):
@@ -190,6 +190,11 @@ def test_design_sweep_requires_numerical_evidence_and_statistical_readiness() ->
     assert decision["statistically_ready"] is True
     assert decision["directionally_robust"] is True
     assert decision["decision_ready"] is True
+    assert decision["metric_winners"] == {
+        "lap_time_penalty_vs_infinite_s": "middle",
+        "finite_ratio_opportunity_loss_energy_kj": "low",
+    }
+    assert decision["recommendation"] == "Decision-ready best tested design: middle."
 
 
 def _case(name: str, lap: float, opportunity: float) -> dict[str, object]:

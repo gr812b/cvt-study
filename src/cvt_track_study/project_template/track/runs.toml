@@ -1,4 +1,4 @@
-# Add one [[runs]] table per GPX recording. An empty project is valid to configure,
+# Add one [[runs]] table per GPX or FIT recording. An empty project is valid to configure,
 # but build-track will later require at least one centreline run.
 runs = []
 
@@ -10,3 +10,6 @@ runs = []
 # driver_id = "driver_1"
 # use_for_centreline = true
 # use_for_gate_evidence = true
+#
+# FIT is preferred when both files are exports of the same device recording.
+# Do not declare the GPX copy as a second run: one run_id is one physical recording.

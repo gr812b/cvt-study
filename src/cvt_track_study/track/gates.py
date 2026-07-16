@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.stats import binomtest
 
 from cvt_track_study.config.diagnostics import DiagnosticBag
 
@@ -114,6 +115,17 @@ def score_speed_gates(
         else:
             recommendation = "rejected"
         reasons = _gate_reasons(components, count, event, settings, cross_vehicle_status)
+        sustained = _sustained_response_statistics(valid, settings)
+        sustained_qualified = bool(
+            recommendation == "accepted" and sustained["evidence_pass"]
+        )
+        sustained_status = (
+            "accepted"
+            if sustained_qualified
+            else "entry_only_fallback"
+            if recommendation == "accepted"
+            else "not_evaluated"
+        )
         rows.append(
             {
                 "event_id": event_id,
@@ -136,6 +148,29 @@ def score_speed_gates(
                 "slowdown_signature": slowdown_signature,
                 "median_event_min_rel_m": median_min_rel,
                 "median_recovery_distance_m": median_recovery_distance,
+                "event_min_speed_median_mps": sustained["speed_median_mps"],
+                "event_min_speed_mean_mps": sustained["speed_mean_mps"],
+                "event_min_speed_standard_deviation_mps": sustained[
+                    "speed_standard_deviation_mps"
+                ],
+                "event_min_speed_p10_mps": sustained["speed_p10_mps"],
+                "event_min_speed_p90_mps": sustained["speed_p90_mps"],
+                "event_min_speed_iqr_mps": sustained["speed_iqr_mps"],
+                "event_min_location_iqr_m": sustained["location_iqr_m"],
+                "sustained_slowdown_success_fraction": sustained[
+                    "slowdown_success_fraction"
+                ],
+                "sustained_slowdown_p_value": sustained["slowdown_p_value"],
+                "sustained_leave_one_out_max_speed_shift_mps": sustained[
+                    "leave_one_out_max_speed_shift_mps"
+                ],
+                "sustained_leave_one_out_max_location_shift_m": sustained[
+                    "leave_one_out_max_location_shift_m"
+                ],
+                "sustained_confidence_score": sustained["confidence_score"],
+                "sustained_gate_qualified": sustained_qualified,
+                "sustained_gate_status": sustained_status,
+                "sustained_gate_reason": sustained["reason"],
                 "pass_count_score": 100.0 * pass_score,
                 "speed_repeatability_score": 100.0 * repeatability,
                 "braking_evidence_score": 100.0 * braking,
@@ -150,6 +185,89 @@ def score_speed_gates(
             }
         )
     return pd.DataFrame(rows).sort_values("sequence").reset_index(drop=True)
+
+
+def _sustained_response_statistics(
+    valid: pd.DataFrame, settings: ReconstructionSettings
+) -> dict[str, Any]:
+    """Qualify a response-minimum gate using repeatability and leave-one-out stability."""
+
+    required = valid[
+        ["entry_speed_mps", "event_min_speed_mps", "event_min_rel_m"]
+    ].dropna()
+    count = len(required)
+    empty = {
+        "speed_median_mps": math.nan,
+        "speed_mean_mps": math.nan,
+        "speed_standard_deviation_mps": math.nan,
+        "speed_p10_mps": math.nan,
+        "speed_p90_mps": math.nan,
+        "speed_iqr_mps": math.nan,
+        "location_iqr_m": math.nan,
+        "slowdown_success_fraction": math.nan,
+        "slowdown_p_value": math.nan,
+        "leave_one_out_max_speed_shift_mps": math.nan,
+        "leave_one_out_max_location_shift_m": math.nan,
+        "confidence_score": 0.0,
+        "evidence_pass": False,
+        "reason": "insufficient complete event-response passes",
+    }
+    if count < settings.minimum_valid_passes:
+        return empty
+
+    speeds = required["event_min_speed_mps"].astype(float)
+    locations = required["event_min_rel_m"].astype(float)
+    slowdown = required["entry_speed_mps"].astype(float) - speeds
+    successes = int((slowdown >= settings.braking_threshold_mps).sum())
+    success_fraction = successes / count
+    p_value = float(binomtest(successes, count, 0.5, alternative="greater").pvalue)
+    speed_iqr = float(speeds.quantile(0.75) - speeds.quantile(0.25))
+    location_iqr = float(locations.quantile(0.75) - locations.quantile(0.25))
+    loo_speed = _leave_one_out_median_shift(speeds.to_numpy(float))
+    loo_location = _leave_one_out_median_shift(locations.to_numpy(float))
+    maximum_location_iqr = max(5.0, 2.0 * settings.profile_spacing_m)
+    maximum_loo_speed_shift = max(0.25, 0.25 * settings.repeatability_scale_mps)
+    maximum_loo_location_shift = max(2.5, settings.profile_spacing_m)
+    checks = {
+        "repeatable_slowdown": success_fraction >= 0.80 and p_value <= 0.05,
+        "speed_repeatability": speed_iqr <= settings.repeatability_scale_mps,
+        "location_repeatability": location_iqr <= maximum_location_iqr,
+        "leave_one_out_speed_stability": loo_speed <= maximum_loo_speed_shift,
+        "leave_one_out_location_stability": loo_location <= maximum_loo_location_shift,
+    }
+    failed = [name.replace("_", " ") for name, passed in checks.items() if not passed]
+    confidence = 100.0 * sum(checks.values()) / len(checks)
+    return {
+        "speed_median_mps": float(speeds.median()),
+        "speed_mean_mps": float(speeds.mean()),
+        "speed_standard_deviation_mps": (
+            float(speeds.std(ddof=1)) if count > 1 else math.nan
+        ),
+        "speed_p10_mps": float(speeds.quantile(0.10)),
+        "speed_p90_mps": float(speeds.quantile(0.90)),
+        "speed_iqr_mps": speed_iqr,
+        "location_iqr_m": location_iqr,
+        "slowdown_success_fraction": success_fraction,
+        "slowdown_p_value": p_value,
+        "leave_one_out_max_speed_shift_mps": loo_speed,
+        "leave_one_out_max_location_shift_m": loo_location,
+        "confidence_score": confidence,
+        "evidence_pass": all(checks.values()),
+        "reason": (
+            "repeatable response minimum with significant slowdown and stable leave-one-out medians"
+            if all(checks.values())
+            else "entry-only gate retained; failed " + ", ".join(failed)
+        ),
+    }
+
+
+def _leave_one_out_median_shift(values: np.ndarray) -> float:
+    full = float(np.median(values))
+    shifts = [
+        abs(float(np.median(np.delete(values, index))) - full)
+        for index in range(len(values))
+    ]
+    return max(shifts, default=math.inf)
 
 def _gate_reasons(
     components: Mapping[str, float],
@@ -242,7 +360,13 @@ def _suggested_action(row: pd.Series, settings: ReconstructionSettings) -> str:
                 + ", ".join(flags)
                 + "."
             )
-        return "No required action; retain the empirical entry-speed distribution."
+        if row.get("sustained_gate_status") == "entry_only_fallback":
+            return (
+                "Retain the accepted entry gate; do not add a response-minimum gate: "
+                + str(row.get("sustained_gate_reason", "insufficient sustained evidence"))
+                + "."
+            )
+        return "Retain both the empirical entry gate and qualified response-minimum gate."
     if row["recommendation"] == "must_fix":
         return "Verify the anchor coordinate against video/map evidence before using this event."
     if row["valid_pass_count"] < settings.minimum_valid_passes:

@@ -8,10 +8,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from cvt_track_study.bundle import TrackBundle, build_track_bundle
+from cvt_track_study.config import ProjectLoader
 from cvt_track_study.config.uncertainty import UncertaintyValidationError
 from cvt_track_study.contracts.obstacles import validate_obstacle_model_contract
 from cvt_track_study.simulation.dynamics import driver_command
-from cvt_track_study.simulation.integrator import implicit_tire_slip_step
+from cvt_track_study.simulation.integrator import (
+    _record_feature_entry_crossings,
+    implicit_tire_slip_step,
+)
 from cvt_track_study.simulation.models import (
     CVTModel,
     DriverModel,
@@ -20,14 +25,24 @@ from cvt_track_study.simulation.models import (
 )
 from cvt_track_study.simulation.obstacles import (
     FixedSpecificEnergyLoss,
+    NoObstacle,
     ObstacleContext,
     SmoothProfileObstacle,
     SpeedQuadraticEnergyLoss,
     raised_cosine_density,
 )
 from cvt_track_study.simulation.powertrain import evaluate_powertrain
-from cvt_track_study.simulation.service import run_baseline_project
-from cvt_track_study.simulation.track import RuntimeSpeedGate, RuntimeTrack
+from cvt_track_study.simulation.service import (
+    resolve_simulation_cases,
+    run_baseline_project,
+)
+from cvt_track_study.simulation.track import (
+    RuntimeFeature,
+    RuntimeInterval,
+    RuntimeSpeedGate,
+    RuntimeTrack,
+)
+from cvt_track_study.track import build_project_track
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "examples" / "reference_project"
@@ -175,6 +190,26 @@ def test_speed_quadratic_obstacle_uses_entry_speed_not_local_slowdown() -> None:
     assert model.evaluate(replace(base, vehicle_speed_mps=0.5)).resistance_force_n == pytest.approx(force)
 
 
+def test_feature_entry_speed_is_interpolated_at_simulated_boundary_crossing() -> None:
+    feature = RuntimeFeature(
+        identifier="rocks",
+        name="Rocks",
+        response_group_id="rocks",
+        interval=RuntimeInterval(10.0, 20.0, 10.0, False),
+        model=NoObstacle(),
+    )
+    recorded: dict[str, float] = {}
+    _record_feature_entry_crossings(
+        features=(feature,),
+        recorded=recorded,
+        start_distance_m=9.0,
+        end_distance_m=11.0,
+        start_speed_mps=8.0,
+        end_speed_mps=6.0,
+    )
+    assert recorded["rocks"] == pytest.approx(7.0)
+
+
 def test_gate_is_a_one_way_ceiling_not_a_speed_reset() -> None:
     track = simple_track(gate_speed_mps=5.0)
     driver = DriverModel(
@@ -254,6 +289,40 @@ def test_bounded_and_infinite_powertrain_modes() -> None:
     assert reference.engine_speed_rpm == pytest.approx(3000.0)
 
 
+def test_design_candidates_resolve_to_one_scenario_level_infinite_reference(
+    tmp_path: Path,
+) -> None:
+    resolution = ProjectLoader().resolve(REFERENCE, study="final_drive_sweep")
+    assert resolution.is_valid
+    build = build_project_track(
+        REFERENCE, output_directory=tmp_path / "track_build"
+    )
+    bundle = TrackBundle(build_track_bundle(build))
+    vehicle_raw = resolution.data["vehicles"]["vehicle_A"]
+    base_study_raw = resolution.data["studies"]["baseline"]
+    common = {
+        "vehicle_id": "vehicle_A",
+        "vehicle_raw": vehicle_raw,
+        "study_raw": base_study_raw,
+        "track_raw": resolution.data["track"],
+        "bundle": bundle,
+        "shared_reference": True,
+    }
+    bounded_low, reference_low, _, _ = resolve_simulation_cases(
+        **common,
+        design_values_si={"drivetrain.final_drive_ratio": 6.0},
+    )
+    bounded_high, reference_high, _, _ = resolve_simulation_cases(
+        **common,
+        design_values_si={"drivetrain.final_drive_ratio": 9.0},
+    )
+
+    assert bounded_low.cvt.final_drive_ratio == pytest.approx(6.0)
+    assert bounded_high.cvt.final_drive_ratio == pytest.approx(9.0)
+    assert reference_low.cvt == reference_high.cvt
+    assert reference_low.cvt.infinite_launch_wheel_torque_cap_nm is not None
+
+
 def test_implicit_slip_root_satisfies_backward_euler_residual() -> None:
     slip, force = implicit_tire_slip_step(
         previous_slip_speed_mps=-0.4,
@@ -314,4 +383,3 @@ def test_reference_project_baseline_closes_energy_and_meets_gates(tmp_path: Path
     )
     assert feature_rows
     assert all(row["bounded_entry_speed_mps"] != "" for row in feature_rows)
-

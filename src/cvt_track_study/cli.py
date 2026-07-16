@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     ingest_parser = subparsers.add_parser(
-        "ingest", help="Parse declared GPX tracks and export canonical telemetry."
+        "ingest", help="Parse declared GPX/FIT tracks and export canonical telemetry."
     )
     ingest_parser.add_argument("project", type=Path)
     ingest_parser.add_argument(
@@ -121,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build_track_parser = subparsers.add_parser(
         "build-track",
-        help="Ingest GPX, reconstruct laps/centreline, score speed gates, and create review artifacts.",
+        help="Ingest GPX/FIT, reconstruct laps/centreline, score speed gates, and create review artifacts.",
     )
     build_track_parser.add_argument("project", type=Path)
     build_track_parser.add_argument(

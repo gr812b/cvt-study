@@ -51,5 +51,5 @@ def test_validate_bundle_command(tmp_path: Path, capsys) -> None:
     capsys.readouterr()
     assert main(["validate-bundle", str(output / "track_bundle.json")]) == 0
     captured = capsys.readouterr().out
-    assert "Valid track bundle 1.2.0" in captured
+    assert "Valid track bundle 1.2.1" in captured
     assert "active speed gate" in captured

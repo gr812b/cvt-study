@@ -6,7 +6,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 from math import tanh
-from typing import Mapping
+from typing import Any, Mapping
 
 import numpy as np
 from numpy.typing import NDArray
@@ -199,6 +199,15 @@ def run_simulation(
             completed = True
             reason = "track_complete"
 
+        _record_feature_entry_crossings(
+            features=track.features,
+            recorded=feature_entry_speeds,
+            start_distance_m=distance,
+            end_distance_m=new_distance,
+            start_speed_mps=speed,
+            end_speed_mps=new_speed,
+        )
+
         actual_step = new_time - time_s
         average_speed = 0.5 * (speed + new_speed)
         average_wheel_speed = 0.5 * (wheel_speed + new_wheel_speed)
@@ -288,6 +297,33 @@ def run_simulation(
         feature_entry_speeds_mps=feature_entry_speeds,
         feature_obstacle_energy_j=feature_obstacle_energy,
     )
+
+
+def _record_feature_entry_crossings(
+    *,
+    features: tuple[Any, ...],
+    recorded: dict[str, float],
+    start_distance_m: float,
+    end_distance_m: float,
+    start_speed_mps: float,
+    end_speed_mps: float,
+) -> None:
+    """Capture interpolated simulated speed at the physical feature boundary."""
+
+    span = end_distance_m - start_distance_m
+    if span <= 0.0:
+        return
+    for feature in features:
+        if feature.identifier in recorded:
+            continue
+        boundary = float(feature.interval.start_s_m)
+        if start_distance_m < boundary <= end_distance_m:
+            fraction = (boundary - start_distance_m) / span
+            recorded[feature.identifier] = max(
+                0.0,
+                float(start_speed_mps)
+                + fraction * (float(end_speed_mps) - float(start_speed_mps)),
+            )
 
 
 def _report_trace(

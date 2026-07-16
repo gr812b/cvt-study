@@ -5,7 +5,7 @@ These terms are contracts, not interchangeable prose.
 - **Project:** one self-contained study workspace with a track, one or more vehicles,
   study definitions, and local results.
 - **Track:** the physical course and its track-specific environment/model inputs.
-- **Run:** one GPX recording associated with one vehicle and, where known, one driver.
+- **Run:** one GPX or FIT recording associated with one vehicle and, where known, one driver.
 - **Lap:** one detected traversal of the closed course within a run.
 - **Centreline:** the common spatial reference reconstructed from selected runs.
 - **Track coordinate `s`:** distance along the centreline, periodic over one lap.

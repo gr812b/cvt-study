@@ -74,7 +74,7 @@ clipped to declared minimum and maximum scales. A traction multiplier can modify
 local friction. Optional unresolved dissipation uses the same entry-speed energy
 law as `speed_quadratic_energy`.
 
-This profile is for user-supplied feature geometry. Raw GPX elevation does not
+This profile is for user-supplied feature geometry. Raw GPX/FIT elevation does not
 activate grade force in Phase 5.
 
 ## Defaults and uncertainty

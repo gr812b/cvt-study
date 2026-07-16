@@ -82,20 +82,21 @@ def validate_track_bundle(data: Mapping[str, Any]) -> None:
 
     if simulation.get("grade_force_enabled") is not False:
         errors.append(
-            "simulation_contract.grade_force_enabled must remain false in schema 1.2.0"
+            "simulation_contract.grade_force_enabled must remain false in schema 1.2.x"
         )
+    _validate_grade_screen(simulation.get("grade_screen"), errors)
     capabilities = _mapping(
         simulation.get("capabilities"), "simulation_contract.capabilities", errors
     )
     if capabilities and capabilities.get("grade_force_ready") is not False:
-        errors.append("schema 1.2.0 does not support grade force")
+        errors.append("schema 1.2.x does not support grade force")
     if capabilities and capabilities.get("uncertainty_roles_ready") is not True:
         errors.append(
-            "schema 1.2.0 requires capabilities.uncertainty_roles_ready = true"
+            "schema 1.2.x requires capabilities.uncertainty_roles_ready = true"
         )
 
     if identity and identity.get("closed_course") is not True:
-        errors.append("schema 1.2.0 requires identity.closed_course = true")
+        errors.append("schema 1.2.x requires identity.closed_course = true")
 
     gate_method = _mapping(evidence.get("gate_confidence_method"), "evidence.gate_confidence_method", errors)
     if gate_method:
@@ -138,6 +139,26 @@ def _validate_version(raw: Any, errors: list[str]) -> None:
         errors.append(
             f"track-bundle minor version {raw} is {direction} than supported {CURRENT_TRACK_BUNDLE_SCHEMA}; "
             "this reader intentionally supports only the current minor contract"
+        )
+
+
+def _validate_grade_screen(raw: Any, errors: list[str]) -> None:
+    screen = _mapping(raw, "simulation_contract.grade_screen", errors)
+    if not screen:
+        return
+    if screen.get("grade_force_enabled") is not False:
+        errors.append("grade_screen.grade_force_enabled must remain false")
+    allowed_statuses = {
+        "insufficient_elevation_evidence",
+        "elevation_not_repeatable",
+        "paired_grade_sensitivity_recommended",
+        "grade_proxy_immaterial",
+    }
+    if screen.get("status") not in allowed_statuses:
+        errors.append("grade_screen.status is not a supported materiality-screen result")
+    if not isinstance(screen.get("spatial_grade_sensitivity_recommended"), bool):
+        errors.append(
+            "grade_screen.spatial_grade_sensitivity_recommended must be boolean"
         )
 
 
@@ -290,6 +311,11 @@ def _validate_gates(raw: Any, group_ids: set[str], length: float, errors: list[s
         status = row.get("status")
         if status not in _ALLOWED_GATE_STATUS:
             errors.append(f"speed gate {identifier!r} has invalid status {status!r}")
+        gate_type = row.get("gate_type", "entry_speed")
+        if gate_type not in {"entry_speed", "sustained_response"}:
+            errors.append(
+                f"speed gate {identifier!r} has invalid gate_type {gate_type!r}"
+            )
         position = _number(row.get("position_s_m"), f"speed gate {identifier!r}.position_s_m", errors)
         if position is not None:
             _bounded_coordinate(position, length, f"speed gate {identifier!r}.position_s_m", errors)

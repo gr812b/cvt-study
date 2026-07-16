@@ -27,6 +27,19 @@ def test_reference_project_builds_reviewable_track(tmp_path: Path) -> None:
         "feature_end_horizontal_uncertainty_m",
         "feature_end_effective_error_m",
     }.issubset(result.gate_review.columns)
+    assert {
+        "sustained_gate_status",
+        "sustained_slowdown_p_value",
+        "sustained_leave_one_out_max_speed_shift_mps",
+        "sustained_leave_one_out_max_location_shift_m",
+    }.issubset(result.gate_review.columns)
+    accepted = result.gate_review[
+        result.gate_review["recommendation"] == "accepted"
+    ]
+    assert set(accepted["sustained_gate_status"]) <= {
+        "accepted",
+        "entry_only_fallback",
+    }
 
 
 def test_lap_gate_is_not_automatically_a_speed_gate(tmp_path: Path) -> None:

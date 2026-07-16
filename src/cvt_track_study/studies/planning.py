@@ -14,9 +14,9 @@ from cvt_track_study.uncertainty import quantity_quantile_si
 from .model import DesignPoint
 
 REFERENCE_INVARIANT_DESIGN_PATHS = {
-    # The infinite reference never uses the bounded CVT's minimum ratio. Every
-    # other presently supported physical design path can alter the reference.
     "drivetrain.cvt.minimum_reduction_ratio",
+    "drivetrain.cvt.maximum_reduction_ratio",
+    "drivetrain.final_drive_ratio",
 }
 
 
@@ -137,9 +137,19 @@ def study_plan(
     )
 
 
-def reference_cache_key(replicate: int, design: DesignPoint) -> tuple[int, str]:
-    shared = design.path in REFERENCE_INVARIANT_DESIGN_PATHS
-    return (replicate, "shared") if shared else (replicate, design.identifier)
+def reference_cache_key(
+    replicate: int,
+    design: DesignPoint,
+    *,
+    share_across_designs: bool = True,
+) -> tuple[int, str]:
+    """Return one common reference key for all candidates in a design sweep."""
+
+    return (
+        (replicate, "shared")
+        if share_across_designs
+        else (replicate, design.identifier)
+    )
 
 
 def _replicates(sampling: Mapping[str, Any], override: int | None) -> int:

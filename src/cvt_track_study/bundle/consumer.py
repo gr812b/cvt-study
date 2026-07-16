@@ -44,6 +44,7 @@ class SimulationSpeedGate:
     median_speed_mps: float
     p90_speed_mps: float
     confidence_score: float
+    gate_type: str = "entry_speed"
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,7 @@ def _gate(row: Mapping[str, Any]) -> SimulationSpeedGate:
         median_speed_mps=float(summary["median_mps"]),
         p90_speed_mps=float(summary["p90_mps"]),
         confidence_score=float(row["confidence"]["overall_score"]),
+        gate_type=str(row.get("gate_type", "entry_speed")),
     )
 
 

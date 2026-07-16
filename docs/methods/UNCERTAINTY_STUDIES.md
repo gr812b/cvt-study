@@ -135,15 +135,17 @@ reported as a quick check rather than a converged production study.
 
 ## Reference caching
 
-An infinite reference is reused only when the swept design path is mathematically
-absent from the reference mechanism. The current safe shared path is bounded-CVT
-minimum reduction ratio. Final drive and maximum reduction ratio are not shared
-because the finite launch-torque contract depends on them even for the otherwise
-unbounded reference.
+Every candidate in a design-sweep scenario is compared with one common infinite
+reference. Its finite launch-torque cap is frozen from the scenario-level nominal
+transmission contract before candidate final-drive/CVT-ratio values are applied.
+This makes `bounded_lap_time - reference_lap_time` an exact shifted version of
+bounded lap time within that scenario, so both must rank candidates identically.
 
 The manifest records bounded runs, reference runs, cache hits, and a fingerprint
-of each reference case. A speed optimization may never alter the physical
-comparison contract.
+of each reference case. Structural-sensitivity levels still receive their own
+matched reference because those levels are assumptions, not competing designs.
+Finite-ratio opportunity energy remains a counterfactual diagnostic and does not
+veto the lap-time winner.
 
 ## Numerical quality gate
 
@@ -164,8 +166,10 @@ an engineering decision.
 
 Phase 6 propagates all declared scalar and categorical simulation inputs plus
 empirical gate targets. It does not yet perturb physical feature coordinates,
-centreline geometry, or GPX elevation. The manifest lists these omissions. Grade
-force remains disabled.
+centreline geometry, or telemetry elevation. The manifest lists these omissions.
+The bundle first screens elevation coverage, repeatability, and a grade-magnitude
+proxy; grade force remains disabled unless a material screen leads to a paired
+with/without-grade sensitivity that changes the decision.
 
 
 ## Semantic uncertainty roles

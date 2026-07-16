@@ -14,7 +14,7 @@ A completed result preserves:
 - the invoked command and a provenance graph.
 
 Cache contents are an optimization and are not required to interpret a result.
-Raw GPX remains project evidence; the bundle is the exact simulator input.
+Raw GPX/FIT remains project evidence; the bundle is the exact simulator input.
 
 ## Before a decision run
 

@@ -151,6 +151,7 @@ class CVTModel:
     final_drive_ratio: float
     efficiency: float
     ideal_launch_clutch: bool = True
+    infinite_launch_wheel_torque_cap_nm: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -167,6 +168,13 @@ class CVTModel:
             )
         if self.efficiency > 1.0:
             raise SimulationInputError("CVT/drivetrain efficiency cannot exceed one.")
+        if self.infinite_launch_wheel_torque_cap_nm is not None and (
+            not isfinite(self.infinite_launch_wheel_torque_cap_nm)
+            or self.infinite_launch_wheel_torque_cap_nm <= 0.0
+        ):
+            raise SimulationInputError(
+                "infinite_launch_wheel_torque_cap_nm must be positive and finite when set."
+            )
 
 
 @dataclass(frozen=True, slots=True)
