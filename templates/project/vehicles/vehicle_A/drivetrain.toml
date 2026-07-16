@@ -1,0 +1,39 @@
+[drivetrain.final_drive_ratio]
+nominal = 7.556
+unit = "1"
+
+[drivetrain.final_drive_ratio.source]
+kind = "derived"
+reference = "sprocket and gearbox tooth counts"
+
+[drivetrain.final_drive_ratio.uncertainty]
+distribution = "fixed"
+reason = "Exact ratio derived from integer tooth counts."
+
+[drivetrain.cvt.maximum_reduction_ratio]
+nominal = 3.5
+unit = "1"
+
+[drivetrain.cvt.maximum_reduction_ratio.source]
+kind = "engineering_estimate"
+reference = "replace with measured pulley-ratio range"
+
+[drivetrain.cvt.maximum_reduction_ratio.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 3.4
+upper = 3.6
+
+[drivetrain.cvt.minimum_reduction_ratio]
+nominal = 0.9
+unit = "1"
+
+[drivetrain.cvt.minimum_reduction_ratio.source]
+kind = "engineering_estimate"
+reference = "replace with measured pulley-ratio range"
+
+[drivetrain.cvt.minimum_reduction_ratio.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 0.86
+upper = 0.94

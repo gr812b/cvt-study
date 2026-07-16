@@ -1,0 +1,1068 @@
+\documentclass[11pt,oneside]{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{frameworkblue}{HTML}{244A73}
+\definecolor{frameworkgray}{HTML}{5D6874}
+\hypersetup{colorlinks=true,linkcolor=frameworkblue,urlcolor=frameworkblue}
+\setlist{nosep}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\setlength{\emergencystretch}{2em}
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+\fancyhf{}
+\fancyhead[L]{Measured Track-Based Drivetrain Design Framework}
+\fancyhead[R]{Methods}
+\fancyfoot[C]{\thepage}
+\lstset{basicstyle=\ttfamily\small,frame=single,breaklines=true,columns=fullflexible}
+
+\newcommand{\framework}{Measured Track-Based Drivetrain Design Framework}
+\newcommand{\bundle}{Track Evidence Bundle}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\quality}{\mathcal{Q}}
+
+\title{\textbf{Measured Track-Based Drivetrain Design Framework}\\
+       \Large Methods, contracts, uncertainty, and decision reporting\\[1em]
+       \large Working Phase 8 checkpoint}
+\author{Framework technical documentation}
+\date{Version 0.8.0.dev0}
+
+\begin{document}
+\pagenumbering{roman}
+\maketitle
+
+\begin{abstract}
+This document specifies a reproducible method for converting repeated closed-course
+GPX recordings into drivetrain design evidence.  It explains the complete chain:
+configuration provenance, GPX ingestion, lap reconstruction, centreline and
+map-matching, physical feature and response-group contracts, speed-gate confidence,
+the versioned \bundle, vehicle and tire equations, obstacle work, bounded and
+infinite ideal-CVT mechanisms, gate enforcement, energy closure, uncertainty
+representation, paired studies, ranking, attribution, hierarchical reporting, and
+provenance.  The document is organized so that the high-level study descriptions in
+Chapter~\ref{ch:studies} reference one common set of mechanisms rather than repeating
+derivations.  This is important: a study changes which declared inputs are varied; it
+does not silently change the physical model.
+
+The current ideal-CVT comparison is one implementation inside a broader measured
+track-based framework.  Section~\ref{sec:extensions} states the interfaces by which a
+transient CINDER drivetrain, a richer tire law, calibrated obstacle models, or another
+driveline may be introduced without rewriting the upstream evidence pipeline.
+\end{abstract}
+
+\tableofcontents
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+\chapter{Purpose and scope}\label{ch:purpose}
+
+\section{Engineering decision}
+
+The framework addresses a decision that is narrower than full lap-time prediction and
+broader than a single CVT tuning calculation:
+
+\begin{quote}
+Given reviewed evidence from a measured track, declared vehicle and model uncertainty,
+and an explicit comparison contract, which tested drivetrain design is preferable, why,
+and how stable is that conclusion?
+\end{quote}
+
+The answer has four layers.  First, the track evidence must be credible enough to
+constrain the simulation.  Second, the mechanism must close its physical balances and
+respect measured gates.  Third, designs must be compared under paired physical
+scenarios.  Fourth, the report must distinguish numerical validity, physical output
+variation, finite-sample estimation uncertainty, and directional robustness.
+
+The software does not claim that GPS alone identifies suspension work, tire parameters,
+driver strategy, or rubber-belt shift mechanics.  Unknowns are represented as explicit
+uncertainty or declared limitations rather than hidden fitting freedom.
+
+\section{Current flagship comparison}
+
+The implemented reference problem compares:
+
+\begin{enumerate}
+  \item a bounded ideal CVT with declared minimum and maximum reduction ratios; and
+  \item an otherwise identical infinite-ratio reference that removes the operating
+        ratio window but retains finite launch torque.
+\end{enumerate}
+
+The infinite case is a counterfactual opportunity bound.  It is not a realizable
+drivetrain and is never reported as a hardware recommendation.  Its purpose is to
+isolate what the finite ratio window prevents under the same engine, efficiency,
+vehicle, tire, track, gates, driver envelope, and launch-capacity contract.  The exact
+powertrain definition appears in Section~\ref{sec:cvt}.
+
+\section{Evidence and model boundaries}
+
+The framework keeps three statements separate:
+
+\begin{description}
+  \item[Measured evidence] what was observed in GPX passes, feature surveys, video, or
+  another declared source;
+  \item[Model declaration] the equations and parameter distributions used to interpret
+  the evidence; and
+  \item[Decision synthesis] the ranking and warnings produced from completed paired
+  cases.
+\end{description}
+
+The \bundle{} is the boundary between the first two.  It contains everything a
+downstream simulator is allowed to know about the track, but it does not contain the
+vehicle model or the final decision.
+
+\chapter{Architecture and reproducible configuration}\label{ch:architecture}
+
+\section{Pipeline}
+
+\begin{center}
+\fbox{\begin{minipage}{0.92\textwidth}
+\centering
+Project and profiles $\rightarrow$ canonical GPX $\rightarrow$ reconstructed laps and
+centreline $\rightarrow$ reviewed features and gates $\rightarrow$ \bundle\\[0.4em]
+$\rightarrow$ drivetrain/tire/obstacle mechanism $\rightarrow$ paired study execution
+$\rightarrow$ physical and uncertainty attribution $\rightarrow$ decision-first report
+\end{minipage}}
+\end{center}
+
+Each arrow is a contract and a provenance checkpoint.  The mechanism may consume the
+bundle, but it may not reinterpret raw GPX internally.  Reporting consumes completed
+machine artifacts and cannot change simulation state.
+
+\section{Project ownership}
+
+A project owns track declarations, run identities, vehicle files, studies, and results.
+Reusable profiles may provide broad priors or team defaults.  Resolution applies layers
+in a declared order and exports the final merged input.  A local override replaces a
+leaf but does not erase its source history from the resolution manifest.
+
+Every physical scalar is represented as
+
+\begin{equation}
+q = \left(q_0,\; u,\; s,\; \mathcal{D},\; r\right),
+\end{equation}
+
+where $q_0$ is the nominal value, $u$ is the unit, $s$ is source provenance,
+$\mathcal{D}$ is an uncertainty declaration, and $r$ is the semantic uncertainty role.
+A value treated as exact uses a fixed distribution with an explicit reason.  This
+prevents a numerical literal from silently masquerading as perfect knowledge.
+
+\section{Units and physical support}
+
+Values are converted to SI during resolution.  Units remain visible in the input
+contract and human outputs.  Distribution support is validated before sampling.  The
+system rejects, for example, nonpositive mass, efficiency above one, a CVT minimum
+reduction greater than its maximum, negative uncertainty scales, invalid probability
+vectors, or physically unsupported obstacle parameters.  Rejection is preferred to
+silent clipping because clipping changes the declared distribution.
+
+\section{Fingerprints}
+
+Canonical strict JSON serialization produces a content fingerprint
+
+\begin{equation}
+h = \operatorname{SHA256}\!\left(\operatorname{canonical}(\mathcal{C})\right),
+\end{equation}
+
+where $\mathcal{C}$ is the resolved scientific contract.  Timestamps, process IDs,
+machine-dependent paths, and cache counters are excluded from scientific fingerprints.
+Study fingerprints own resume workspaces; simulation fingerprints own cached summaries.
+
+\chapter{GPX ingestion}\label{ch:gpx}
+
+\section{Run identity}
+
+Each GPX file has a unique run identifier plus vehicle and driver identifiers.  The
+manifest independently controls whether the run contributes to centreline geometry and
+gate evidence.  These identities later define a complete paired lap draw in
+Section~\ref{sec:paired-gates}; therefore, distinct sessions must not share one run ID.
+
+\section{Safe parsing and canonical telemetry}
+
+The parser uses a hardened XML implementation.  It preserves segment boundaries,
+timestamps, coordinates, optional elevation, and optional reported speed.  Invalid
+points are diagnosed rather than interpolated invisibly.  Time must be monotonic within
+a usable segment.
+
+If no trustworthy speed field exists, speed is derived from horizontal displacement and
+elapsed time.  For consecutive points $i-1$ and $i$,
+
+\begin{equation}
+v_i = \frac{d_{\mathrm{geo}}(\mathbf{p}_{i-1},\mathbf{p}_i)}
+             {t_i-t_{i-1}},
+\label{eq:gpx-speed}
+\end{equation}
+
+provided the elapsed time is positive and the interval passes diagnostics.  The output
+records whether each speed was reported or derived.  Equation~\eqref{eq:gpx-speed} is an
+observation channel, not a vehicle dynamic equation.
+
+\section{Diagnostics}
+
+Ingestion reports missing timestamps, coordinate errors, duplicated points, abnormal
+time gaps, implausible speed, and derived-speed spikes.  Elevation is retained but is not
+differentiated into road grade in the current release.  This limitation is repeated in
+Chapter~\ref{ch:limitations} because differentiating noisy altitude would introduce a
+new force model and uncertainty contract.
+
+\chapter{Track reconstruction}\label{ch:track}
+
+\section{Local coordinate frame}
+
+Latitude and longitude are projected into a local metric frame $(x,y)$ about a robust
+course origin.  The local approximation is appropriate for a compact endurance course;
+the original geographic coordinates remain in provenance and review outputs.
+
+\section{Lap detection}
+
+A declared lap-gate event defines $s=0$.  Candidate crossings within a configured
+radius are ordered in time.  Adjacent crossings form candidate laps.  A lap is retained
+only if timing, moving-speed coverage, maximum-speed, data-gap, and later map-matching
+checks pass.  Rejection reasons remain row-level evidence.
+
+This is deliberately not an optimization that selects only the fastest or cleanest
+laps.  It is a quality filter whose thresholds are declared before results are viewed.
+
+\section{Centreline construction}
+
+Valid geometry-contributing laps are aligned to the lap gate, resampled, and combined
+into a common closed centreline.  Let $\mathbf{c}(s)=[x(s),y(s)]^T$ with
+$s\in[0,L)$.  The distance coordinate satisfies
+
+\begin{equation}
+s_{j+1}=s_j+\lVert \mathbf{c}_{j+1}-\mathbf{c}_j\rVert_2,
+\qquad L=s_{N}.
+\end{equation}
+
+The output spacing is a configuration choice, not added physical resolution.  Median
+aggregation limits the influence of one poorly aligned pass.  A closed-course seam is
+handled explicitly so features and windows may wrap across start/finish.
+
+\section{Map matching}
+
+Each retained GPX point is projected to the centreline, producing along-track coordinate
+$s$, signed/unsigned cross-track error, and local quality information.  A lap whose
+coverage or map error violates the declared threshold is excluded from behavioral
+evidence.  The matched points, not the raw timestamp order alone, define the spatial
+windows used for gate metrics.
+
+Centreline curvature is calculated for diagnostics.  The current longitudinal vehicle
+model does not spend tire capacity on curvature-derived lateral demand; measured gates
+represent repeatable corner-entry behavior.  This boundary prevents an unvalidated
+lateral model from being hidden inside track reconstruction.
+
+\chapter{Physical features and response groups}\label{ch:features}
+
+\section{Geometry contract}
+
+A feature declares a stable ID, geographic anchor, horizontal uncertainty, interval
+extent, extent uncertainty, source, analysis role, and optional gate candidacy.  After
+projection, the bundle records start, anchor, end, wrap status, effective position error,
+and review flags.
+
+The anchor is not automatically the physical entry.  The before/after extents express
+where the declared physical mechanism is active.  Entry, approach, exit, and recovery
+windows are constructed relative to those boundaries.
+
+\section{Response groups}
+
+A response group represents one behavioral speed response.  Multiple nearby physical
+features may belong to one response group if drivers treat them as one compound event.
+Conversely, separate responses must not be merged only because features are close.  One
+accepted speed gate is attached to a response group, while obstacle energy remains
+attributable to individual physical features.
+
+This separation prevents double enforcement: a log row and a rut can contribute
+separate physical work while sharing one measured entry-speed ceiling.
+
+\section{Pass metrics}
+
+For each valid lap and response group, the framework extracts approach speed, entry
+speed, minimum event speed, braking drop, recovery distance, lap median pace, vehicle,
+driver, and coordinate quality.  The pass table is the auditable basis of the confidence
+score in Chapter~\ref{ch:gates} and paired gate sampling in
+Section~\ref{sec:paired-gates}.
+
+\chapter{Speed-gate confidence and enforcement}\label{ch:gates}
+
+\section{Confidence components}
+
+The gate score is an evidence summary, not a posterior probability.  For $n$ eligible
+passes and target count $n_{\star}$,
+
+\begin{align}
+c_{\mathrm{count}} &= \min\left(1,\frac{n}{n_{\star}}\right),\\
+c_{\mathrm{repeat}} &= \max\left(0,1-\frac{\operatorname{IQR}(v_{\mathrm{entry}})}
+                                            {s_{\mathrm{repeat}}}\right),\\
+c_{\mathrm{brake}} &= \frac{1}{n}\sum_{i=1}^{n}
+   \mathbf{1}\!\left(\Delta v_{\mathrm{brake},i}\geq \Delta v_{\star}\right),\\
+c_{\mathrm{pace}} &= 1-\left|\operatorname{corr}
+   (v_{\mathrm{entry}},v_{\mathrm{lap,median}})\right|,\\
+c_{\mathrm{coord}} &= \max\left(0,1-\frac{e_{\mathrm{effective}}}{e_{\max}}\right).
+\end{align}
+
+With at least two vehicles, cross-vehicle agreement is
+
+\begin{equation}
+c_{\mathrm{vehicle}}=\max\left(0,1-
+\frac{\max_j \widetilde v_j-\min_j \widetilde v_j}{s_{\mathrm{vehicle}}}\right),
+\end{equation}
+
+where $\widetilde v_j$ is the vehicle-specific median.  A single vehicle receives a
+declared neutral score of $0.5$, not fabricated agreement.
+
+The overall score is
+
+\begin{equation}
+C=100\sum_k w_k c_k, \qquad \sum_k w_k=1.
+\label{eq:gate-score}
+\end{equation}
+
+If weights do not sum to one within tolerance, they are normalized and a warning is
+emitted.  The report always exports the components, weights, reasons, and recommendation.
+
+\section{Recommendations}
+
+A candidate with coordinate error above the declared limit is \emph{must fix} regardless
+of Equation~\eqref{eq:gate-score}.  Too few valid passes requires review.  Otherwise,
+declared accept and review thresholds classify the gate.  The score never overrides a
+hard geometric failure.
+
+\section{Braking envelope}\label{sec:gate-envelope}
+
+An accepted gate at $s_g$ with target $v_g$ is backward propagated using the effective
+braking deceleration $a_b>0$.  At current coordinate $s$, the circular distance ahead is
+$d_g(s)$ and the safe speed is
+
+\begin{equation}
+v_{\mathrm{safe},g}(s)=\sqrt{v_g^2+2a_b d_g(s)}.
+\label{eq:brake-envelope}
+\end{equation}
+
+The driver target is the minimum over all active gates.  Effective deceleration is the
+minimum of the driver acceleration declaration, brake-force capacity divided by mass,
+and straight-line tire brake capacity divided by mass.  A small declared trigger margin
+starts the full-brake branch before the mathematical boundary to avoid chatter and
+discrete-step overshoot.
+
+Gate enforcement is one-way: it limits excessive simulated entry speed but never
+accelerates a weak drivetrain to match a measurement.  Compliance is checked at the
+exact gate crossing and permits only the declared numerical tolerance.
+
+\chapter{Track Evidence Bundle}\label{ch:bundle}
+
+\section{Purpose}
+
+The bundle decouples measured-track reconstruction from drivetrain simulation.  It
+contains the common centreline, reviewed physical features, response groups, accepted
+gate distributions, paired lap identities, obstacle contracts, capability flags,
+provenance, schema version, and semantic fingerprint.
+
+It does not contain hidden access to the project, arbitrary Python objects, or an
+optimized driver.  A simulator may therefore replay a reviewed evidence snapshot even
+when the raw reconstruction pipeline is not rerun.
+
+\section{Version and checksum}
+
+The bundle has a schema version independent of the package version.  A consumer accepts
+only a documented compatible family.  Canonical semantic content produces a stable
+fingerprint; the serialized file has an adjacent SHA-256 checksum.  The semantic
+fingerprint avoids machine-dependent ordering, while the file checksum detects byte
+changes.
+
+\section{Capabilities}
+
+Capability flags state whether grade force, lateral coupling, gate sampling identities,
+or other optional evidence exists.  Absence is explicit.  In the current release,
+elevation may be stored while grade force remains disabled.
+
+\chapter{Obstacle mechanisms}\label{ch:obstacles}
+
+\section{Spatial work contract}
+
+Obstacle models return a local resistance force and optional geometric/traction effects.
+Energy is accumulated by the line integral
+
+\begin{equation}
+E_{\mathrm{obs}}=\int_{s_0}^{s_1}F_{\mathrm{obs}}(s)\,ds.
+\end{equation}
+
+The normalized raised-cosine density over an interval of length $L$ is
+
+\begin{equation}
+\phi(x;L)=\frac{1-\cos(2\pi x/L)}{L},\qquad
+\int_0^L\phi(x;L)\,dx=1.
+\label{eq:raised-cosine}
+\end{equation}
+
+It distributes a declared event energy smoothly without changing its integral.
+
+\section{Implemented models}
+
+For a fixed specific event energy $e_f$,
+
+\begin{equation}
+F(x)=m e_f\,\phi(x;L).
+\end{equation}
+
+For a speed-quadratic event with coefficient $k_v$ and recorded entry speed $v_e$,
+
+\begin{equation}
+E=m e_f+k_v v_e^2,\qquad F(x)=E\,\phi(x;L).
+\label{eq:speed-obstacle}
+\end{equation}
+
+For distributed roughness with specific energy per distance $e_d$,
+
+\begin{equation}
+F=m e_d.
+\end{equation}
+
+The smooth-profile option uses
+
+\begin{align}
+z(x)&=\frac{h}{2}\left[1-\cos\left(\frac{2\pi x}{L}\right)\right],\\
+z'(x)&=\frac{h\pi}{L}\sin\left(\frac{2\pi x}{L}\right),\\
+z''(x)&=\frac{2\pi^2h}{L^2}\cos\left(\frac{2\pi x}{L}\right),\\
+\lambda_N&=\operatorname{clip}\left(1+\frac{v^2z''}{g},
+\lambda_{\min},\lambda_{\max}\right).
+\end{align}
+
+It can alter local slope, normal-load scale, traction multiplier, and unresolved
+dissipative work.  These are reduced-order approximations, not suspension simulation.
+
+\section{Model-form uncertainty}
+
+Alternative obstacle mechanisms are categorical structural uncertainty.  A broad
+coefficient in the bundle is not measured lap variation by default.  If repeated event
+tests support real event-to-event variation, that quantity may be explicitly assigned
+the measured-track role.  The distinction controls which study samples it in
+Chapter~\ref{ch:studies}.
+
+\chapter{Vehicle and tire dynamics}\label{ch:vehicle}
+
+\section{State}
+
+The longitudinal state is distance $s$, vehicle speed $v$, and driven-wheel angular
+speed $\omega_w$:
+
+\begin{equation}
+\dot{s}=v.
+\end{equation}
+
+Negative vehicle and wheel speeds are excluded by the integration boundary.
+
+\section{Normal load and tire force}
+
+For modeled grade $\theta$, local normal scale $\lambda_N$, and driven-load fraction
+$\gamma$, total and driven normal loads are
+
+\begin{equation}
+N=mg\max(\cos\theta,0)\lambda_N,\qquad N_d=\gamma N.
+\end{equation}
+
+With surface friction $\mu$, local friction multiplier included in $\mu$, and tire
+peak scale $\lambda_\mu$, the force ceiling is
+
+\begin{equation}
+F_{\max}=\mu\lambda_\mu N_d.
+\end{equation}
+
+Slip speed is
+
+\begin{equation}
+v_s=r_w\omega_w-v,
+\end{equation}
+
+and the compact saturating tire law is
+
+\begin{equation}
+F_t=F_{\max}\tanh\left(\frac{K_s v_s}{F_{\max}}\right).
+\label{eq:tire}
+\end{equation}
+
+The corresponding nonnegative tire-slip dissipation is
+
+\begin{equation}
+P_{\mathrm{slip}}=\max(0,F_t v_s).
+\end{equation}
+
+Equation~\eqref{eq:tire} is deliberately compact.  It captures force buildup and a
+finite ceiling, but not a complete terrain-dependent tire map.
+
+\section{Resistance and equations of motion}
+
+The implemented forces are
+
+\begin{align}
+F_g &= mg\sin\theta,\\
+F_{rr} &= C_{rr}N\tanh(v/v_0),\\
+F_a &= \tfrac{1}{2}\rho C_DA\,v^2,\\
+F_o &= \sum_j F_{o,j}.
+\end{align}
+
+The small $v_0$ regularizes rolling-force direction near rest.  Vehicle and wheel
+dynamics are
+
+\begin{align}
+m\dot v &= F_t-F_g-F_{rr}-F_a-F_o,\label{eq:vehicle}\\
+I_w\dot\omega_w &= T_w-T_b-r_wF_t.\label{eq:wheel}
+\end{align}
+
+The model also reports curvature-derived lateral demand $m v^2|\kappa|$ as a diagnostic.
+It does not reduce $F_{\max}$ because lateral coupling has not yet been validated.
+
+\chapter{Powertrain comparison}\label{ch:powertrain}
+
+\section{Engine}
+
+The current engine is a versioned tabulated torque curve scaled by a declared power
+factor.  At engine speed $\omega_e$ and throttle $u\in[0,1]$,
+
+\begin{equation}
+T_e=uT_{\mathrm{curve}}(\omega_e),\qquad P_e=T_e\omega_e.
+\end{equation}
+
+The ideal CVT targets a declared engine speed $\omega_\star$ associated with target
+power $P_\star$.
+
+\section{Bounded ideal CVT}\label{sec:cvt}
+
+Let final-drive reduction be $i_f$ and CVT reduction be $i_c$.  The ratio required to
+hold target speed is
+
+\begin{equation}
+i_{\mathrm{req}}=\frac{\omega_\star}{i_f\omega_w}.
+\end{equation}
+
+The selected bounded ratio is
+
+\begin{equation}
+i_c=\operatorname{clip}(i_{\mathrm{req}},i_{\min},i_{\max}).
+\label{eq:bounded-ratio}
+\end{equation}
+
+Inside the window, the engine remains at target speed.  Below the minimum-reduction
+requirement, engine speed rises synchronously with $i_{\min}i_f\omega_w$.  Above the
+maximum-reduction requirement, the declared ideal launch clutch may hold the engine at
+target while the secondary is slower.
+
+Wheel torque and transmitted power are
+
+\begin{equation}
+T_w=\eta i_c i_f T_e,\qquad P_w=\max(0,T_w\omega_w).
+\end{equation}
+
+Drivetrain-efficiency loss is $P_e(1-\eta)$.  In launch-clutch mode,
+
+\begin{equation}
+P_{\mathrm{clutch}}=\max(0,\eta P_e-P_w).
+\end{equation}
+
+Operating shortfall is the counterfactual quantity
+
+\begin{equation}
+P_{\mathrm{short}}=\max(0,uP_\star-P_e).
+\end{equation}
+
+\section{Infinite-ratio reference}
+
+The reference holds $\omega_e=\omega_\star$ outside a finite operating-ratio window,
+but it may not produce infinite launch torque.  It shares the bounded design's launch
+cap
+
+\begin{equation}
+T_{w,\max}^{\mathrm{launch}}=\eta i_{\max}i_fT_e.
+\end{equation}
+
+For nonzero wheel speed, target-power torque is $\eta P_e/\omega_w$.  Therefore
+
+\begin{equation}
+T_w^{\infty}=\min\left(\frac{\eta P_e}{\omega_w},
+T_{w,\max}^{\mathrm{launch}}\right),
+\label{eq:infinite-torque}
+\end{equation}
+
+with the launch cap selected directly at zero speed.  Equations
+\eqref{eq:bounded-ratio} and \eqref{eq:infinite-torque} define the comparison.  A design
+variable may share a cached infinite reference only if it is mathematically absent from
+this reference mechanism.  That proof currently permits a limited minimum-ratio reuse;
+final drive and maximum ratio are not assumed absent from launch behavior.
+
+\chapter{Integration, events, and energy}\label{ch:numerics}
+
+\section{Time integration}
+
+The solver advances Equations~\eqref{eq:vehicle} and \eqref{eq:wheel} with a declared
+fixed integration step and emits a separate report-step trace.  Track completion,
+maximum time, invalid state, and other termination causes are explicit.  Feature-entry
+and gate-crossing states are interpolated at their exact spatial crossings so a report
+sampling interval cannot conceal compliance error.
+
+Short coarse-step runs are useful for software-path checks, but they remain invalid if
+the quality tolerances fail.  A production numerical step should be justified by
+refinement tests on headline metrics, gate excess, and both balances.
+
+\section{Powertrain energy balance}
+
+Integrated engine-side accounting is
+
+\begin{equation}
+E_e=E_w+E_{\eta}+E_{\mathrm{clutch}}+R_p,
+\label{eq:powertrain-balance}
+\end{equation}
+
+where $R_p$ is the numerical residual.  The reported relative residual divides by a
+finite engine-energy scale.
+
+\section{Vehicle energy balance}
+
+Let total kinetic energy include translation and driven-wheel rotation.  Vehicle-side
+accounting is
+
+\begin{multline}
+E_w+K_0=K_f+E_{\mathrm{slip}}+E_{\mathrm{brake}}+E_{rr}+E_a+E_o\\
++W_g+R_v.
+\label{eq:vehicle-balance}
+\end{multline}
+
+Grade work $W_g$ is signed.  Current GPX elevation does not contribute to it; a smooth
+declared obstacle may contribute a conservative local grade term.  Residual $R_v$ is
+normalized by transmitted energy, initial kinetic energy, and the magnitude of grade
+work.
+
+\section{Opportunity diagnostics}
+
+Within one case, the diagnostic
+
+\begin{equation}
+E_{\mathrm{opp,total}}=E_{\mathrm{clutch}}+E_{\mathrm{short}}
+\end{equation}
+
+captures launch and engine operating opportunity.  The bounded-versus-infinite
+finite-ratio opportunity loss is the nonnegative difference between the two matched
+cases.  It is counterfactual and is \emph{not} added to Equations
+\eqref{eq:powertrain-balance} or \eqref{eq:vehicle-balance}.
+
+\chapter{Uncertainty representation and sampling}\label{ch:uncertainty}
+
+\section{Semantic roles}
+
+The distribution shape and engineering meaning are orthogonal.  A stochastic input is
+assigned one of:
+
+\begin{description}
+  \item[measured track] empirical lap/event variability in the observed track;
+  \item[structural] uncertain vehicle, environment, parameter, or model-form
+        assumption; and
+  \item[initial condition] uncertainty in the declared starting state.
+\end{description}
+
+This role separation prevents broad obstacle priors from entering measured-track
+robustness merely because the parameters are stored in the bundle.
+
+\section{Marginal distributions}
+
+Numeric marginals may be fixed, normal, truncated normal, uniform, triangular, or
+empirical.  Categorical model alternatives use declared discrete probabilities.  Let
+$U\sim\mathcal{U}(0,1)$ and $F_i^{-1}$ be the validated inverse marginal transform;
+then an independent draw is
+
+\begin{equation}
+X_i=F_i^{-1}(U_i).
+\end{equation}
+
+The nominal value remains the deterministic baseline even if it differs from the
+distribution median.
+
+\section{Correlated groups}
+
+For a declared Gaussian-copula group with correlation matrix $R$,
+
+\begin{align}
+\mathbf{Z}&\sim\mathcal{N}(\mathbf{0},R),\\
+U_i&=\Phi(Z_i),\\
+X_i&=F_i^{-1}(U_i).
+\end{align}
+
+The matrix must be symmetric, positive semidefinite, have unit diagonal, reference
+known stochastic paths with consistent roles, and not overlap another group.  For
+nonnormal marginals, $R$ describes latent Gaussian dependence; it is not generally the
+final Pearson correlation.
+
+\section{Paired gate sampling}\label{sec:paired-gates}
+
+When possible, one complete observed run/lap/vehicle/driver identity is drawn and all
+gate targets use that lap.  This preserves within-lap pace relationships.  If an
+otherwise usable identity lacks one gate, only the missing gate may fall back to its
+empirical distribution, and the gate ID is recorded.  Independently combining a fast
+corner from one lap with a slow obstacle entry from another is therefore not the default.
+
+\section{Paired designs}
+
+For scenario $j$, all designs receive the same draw $\mathbf{x}_j$.  If $y_{dj}$ is an
+output for design $d$, a design contrast uses
+
+\begin{equation}
+\Delta_{ab,j}=y_{aj}-y_{bj},
+\end{equation}
+
+not a difference between unrelated Monte Carlo samples.  Pairing reduces comparison
+noise and makes scenario-level regret interpretable.
+
+\chapter{Study types}\label{ch:studies}
+
+This chapter describes what each run changes.  It relies on the common track, vehicle,
+powertrain, gate, energy, and sampling mechanisms defined in Chapters
+\ref{ch:track}--\ref{ch:uncertainty}; no study silently substitutes a different equation.
+
+\section{Nominal baseline}
+
+The baseline uses every declared nominal and the selected nominal gate statistic.  It
+answers whether the bounded and infinite mechanisms execute and what finite ratio range
+costs in one case.  It is a mechanism check, not an uncertainty statement.
+
+\section{Measured-track robustness}
+
+Measured-track robustness samples empirical paired gates and only stochastic inputs with
+the measured-track role.  Structural and initial-condition inputs remain nominal.  It
+answers whether a conclusion survives plausible versions of the measured course.
+
+This study should not be described as ``all uncertainty in the track.''  Geometry
+uncertainty, grade, and obstacle model uncertainty are included only when the formal
+contract implements and assigns them appropriately.
+
+\section{Structural sensitivity}
+
+One-at-a-time sensitivity evaluates the exact nominal plus declared marginal quantiles
+for each selected numeric input.  Categorical inputs evaluate the nominal and declared
+alternatives.  Everything else remains nominal.
+
+For numeric response $y(x)$, local slope near the nominal is estimated from the nearest
+levels bracketing $x_0$ when possible.  A global slope uses all tested levels.  The study
+answers direction and screening magnitude but omits interactions.
+
+\section{Design sweep}
+
+A sweep evaluates explicit values of one design path under common paired scenarios.
+Design inputs are excluded from random sampling in the same study.  It reports both
+headline metrics, output bands, paired wins, empirical best fractions, regret, threshold
+probabilities, and convergence.  A winning boundary point triggers a recommendation to
+extend the domain.
+
+\section{Full uncertainty}
+
+Full uncertainty jointly samples every declared stochastic measured-track, structural,
+and initial-condition input, plus gates under the paired policy.  It answers what output
+distribution follows from all uncertainty the project currently admits.  It cannot
+represent omitted model inadequacy; limitations remain necessary.
+
+\chapter{Decision statistics}\label{ch:decision}
+
+\section{Physical output bands}
+
+For output samples $y_1,\ldots,y_n$, reports include mean, standard deviation, median,
+and selected quantiles such as $p_{10}$ and $p_{90}$.  These describe variation across
+declared physical scenarios.
+
+\section{Bootstrap estimation intervals}
+
+The framework resamples scenarios with replacement and recomputes statistics.  Percentile
+bounds on medians and quantiles describe finite-sample estimation uncertainty.  They are
+not a second physical uncertainty distribution.  Paired ranking bootstraps resample
+whole scenarios so the within-scenario design relationship is retained.
+
+\section{Wins, best fraction, and regret}
+
+For a lower-is-better metric, design $d$ has empirical best indicator
+
+\begin{equation}
+B_{dj}=\mathbf{1}\!\left(y_{dj}=\min_k y_{kj}\right),
+\end{equation}
+
+with a documented tie policy.  The reported best fraction is the mean of $B_{dj}$ over
+tested scenarios and designs; it is not a universal probability that the hardware is
+best outside the declared domain.
+
+Scenario regret is
+
+\begin{equation}
+R_{dj}=y_{dj}-\min_k y_{kj}\geq 0.
+\end{equation}
+
+Paired win fractions compare two designs on the same scenarios.  Threshold fractions
+report the frequency with which a declared engineering limit is exceeded and include a
+binomial interval.
+
+\section{Decision gates}
+
+A numerical-quality pass requires all cases to complete, reference dominance, accepted
+gate compliance, vehicle energy closure, and powertrain energy closure.  A directionally
+robust sweep additionally requires the time and opportunity metrics to select the same
+winner, acceptable convergence, and paired win-fraction bootstrap lower bounds above
+$0.5$.  Numerical validity and directional robustness are separate output fields.
+
+\chapter{Attribution}\label{ch:attribution}
+
+\section{Physical attribution}
+
+Physical attribution reports where energy went using Equations
+\eqref{eq:powertrain-balance} and \eqref{eq:vehicle-balance}.  It includes design-level
+bands, scenario-level loss shares, feature-level obstacle work, and closure residuals.
+Opportunity diagnostics are displayed separately.
+
+\section{Numeric uncertainty screening}
+
+For numeric input $x_i$ and response $y$, the marginal least-squares slope is
+
+\begin{equation}
+\widehat\beta_i=\frac{\sum_j(x_{ij}-\bar{x}_i)(y_j-\bar{y})}
+                         {\sum_j(x_{ij}-\bar{x}_i)^2}.
+\end{equation}
+
+The normalized elasticity at representative values is
+
+\begin{equation}
+\mathcal{E}_i=\widehat\beta_i\frac{\widetilde x_i}{\widetilde y}.
+\end{equation}
+
+An uncertainty-weighted effect is
+
+\begin{equation}
+W_i=|\widehat\beta_i|s_{x_i},
+\end{equation}
+
+and relative screening importance is
+
+\begin{equation}
+I_i=\frac{W_i^2}{\sum_k W_k^2}.
+\label{eq:importance}
+\end{equation}
+
+Slope bootstrap bounds, Pearson association, and Spearman rank association accompany
+Equation~\eqref{eq:importance}.  Strong sampled-input correlations generate a warning:
+marginal slopes are not causal variance partitions.
+
+\section{Categorical screening}
+
+Categorical alternatives report counts and mean output by level, output span, and a
+between-level separation ratio analogous to eta squared.  Sparse levels are flagged.
+For structural one-at-a-time studies, category values are explicit alternatives rather
+than pretending that model names have numeric quantiles.
+
+\section{Sample-count policy}
+
+Attribution is suppressed below eight scenarios, exploratory from eight through
+nineteen, and enabled as screening at twenty or more subject to quality and convergence.
+This policy prevents a seven-sample smoke test from producing an authoritative-looking
+tornado plot.
+
+\chapter{Convergence and validation}\label{ch:validation}
+
+\section{Monte Carlo convergence}
+
+Reports retain scenario count, Monte Carlo standard error where meaningful, and
+split-half median stability.  A status below the screening recommendation explicitly
+asks for more replicates.  The question ``are seven samples enough?'' is answered by the
+diagnostics rather than a fixed claim: seven can exercise code but cannot establish a
+stable distributional decision.
+
+\section{Numerical validation}
+
+The implementation is tested with known limiting cases, exact gate crossings, invalid
+support, reference dominance, both energy balances, and timestep refinement.  Feature
+obstacle work is reconciled with total obstacle energy.  A coarse integration step may
+complete all code paths yet remain invalid for decision.
+
+\section{Execution equivalence}
+
+Scenario results are sorted by replicate and design after parallel execution.  The
+scientific artifacts must be identical for serial and parallel workers.  A
+content-addressed cache may reduce mechanism-run counts, but cached and uncached
+scientific outputs must match.  Manifest timestamps, worker count, and cache counts are
+expected operational differences.
+
+\section{Failure publication}
+
+A study writes into a sibling \code{.incomplete} workspace.  Each completed scenario is
+checkpointed with the owning study fingerprint.  On success, reports and provenance are
+written, checkpoints are removed, and the directory is atomically published.  A failed
+run cannot masquerade as a completed result.  Resume rejects changed inputs; restart is
+explicit.
+
+\chapter{Reporting and provenance}\label{ch:reporting}
+
+\section{High-to-low hierarchy}
+
+Every result is organized as:
+
+\begin{enumerate}
+  \item \code{SUMMARY.md}: finding or recommendation, confidence, warnings, and next
+        actions;
+  \item \code{decision\_trace.md}: explicit reasoning chain;
+  \item \code{REPORT.md}: compact technical evidence and interpretation;
+  \item plots: visual location and distribution of effects; and
+  \item appendix: complete CSV, JSON, JSONL, bundle, resolved inputs, and traces.
+\end{enumerate}
+
+The Markdown report is a regenerable projection of machine artifacts.  Report
+regeneration does not rerun physics.  Strict JSON disallows nonstandard NaN and infinity
+tokens; unavailable values use a status and null representation.
+
+\section{Provenance graph}
+
+The provenance record connects measured GPX, track build, exact bundle hash, resolved
+configuration fingerprint, study fingerprint, framework version, command, and report.
+The SVG graph is a human index; the JSON is the machine authority.  The bundle and
+resolved inputs make the simulation-facing evidence portable even if original project
+paths change.
+
+\chapter{Extension interfaces}\label{sec:extensions}
+
+\section{CINDER drivetrain}
+
+A transient CINDER model can implement the drivetrain adapter while consuming the same
+runtime track, driver demand, vehicle state, and scenario inputs.  It must expose
+wheel-force capability and explicit channels for clutch work, primary/secondary slip,
+shift inertia, actuator work, and any stored drivetrain energy.  It also needs its own
+reference and caching policy; the ideal-CVT reference assumptions cannot be copied
+without proof.
+
+The comparison hierarchy can then become
+
+\begin{center}
+infinite ideal CVT $\leftrightarrow$ bounded ideal CVT $\leftrightarrow$ transient CINDER
+CVT,
+\end{center}
+
+without rebuilding the measured-track evidence pipeline.
+
+\section{Tire and obstacle models}
+
+A tire adapter maps tire state and normal load to longitudinal force and physical loss.
+A brush or empirical model must declare its valid domain, state, sign conventions,
+energy channel, and uncertainty inputs.  Obstacle extensions similarly declare geometry,
+force/work equations, boundary behavior, physical support, and model-form alternatives.
+
+\section{Other drivetrains}
+
+Any driveline may participate if it can consume the framework state/demand boundary and
+return deterministic force, energy, and quality channels.  Upstream GPX and bundle code
+should not contain conditionals for a particular driveline family.
+
+\chapter{Limitations and future work}\label{ch:limitations}
+
+\section{Current limitations}
+
+\begin{itemize}
+  \item GPX elevation is preserved but not converted to road grade force.
+  \item The active vehicle model is longitudinal; curvature is diagnostic and lateral/yaw
+        dynamics are absent.
+  \item The tire law is reduced-order and does not resolve terrain-dependent combined slip.
+  \item Obstacle models are explicit approximations and broad defaults are uncalibrated.
+  \item The ideal CVT omits rubber-belt shift transients, pulley forces, thermal behavior,
+        and detailed slip mechanics.
+  \item The driver follows measured gate ceilings and full-throttle/full-brake logic; it
+        is not an optimized human control model.
+  \item Uncertainty attribution is screening, not a global causal decomposition.
+  \item Joint uncertainty cannot represent assumptions that were never declared.
+\end{itemize}
+
+\section{Prioritized future work}
+
+Elevation-to-grade processing requires smoothing, lap alignment, vertical-bias handling,
+external terrain comparison, and grade confidence.  Obstacle calibration requires known
+geometry, video, vehicle/suspension evidence, and controlled before/after speed tests.
+CINDER integration requires a versioned transient drivetrain adapter and expanded energy
+state.  Optional expensive global sensitivity may later add Sobol or grouped methods,
+especially when interactions materially change a drivetrain decision.
+
+\chapter{Audit checklist}\label{ch:audit}
+
+Before treating a report as engineering evidence, confirm:
+
+\begin{enumerate}
+  \item run identities, timestamps, and speed provenance are credible;
+  \item lap inclusion and map error were reviewed;
+  \item physical feature geometry and response groups are correct;
+  \item accepted gates have credible component scores and enough passes;
+  \item inherited priors are not described as measurements;
+  \item uncertainty roles match their engineering meanings;
+  \item the study type answers the actual question;
+  \item the design domain includes meaningful alternatives and is extended at a boundary
+        optimum;
+  \item all numerical quality checks pass;
+  \item sample count and convergence support the claimed confidence;
+  \item energy attribution is not mixed with counterfactual opportunity loss;
+  \item correlation and sparse-category attribution warnings are respected; and
+  \item bundle, resolved inputs, seed, fingerprints, and package version are archived.
+\end{enumerate}
+
+\appendix
+\chapter{Study-to-method cross-reference}
+
+\begin{longtable}{p{0.22\textwidth}p{0.31\textwidth}p{0.37\textwidth}}
+\toprule
+Run & Varies & Reuses without redefinition \\
+\midrule
+\endhead
+Baseline & No stochastic input & Bundle (Chapter~\ref{ch:bundle}), gates
+(Chapter~\ref{ch:gates}), vehicle (Chapter~\ref{ch:vehicle}), powertrain
+(Chapter~\ref{ch:powertrain}) \\
+Track robustness & Paired gates and measured-track-role inputs & All common mechanisms;
+structural inputs remain nominal (Chapter~\ref{ch:uncertainty}) \\
+Structural sensitivity & One structural input/alternative at a time & Exact nominal base
+and common mechanisms (Chapters~\ref{ch:uncertainty} and \ref{ch:attribution}) \\
+Design sweep & Declared design values under paired scenarios & Pairing, decision metrics,
+and quality gates (Chapters~\ref{ch:uncertainty} and \ref{ch:decision}) \\
+Full uncertainty & All declared stochastic roles jointly & Same physical model and paired
+gate policy (Chapters~\ref{ch:uncertainty} and \ref{ch:studies}) \\
+\bottomrule
+\end{longtable}
+
+\chapter{Output-to-claim cross-reference}
+
+\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.36\textwidth}>{\raggedright\arraybackslash}p{0.54\textwidth}}
+\toprule
+Artifact & Claim supported \\
+\midrule
+\endhead
+\code{SUMMARY.md} & concise finding, confidence, warnings, and next action \\
+\code{decision\_trace.md} & why the headline follows from evidence and gates \\
+\code{REPORT.md} & technical interpretation, compact tables, and limitations \\
+\code{replicate\_results.csv} & every scenario/design mechanism comparison \\
+\code{scenario\_draws.jsonl} & exact paired inputs and gate identities \\
+\code{summary.json} & distributions, bootstrap intervals, ranks, regret, thresholds \\
+\code{energy\_accounting.json} & physical partitions and nonadditive diagnostics \\
+\path{uncertainty_attribution.json} & screening slopes, associations, categories, warnings \\
+\code{convergence.json} & whether scenario count stabilizes reported metrics \\
+\code{run\_manifest.json} & numerical quality, counts, seed, cache/resume policy \\
+\code{provenance.json} & versioned evidence and configuration lineage \\
+\code{track\_bundle.json} & exact simulator-facing measured-track contract \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\chapter{Companion documentation}
+
+The operational \path{README.md} gives the shortest path.  The companion Markdown files
+\path{docs/USER_GUIDE.md}, \path{docs/INPUT_CONTRACT.md},
+\path{docs/OUTPUT_REFERENCE.md}, \path{docs/DEVELOPER_GUIDE.md}, and
+\path{docs/RELEASE_AND_REPRODUCIBILITY.md} provide field-level and workflow references.
+Focused contracts under \code{docs/input}, \code{docs/output}, and \code{docs/methods}
+remain the schema-adjacent source for implementers.
+
+\end{document}

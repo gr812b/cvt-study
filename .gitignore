@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Matplotlib, LaTeX, and documentation intermediates.
+.matplotlib/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Framework runtime state. Completed results remain reproducible from inputs.
+**/.drivetrain-study-cache/
+**/.cvt-study-cache/
+**/.*.incomplete/
+**/*.tmp-*/
+
+# Project results are reproducible outputs. Keep only explicit empty-directory
+# markers and intentionally committed regression fixtures.
+**/results/*
+!**/results/.gitkeep

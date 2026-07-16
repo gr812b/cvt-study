@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cvt-track-study:track-bundle:1.2.0",
+  "title": "CVT Track Bundle 1.2.x",
+  "type": "object",
+  "required": [
+    "format",
+    "schema_version",
+    "created_utc",
+    "generator",
+    "identity",
+    "coordinate_contract",
+    "simulation_contract",
+    "evidence",
+    "uncertainty_contract",
+    "provenance",
+    "content_fingerprint_sha256"
+  ],
+  "properties": {
+    "format": {"const": "cvt-track-bundle"},
+    "schema_version": {"type": "string", "pattern": "^1\\.2\\.[0-9]+$"},
+    "created_utc": {"type": "string"},
+    "content_fingerprint_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "object",
+      "required": ["project_name", "track_name", "closed_course", "surface_class"],
+      "properties": {"closed_course": {"const": true}}
+    },
+    "coordinate_contract": {
+      "type": "object",
+      "required": ["coordinate", "unit", "domain", "interval_convention"],
+      "properties": {
+        "coordinate": {"const": "s"},
+        "unit": {"const": "m"}
+      }
+    },
+    "simulation_contract": {
+      "type": "object",
+      "required": [
+        "track_length_m",
+        "grade_force_enabled",
+        "capabilities",
+        "centreline",
+        "observed_profile",
+        "physical_features",
+        "response_groups",
+        "speed_gates"
+      ],
+      "properties": {
+        "track_length_m": {"type": "number", "exclusiveMinimum": 0},
+        "grade_force_enabled": {"const": false},
+        "capabilities": {
+          "type": "object",
+          "required": ["grade_force_ready", "obstacle_models_ready", "speed_gates_ready", "uncertainty_roles_ready"],
+          "properties": {
+            "grade_force_ready": {"const": false},
+            "obstacle_models_ready": {"const": true},
+            "uncertainty_roles_ready": {"const": true},
+            "speed_gates_ready": {"type": "boolean"}
+          }
+        },
+        "physical_features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "response_group_id", "interval", "obstacle_model"],
+            "properties": {
+              "obstacle_model": {
+                "type": "object",
+                "required": ["status", "model_type", "parameters"],
+                "properties": {
+                  "status": {"const": "declared"},
+                  "model_type": {"type": "object"},
+                  "parameters": {"type": "object"}
+                }
+              }
+            }
+          }
+        },
+        "response_groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "obstacle_model"],
+            "properties": {
+              "obstacle_model": {
+                "type": "object",
+                "required": ["status", "source_feature_ids"],
+                "properties": {"status": {"const": "not_applicable"}}
+              }
+            }
+          }
+        },
+        "speed_gates": {"type": "array"}
+      }
+    },
+    "evidence": {"type": "object"},
+    "uncertainty_contract": {"type": "object"},
+    "provenance": {"type": "object"},
+    "generator": {"type": "object"}
+  },
+  "additionalProperties": true
+}

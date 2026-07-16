@@ -1,0 +1,28 @@
+[profile]
+id = "builtin.obstacle.mild_rough_interval_v1"
+scope = "obstacle"
+version = 1
+description = "Milder distributed roughness prior for small hills or uncertain surface texture."
+extends = []
+
+[config.obstacle_model]
+status = "declared"
+
+[config.obstacle_model.model_type]
+nominal = "roughness_energy_density"
+source = { kind = "inherited_default", reference = "builtin.obstacle.mild_rough_interval_v1@1 broad uncalibrated engineering prior" }
+uncertainty = { distribution = "fixed", reason = "The profile selects one explicit Phase 5 mechanism; model-form alternatives are declared by choosing another profile." }
+
+[config.obstacle_model.parameters]
+
+[config.obstacle_model.parameters.specific_energy_per_distance]
+nominal = 0.12
+unit = "J/(kg*m)"
+source = { kind = "inherited_default", reference = "builtin.obstacle.mild_rough_interval_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.specific_energy_per_distance.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.02
+mode = 0.12
+upper = 0.4

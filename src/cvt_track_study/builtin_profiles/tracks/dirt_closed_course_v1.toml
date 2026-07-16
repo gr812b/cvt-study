@@ -1,0 +1,20 @@
+[profile]
+id = "builtin.track.dirt_closed_course_v1"
+scope = "track"
+version = 1
+description = "Basic closed dirt-course metadata; no obstacle coefficients are implied."
+extends = []
+
+[config.track]
+closed_course = true
+surface_class = "dirt"
+
+[config.track.elevation]
+store_from_gpx = true
+use_for_grade_force = false
+
+[config.track.surface.friction_coefficient]
+nominal = 0.70
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.track.dirt_closed_course_v1@1 broad dry-dirt traction prior" }
+uncertainty = { distribution = "triangular", role = "structural", lower = 0.45, mode = 0.70, upper = 0.95 }

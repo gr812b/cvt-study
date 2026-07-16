@@ -1,0 +1,16 @@
+[profile]
+id = "builtin.obstacle.none_v1"
+scope = "obstacle"
+version = 1
+description = "Explicitly no obstacle resistance; geometry and speed-gate evidence remain visible."
+extends = []
+
+[config.obstacle_model]
+status = "declared"
+
+[config.obstacle_model.model_type]
+nominal = "none"
+source = { kind = "inherited_default", reference = "builtin.obstacle.none_v1@1 broad uncalibrated engineering prior" }
+uncertainty = { distribution = "fixed", reason = "The profile selects one explicit Phase 5 mechanism; model-form alternatives are declared by choosing another profile." }
+
+[config.obstacle_model.parameters]

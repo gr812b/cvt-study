@@ -1,0 +1,84 @@
+[study]
+name = "baseline"
+type = "baseline"
+vehicle_id = "vehicle_A"
+random_seed = 20260715
+
+[sampling]
+mode = "nominal"
+
+[driver.maximum_braking_deceleration]
+nominal = 5.0
+unit = "m/s^2"
+
+[driver.maximum_braking_deceleration.source]
+kind = "engineering_estimate"
+reference = "Phase 5 numerical driver-envelope estimate"
+
+[driver.maximum_braking_deceleration.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 4.0
+upper = 6.0
+
+[driver.maximum_brake_force]
+nominal = 5000.0
+unit = "N"
+
+[driver.maximum_brake_force.source]
+kind = "engineering_estimate"
+reference = "Phase 5 numerical driver-envelope estimate"
+
+[driver.maximum_brake_force.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 3500.0
+upper = 6500.0
+
+[driver.braking_trigger_margin]
+nominal = 0.15
+unit = "m/s"
+
+[driver.braking_trigger_margin.source]
+kind = "engineering_estimate"
+reference = "Phase 5 numerical braking-envelope trigger margin"
+
+[driver.braking_trigger_margin.uncertainty]
+distribution = "fixed"
+reason = "Numerical anti-chatter margin verified by gate-compliance checks."
+
+[simulation]
+maximum_time_s = 240.0
+integration_step_s = 0.001
+report_step_s = 0.02
+
+[track_realization]
+gate_speed_statistic = "median"
+
+[initial_conditions.vehicle_speed]
+nominal = 0.0
+unit = "m/s"
+
+[initial_conditions.vehicle_speed.source]
+kind = "engineering_estimate"
+reference = "Baseline launch initial condition"
+
+[initial_conditions.vehicle_speed.uncertainty]
+distribution = "fixed"
+reason = "The baseline study begins from rest by definition."
+
+[initial_conditions.wheel_speed]
+nominal = 0.0
+unit = "rad/s"
+
+[initial_conditions.wheel_speed.source]
+kind = "engineering_estimate"
+reference = "Baseline launch initial condition"
+
+[initial_conditions.wheel_speed.uncertainty]
+distribution = "fixed"
+reason = "The baseline study begins with the driven wheel at rest by definition."
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01

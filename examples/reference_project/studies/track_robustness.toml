@@ -1,0 +1,21 @@
+[study]
+name = "track_robustness"
+type = "track_robustness"
+vehicle_id = "vehicle_A"
+random_seed = 20260715
+
+[base_case]
+study = "baseline"
+
+[sampling]
+mode = "measured_track"
+replicates = 30
+paired_scenarios = true
+gate_sampling = "paired_lap"
+
+[reporting]
+bootstrap_resamples = 1000
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01

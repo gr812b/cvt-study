@@ -1,0 +1,31 @@
+[vehicle]
+id = "vehicle_A"
+profiles = ["team.vehicle.baja_defaults_v1"]
+
+[vehicle.mass]
+nominal = 245.0
+unit = "kg"
+
+[vehicle.mass.source]
+kind = "measured"
+reference = "replace with measurement record"
+
+[vehicle.mass.uncertainty]
+distribution = "normal"
+role = "structural"
+confidence_half_width = 0.1
+confidence_level = 0.95
+
+[vehicle.tire_diameter]
+nominal = 22.0
+unit = "in"
+
+[vehicle.tire_diameter.source]
+kind = "manufacturer"
+reference = "replace with loaded-diameter or tire measurement record"
+
+[vehicle.tire_diameter.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 21.5
+upper = 22.5

@@ -1,0 +1,12 @@
+[project]
+name = "mcmaster_arizona_endurance_2025"
+schema_version = 1
+track = "track/track.toml"
+runs = "track/runs.toml"
+events = "track/events.toml"
+vehicles_directory = "vehicles"
+studies_directory = "studies"
+results_directory = "results"
+
+[profiles]
+roots = ["profiles"]

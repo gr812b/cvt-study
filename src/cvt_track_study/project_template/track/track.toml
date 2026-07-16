@@ -1,0 +1,54 @@
+[track]
+name = "replace with track name"
+profiles = ["builtin.track.dirt_closed_course_v1"]
+closed_course = true
+surface_class = "dirt"
+
+# Elevation is retained and visualized. It is not differentiated into road grade
+# or used as a vehicle force until that method is separately validated.
+[track.elevation]
+store_from_gpx = true
+use_for_grade_force = false
+
+[track.reconstruction]
+# This id must match one event in events.toml. That coordinate defines s = 0 and
+# the start/end gate used to separate complete laps.
+lap_gate_event_id = "start_finish"
+lap_gate_radius_m = 15.0
+minimum_lap_time_s = 60.0
+maximum_reasonable_speed_mps = 25.0
+maximum_normal_time_step_s = 3.0
+stationary_speed_mps = 0.8
+minimum_speed_coverage_fraction = 0.80
+centreline_spacing_m = 3.0
+profile_spacing_m = 5.0
+maximum_map_error_m = 20.0
+speed_spike_threshold_mps = 4.0
+
+# These windows are relative to each physical feature's start/end after it has
+# been projected onto the common along-track coordinate s.
+[track.event_windows]
+approach_before_m = 35.0
+approach_gap_m = 15.0
+entry_before_m = 8.0
+entry_gap_m = 1.5
+exit_gap_m = 3.0
+exit_length_m = 12.0
+recovery_limit_m = 60.0
+
+# The overall score is a transparent weighted evidence summary, not a posterior
+# probability. All component scores are exported separately.
+[track.gate_confidence]
+minimum_valid_passes = 5
+target_pass_count = 10
+braking_threshold_mps = 0.8
+repeatability_scale_mps = 2.0
+vehicle_agreement_scale_mps = 2.0
+accept_score = 60.0
+review_score = 40.0
+weight_pass_count = 0.15
+weight_speed_repeatability = 0.25
+weight_braking_evidence = 0.20
+weight_pace_independence = 0.15
+weight_coordinate_quality = 0.15
+weight_cross_vehicle_agreement = 0.10

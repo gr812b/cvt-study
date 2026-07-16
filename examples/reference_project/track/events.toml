@@ -1,0 +1,95 @@
+[[events]]
+id = "start_finish"
+name = "Start / finish reference"
+sequence = 1
+kind = "point"
+analysis_role = "lap_gate"
+response_group_id = "start_finish"
+gate_candidate = false
+notes = "Synthetic reference event."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 43.26
+longitude_deg = -79.918641606
+horizontal_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[events.extent]
+before_anchor_m = 2.0
+after_anchor_m = 2.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[[events]]
+id = "turn_north"
+name = "North turn"
+sequence = 2
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "turn_north"
+gate_candidate = true
+notes = "Synthetic reference event."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 43.260719456
+longitude_deg = -79.92
+horizontal_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[events.extent]
+before_anchor_m = 5.0
+after_anchor_m = 7.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[[events]]
+id = "logs_west"
+name = "Logs"
+sequence = 3
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "logs_west"
+gate_candidate = true
+notes = "Synthetic reference event."
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 43.26
+longitude_deg = -79.921358394
+horizontal_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[events.extent]
+before_anchor_m = 5.0
+after_anchor_m = 7.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[[events]]
+id = "ruts_south"
+name = "Ruts"
+sequence = 4
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "ruts_south"
+gate_candidate = true
+notes = "Synthetic reference event."
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 43.259280544
+longitude_deg = -79.92
+horizontal_uncertainty_m = 2.0
+source = "synthetic generator"
+
+[events.extent]
+before_anchor_m = 5.0
+after_anchor_m = 7.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "synthetic generator"

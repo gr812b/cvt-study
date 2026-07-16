@@ -1,0 +1,83 @@
+[profile]
+id = "builtin.obstacle.smooth_profile_example_v1"
+scope = "obstacle"
+version = 1
+description = "Example measured-profile mechanism; replace amplitude and loss priors with event-specific evidence."
+extends = []
+
+[config.obstacle_model]
+status = "declared"
+
+[config.obstacle_model.model_type]
+nominal = "smooth_profile"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+uncertainty = { distribution = "fixed", reason = "The profile selects one explicit Phase 5 mechanism; model-form alternatives are declared by choosing another profile." }
+
+[config.obstacle_model.parameters]
+
+[config.obstacle_model.parameters.vertical_amplitude]
+nominal = 0.1
+unit = "m"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.vertical_amplitude.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 0.05
+upper = 0.15
+
+[config.obstacle_model.parameters.specific_fixed_energy]
+nominal = 0.2
+unit = "J/kg"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.specific_fixed_energy.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.0
+mode = 0.2
+upper = 0.8
+
+[config.obstacle_model.parameters.impact_coefficient]
+nominal = 5.0
+unit = "kg"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.impact_coefficient.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 1.0
+mode = 5.0
+upper = 15.0
+
+[config.obstacle_model.parameters.traction_multiplier]
+nominal = 0.9
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.traction_multiplier.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 0.7
+upper = 1.0
+
+[config.obstacle_model.parameters.minimum_normal_load_scale]
+nominal = 0.0
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.minimum_normal_load_scale.uncertainty]
+distribution = "fixed"
+reason = "Zero is the physical lower bound for loss of contact."
+
+[config.obstacle_model.parameters.maximum_normal_load_scale]
+nominal = 2.5
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.obstacle.smooth_profile_example_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.maximum_normal_load_scale.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 1.5
+mode = 2.5
+upper = 4.0

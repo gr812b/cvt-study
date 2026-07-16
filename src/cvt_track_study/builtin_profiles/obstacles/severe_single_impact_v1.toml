@@ -1,0 +1,40 @@
+[profile]
+id = "builtin.obstacle.severe_single_impact_v1"
+scope = "obstacle"
+version = 1
+description = "Broad severe-impact prior for a large drop, hole, or pit."
+extends = []
+
+[config.obstacle_model]
+status = "declared"
+
+[config.obstacle_model.model_type]
+nominal = "speed_quadratic_energy"
+source = { kind = "inherited_default", reference = "builtin.obstacle.severe_single_impact_v1@1 broad uncalibrated engineering prior" }
+uncertainty = { distribution = "fixed", reason = "The profile selects one explicit Phase 5 mechanism; model-form alternatives are declared by choosing another profile." }
+
+[config.obstacle_model.parameters]
+
+[config.obstacle_model.parameters.specific_fixed_energy]
+nominal = 0.8
+unit = "J/kg"
+source = { kind = "inherited_default", reference = "builtin.obstacle.severe_single_impact_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.specific_fixed_energy.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.1
+mode = 0.8
+upper = 2.5
+
+[config.obstacle_model.parameters.impact_coefficient]
+nominal = 10.0
+unit = "kg"
+source = { kind = "inherited_default", reference = "builtin.obstacle.severe_single_impact_v1@1 broad uncalibrated engineering prior" }
+
+[config.obstacle_model.parameters.impact_coefficient.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 3.0
+mode = 10.0
+upper = 30.0

@@ -1,0 +1,1059 @@
+[[events]]
+id = "turn_1"
+name = "Turn 1"
+sequence = 1
+kind = "turn"
+analysis_role = "lap_gate"
+response_group_id = "E01"
+gate_candidate = false
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.474849
+longitude_deg = -111.294615
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_2"
+name = "Turn 2"
+sequence = 2
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E02"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47485
+longitude_deg = -111.295247
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "long_hill"
+name = "Long Hill"
+sequence = 3
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E03"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.476071
+longitude_deg = -111.295367
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.476404
+longitude_deg = -111.295345
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.476071
+longitude_deg = -111.295367
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "bump_4"
+name = "Bump 4"
+sequence = 4
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E04"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: misplaced point/turn pair moved to corrected anchor fields"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.476562
+longitude_deg = -111.294857
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_5"
+name = "Turn 5"
+sequence = 5
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E05"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: misplaced point/turn pair moved to corrected anchor fields"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.476503
+longitude_deg = -111.294701
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "bump_6"
+name = "Bump 6"
+sequence = 6
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E06"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: misplaced point/turn pair moved to corrected anchor fields"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.476322
+longitude_deg = -111.29461
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_7"
+name = "Turn 7"
+sequence = 7
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E07"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: misplaced point/turn pair moved to corrected anchor fields"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.476241
+longitude_deg = -111.294562
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "crazy_ruts"
+name = "Crazy Ruts"
+sequence = 8
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E08"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.476334
+longitude_deg = -111.293493
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.476449
+longitude_deg = -111.293156
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.476334
+longitude_deg = -111.293493
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "banked_turn"
+name = "Banked Turn"
+sequence = 9
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E09"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.476241
+longitude_deg = -111.292815
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_10"
+name = "Turn 10"
+sequence = 10
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E10"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.476059
+longitude_deg = -111.293456
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "slaloms_11"
+name = "Slaloms 11"
+sequence = 11
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E11"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475869
+longitude_deg = -111.293187
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475869
+longitude_deg = -111.293187
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475861
+longitude_deg = -111.292867
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "turn_12"
+name = "Turn 12"
+sequence = 12
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "JOIN_PHYSICAL_GROUP"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475885
+longitude_deg = -111.292817
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "slaloms_13"
+name = "Slaloms 13"
+sequence = 13
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "JOIN_PHYSICAL_GROUP | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.4758
+longitude_deg = -111.292697
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475607
+longitude_deg = -111.292792
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.4758
+longitude_deg = -111.292697
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "turn_14"
+name = "Turn 14"
+sequence = 14
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "JOIN_PHYSICAL_GROUP"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475638
+longitude_deg = -111.29274
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "hills_15"
+name = "Hills 15"
+sequence = 15
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E15"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475573
+longitude_deg = -111.293129
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475573
+longitude_deg = -111.293129
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475566
+longitude_deg = -111.293398
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "pit"
+name = "Pit"
+sequence = 16
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E16"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: treated Pit as a point per annotator note"
+obstacle_profiles = ["builtin.obstacle.severe_single_impact_v1"]
+
+[events.anchor]
+latitude_deg = 32.475216
+longitude_deg = -111.293379
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "hill_18"
+name = "Hill 18"
+sequence = 17
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E17"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475188
+longitude_deg = -111.293119
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475188
+longitude_deg = -111.293119
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475173
+longitude_deg = -111.293054
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "bumps_20"
+name = "Bumps 20"
+sequence = 18
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E18"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.475001
+longitude_deg = -111.292769
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475001
+longitude_deg = -111.292769
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474761
+longitude_deg = -111.292775
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "ruts_21"
+name = "Ruts 21"
+sequence = 19
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E19"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.474653
+longitude_deg = -111.292745
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474521
+longitude_deg = -111.292759
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474653
+longitude_deg = -111.292745
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "big_hill"
+name = "Big Hill"
+sequence = 20
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E20"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.474316
+longitude_deg = -111.29273
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474316
+longitude_deg = -111.29273
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474059
+longitude_deg = -111.29277
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "bumps_23"
+name = "Bumps 23"
+sequence = 21
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E21"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.473899
+longitude_deg = -111.292999
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.473899
+longitude_deg = -111.292999
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474096
+longitude_deg = -111.293172
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "hill_tires"
+name = "Hill/Tires"
+sequence = 22
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E22"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.474442
+longitude_deg = -111.293139
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474442
+longitude_deg = -111.293139
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474675
+longitude_deg = -111.293146
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "long_hill_25"
+name = "Long Hill 25"
+sequence = 23
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E23"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.474945
+longitude_deg = -111.293345
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474983
+longitude_deg = -111.29351
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474945
+longitude_deg = -111.293345
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "drop"
+name = "Drop"
+sequence = 24
+kind = "point"
+analysis_role = "feature"
+response_group_id = "C04"
+gate_candidate = true
+notes = "JOIN_PHYSICAL_GROUP"
+obstacle_profiles = ["builtin.obstacle.severe_single_impact_v1"]
+
+[events.anchor]
+latitude_deg = 32.475078
+longitude_deg = -111.293672
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_27"
+name = "Turn 27"
+sequence = 25
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C04"
+gate_candidate = true
+notes = "JOIN_PHYSICAL_GROUP"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47501
+longitude_deg = -111.293739
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "turn_28"
+name = "Turn 28"
+sequence = 26
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E26"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.474783
+longitude_deg = -111.293638
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "hills_29"
+name = "Hills 29"
+sequence = 27
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E27"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.474462
+longitude_deg = -111.293566
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474462
+longitude_deg = -111.293566
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474263
+longitude_deg = -111.293585
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "ruts_30"
+name = "Ruts 30"
+sequence = 28
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E28"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.474008
+longitude_deg = -111.293619
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474008
+longitude_deg = -111.293619
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.473919
+longitude_deg = -111.293864
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "ruts_31"
+name = "Ruts 31"
+sequence = 29
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E29"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.474081
+longitude_deg = -111.294037
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474081
+longitude_deg = -111.294037
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.474304
+longitude_deg = -111.294063
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "bumps_32"
+name = "Bumps 32"
+sequence = 30
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E30"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.4746
+longitude_deg = -111.294056
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.474928
+longitude_deg = -111.294117
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.4746
+longitude_deg = -111.294056
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "pipe_33"
+name = "Pipe 33"
+sequence = 31
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E31"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.475172
+longitude_deg = -111.294114
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "tires_34"
+name = "Tires 34"
+sequence = 32
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E32"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction; AUTO_CLEAN: endpoints swapped to follow course direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.475382
+longitude_deg = -111.293831
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475358
+longitude_deg = -111.293843
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475382
+longitude_deg = -111.293831
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "turn_35"
+name = "Turn 35"
+sequence = 33
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E33"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475415
+longitude_deg = -111.293811
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "logs"
+name = "Logs"
+sequence = 34
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E34"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.475476
+longitude_deg = -111.293903
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475476
+longitude_deg = -111.293903
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475499
+longitude_deg = -111.293993
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "turn_37"
+name = "Turn 37"
+sequence = 35
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E35"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475528
+longitude_deg = -111.294023
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "ruts_38"
+name = "Ruts 38"
+sequence = 36
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E36"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.475828
+longitude_deg = -111.293888
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475828
+longitude_deg = -111.293888
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475915
+longitude_deg = -111.293934
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[[events]]
+id = "turn_39"
+name = "Turn 39"
+sequence = 37
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E37"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.475918
+longitude_deg = -111.293874
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "pipe_40"
+name = "Pipe 40"
+sequence = 38
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E38"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.475966
+longitude_deg = -111.294167
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "hole"
+name = "Hole"
+sequence = 39
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E39"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE"
+obstacle_profiles = ["builtin.obstacle.severe_single_impact_v1"]
+
+[events.anchor]
+latitude_deg = 32.476031
+longitude_deg = -111.295166
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "default physical window for map-marked point/turn; requires user review"
+
+[[events]]
+id = "long_pit"
+name = "Long Pit"
+sequence = 40
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E40"
+gate_candidate = true
+notes = "SEPARATE_PHYSICAL_FEATURE | AUTO_CLEAN: anchor and supplied endpoint will be ordered by driving direction"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.475593
+longitude_deg = -111.294739
+horizontal_uncertainty_m = 5.0
+source = "reviewed event map; migrated from the prior cleaned Arizona definition"
+
+[events.start]
+latitude_deg = 32.475593
+longitude_deg = -111.294739
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"
+
+[events.end]
+latitude_deg = 32.475404
+longitude_deg = -111.294583
+horizontal_uncertainty_m = 5.0
+source = "reviewed event endpoint; migrated from the prior cleaned Arizona definition"

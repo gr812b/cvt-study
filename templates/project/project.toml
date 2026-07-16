@@ -1,0 +1,14 @@
+[project]
+name = "new_cvt_track_project"
+schema_version = 1
+track = "track/track.toml"
+runs = "track/runs.toml"
+events = "track/events.toml"
+vehicles_directory = "vehicles"
+studies_directory = "studies"
+results_directory = "results"
+
+[profiles]
+# Add shared profile directories here. Relative paths resolve from this project.
+# A root may also be absolute when a team maintains one common profile library.
+roots = ["profiles"]

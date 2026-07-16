@@ -1,0 +1,12 @@
+# Add one [[runs]] table per GPX recording. An empty project is valid to configure,
+# but build-track will later require at least one centreline run.
+runs = []
+
+# Example:
+# [[runs]]
+# file = "gpx/vehicle_A_run_01.gpx"
+# vehicle_id = "vehicle_A"
+# run_id = "A01"
+# driver_id = "driver_1"
+# use_for_centreline = true
+# use_for_gate_evidence = true

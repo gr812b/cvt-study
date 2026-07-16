@@ -1,0 +1,21 @@
+[study]
+name = "full_uncertainty"
+type = "full_uncertainty"
+vehicle_id = "vehicle_A"
+random_seed = 20260715
+
+[base_case]
+study = "baseline"
+
+[sampling]
+mode = "all_declared"
+replicates = 100
+paired_scenarios = true
+gate_sampling = "paired_lap"
+
+[reporting]
+bootstrap_resamples = 2000
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01

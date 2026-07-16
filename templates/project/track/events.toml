@@ -1,0 +1,23 @@
+[[events]]
+id = "start_finish"
+name = "Start / finish reference"
+sequence = 1
+kind = "point"
+analysis_role = "lap_gate"
+response_group_id = "start_finish"
+gate_candidate = false
+notes = "Replace this coordinate before building the track."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 0.0
+longitude_deg = 0.0
+horizontal_uncertainty_m = 10.0
+source = "replace with map, survey, or video reference"
+
+[events.extent]
+before_anchor_m = 2.0
+after_anchor_m = 2.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "replace with map, survey, or video estimate"

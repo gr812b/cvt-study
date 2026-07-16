@@ -1,0 +1,24 @@
+[study]
+name = "structural_sensitivity"
+type = "structural_sensitivity"
+vehicle_id = "vehicle_A"
+random_seed = 20260715
+
+[base_case]
+study = "baseline"
+
+[sensitivity]
+method = "one_at_a_time"
+parameters = [
+  "vehicle.aero.drag_area",
+  "vehicle.rolling_resistance_coefficient",
+  "drivetrain.efficiency",
+]
+quantiles = [0.05, 0.2, 0.8, 0.95]
+
+[reporting]
+bootstrap_resamples = 1000
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01

@@ -1,0 +1,140 @@
+[profile]
+id = "builtin.vehicle.baja_generic_v1"
+scope = "vehicle"
+version = 1
+description = "Broad Baja-style vehicle prior for values commonly unavailable at project creation."
+extends = []
+
+[config.vehicle.mass]
+nominal = 250.0
+unit = "kg"
+
+[config.vehicle.mass.source]
+kind = "inherited_default"
+reference = "builtin.vehicle.baja_generic_v1@1 broad engineering prior"
+
+[config.vehicle.mass.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 180.0
+mode = 250.0
+upper = 350.0
+
+
+[config.vehicle.gravity]
+nominal = 9.80665
+unit = "m/s^2"
+source = { kind = "derived", reference = "Conventional standard gravity, exact definition" }
+uncertainty = { distribution = "fixed", reason = "9.80665 m/s^2 is the exact conventional standard gravity used by this reduced-order model." }
+
+[config.vehicle.tire_diameter]
+nominal = 22.0
+unit = "in"
+
+[config.vehicle.tire_diameter.source]
+kind = "inherited_default"
+reference = "builtin.vehicle.baja_generic_v1@1 broad engineering prior"
+
+[config.vehicle.tire_diameter.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 20.0
+upper = 25.0
+
+[config.vehicle.aero.drag_area]
+nominal = 0.67
+unit = "m^2"
+
+[config.vehicle.aero.drag_area.source]
+kind = "inherited_default"
+reference = "builtin.vehicle.baja_generic_v1@1 broad engineering prior"
+notes = "Placeholder prior until CAD/CFD or coast-down evidence is available."
+
+[config.vehicle.aero.drag_area.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.45
+mode = 0.67
+upper = 0.95
+
+[config.vehicle.rolling_resistance_coefficient]
+nominal = 0.025
+unit = "1"
+
+[config.vehicle.rolling_resistance_coefficient.source]
+kind = "inherited_default"
+reference = "builtin.vehicle.baja_generic_v1@1 broad loose-surface prior"
+
+[config.vehicle.rolling_resistance_coefficient.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.012
+mode = 0.025
+upper = 0.050
+
+[config.drivetrain.efficiency]
+nominal = 0.82
+unit = "1"
+
+[config.drivetrain.efficiency.source]
+kind = "inherited_default"
+reference = "builtin.vehicle.baja_generic_v1@1 broad drivetrain prior"
+
+[config.drivetrain.efficiency.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.75
+mode = 0.82
+upper = 0.90
+
+[config.vehicle.wheel_rotational_inertia]
+nominal = 0.20
+unit = "kg*m^2"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 broad wheel/axle rotational-inertia prior" }
+uncertainty = { distribution = "triangular", role = "structural", lower = 0.10, mode = 0.20, upper = 0.40 }
+
+[config.vehicle.driven_normal_load_fraction]
+nominal = 0.60
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 broad static driven-axle load fraction prior" }
+uncertainty = { distribution = "uniform", role = "structural", lower = 0.45, upper = 0.75 }
+
+[config.vehicle.aero.air_density]
+nominal = 1.10
+unit = "kg/m^3"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 representative warm-altitude air-density prior" }
+uncertainty = { distribution = "uniform", role = "structural", lower = 0.95, upper = 1.225 }
+
+[config.vehicle.tire.peak_traction_scale]
+nominal = 1.0
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 reduced-order tire force-ceiling prior" }
+uncertainty = { distribution = "triangular", role = "structural", lower = 0.70, mode = 1.0, upper = 1.20 }
+
+[config.vehicle.tire.slip_stiffness]
+nominal = 2500.0
+unit = "N*s/m"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 reduced-order tire slip-buildup prior" }
+uncertainty = { distribution = "triangular", role = "structural", lower = 1400.0, mode = 2500.0, upper = 4000.0 }
+
+[config.drivetrain.engine.model]
+nominal = "baja_br10_reference_v1"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 tabulated reference engine curve" }
+uncertainty = { distribution = "fixed", reason = "Phase 5 selects one explicit engine-curve family; power uncertainty is carried separately." }
+
+[config.drivetrain.engine.target_speed]
+nominal = 3000.0
+unit = "rpm"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 representative peak-power target" }
+uncertainty = { distribution = "uniform", role = "structural", lower = 2900.0, upper = 3200.0 }
+
+[config.drivetrain.engine.power_scale]
+nominal = 1.0
+unit = "1"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 reference curve scale" }
+uncertainty = { distribution = "triangular", role = "structural", lower = 0.75, mode = 1.0, upper = 1.05 }
+
+[config.drivetrain.cvt.launch_clutch_model]
+nominal = "ideal_slip"
+source = { kind = "inherited_default", reference = "builtin.vehicle.baja_generic_v1@1 idealized launch-clutch mechanism" }
+uncertainty = { distribution = "fixed", reason = "The Phase 5 baseline uses the documented ideal launch-clutch approximation." }

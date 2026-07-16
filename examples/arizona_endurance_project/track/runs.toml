@@ -1,0 +1,7 @@
+[[runs]]
+file = "gpx/mcmaster_arizona_endurance_2025.gpx"
+vehicle_id = "vehicle_A"
+run_id = "arizona_endurance_A01"
+driver_id = "driver_1"
+use_for_centreline = true
+use_for_gate_evidence = true
