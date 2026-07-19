@@ -1,7 +1,7 @@
 [study]
 name = "structural_sensitivity"
 type = "structural_sensitivity"
-vehicle_id = "mcmaster"
+vehicle_id = "vehicle_A"
 random_seed = 20260715
 
 [base_case]
@@ -9,15 +9,22 @@ study = "baseline"
 
 [sensitivity]
 method = "one_at_a_time"
-parameters = [
-  "vehicle.aero.drag_area",
-  "vehicle.rolling_resistance_coefficient",
-  "drivetrain.efficiency",
-]
-quantiles = [0.05, 0.2, 0.8, 0.95]
+
+# "*" means every non-fixed input whose resolved uncertainty role is structural:
+# vehicle, drivetrain, driver, track surface, and obstacle-model contracts.
+parameters = ["*"]
+
+# Optional exact paths to omit from the automatic screen.
+exclude_parameters = []
+
+# Numeric quantities use these declared-distribution probabilities plus the
+# nominal value. Duplicate values are removed automatically.
+quantiles = [0.05, 0.20, 0.50, 0.80, 0.95]
 
 [reporting]
 bootstrap_resamples = 1000
+top_parameter_count = 15
+html_report = true
 
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01

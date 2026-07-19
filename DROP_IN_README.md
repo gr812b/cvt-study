@@ -1,56 +1,72 @@
-# Superseded by DROP_IN_README_V2.md
+# All-declared structural sensitivity drop-in
 
-# Drop-in telemetry cleanup replacement
+Extract this archive directly over the repository root and approve file
+replacement.
 
-This archive contains only new or replaced repository files.
+This upgrade:
 
-## Apply
+- discovers every non-fixed registered input with structural uncertainty;
+- retains explicit focused parameter lists for later follow-up runs;
+- evaluates nominal plus declared numeric quantiles or categorical choices;
+- reports progress and ETA per parameter level;
+- checkpoints each level independently;
+- reports absolute lap time, speed, completion, energy/loss mechanisms,
+  ratio-region times, and bounded-versus-infinite diagnostics;
+- writes `structural_sensitivity_report.html`.
 
-From the repository root, copy the archive contents over the existing checkout
-while preserving paths. On Windows Explorer, extract directly into the
-`cvt-study` repository and approve file replacement.
+## Existing Arizona project
 
-Then reinstall the editable package and run tests:
+Replace:
+
+```text
+projects/arizona/studies/structural_sensitivity.toml
+```
+
+with the included Arizona-ready root file (`vehicle_id = "mcmaster"`):
+
+```text
+structural_sensitivity_all_declared_arizona.toml
+```
+
+Copy it with:
+
+```powershell
+Copy-Item .\structural_sensitivity_all_declared_arizona.toml `
+  .\projects\arizona\studies\structural_sensitivity.toml -Force
+```
+
+Then run:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 py -m pip install -e ".[dev]"
-pytest -q
+
+pytest -q tests/test_structural_auto_discovery.py `
+  tests/test_structural_absolute_summary.py `
+  tests/test_progress_reporter_eta.py `
+  tests/test_structural_html_report.py
+
+drivetrain-study validate .\projects\arizona --study structural_sensitivity
+drivetrain-study run structural-sensitivity .\projects\arizona --workers 4
 ```
 
-## Enable it in an existing project
+The `--workers` value can be adjusted for the machine. The console prints
+total parameter levels, elapsed time, ETA, throughput, the current parameter,
+and cache usage.
 
-The project templates are updated, but an existing project is not rewritten.
-Add this block to `projects/arizona/track/track.toml`:
+Start with:
 
-```toml
-[track.telemetry_cleanup]
-enabled = true
-maximum_excursion_points = 3
-minimum_excursion_leg_m = 35.0
-impossible_speed_multiplier = 1.5
-maximum_bridge_speed_multiplier = 1.0
-maximum_bridge_gap_s = 8.0
-maximum_auto_removed_fraction = 0.005
-maximum_auto_removed_points = 25
-isolated_map_error_m = 40.0
-maximum_isolated_map_outlier_points = 3
+```text
+results/structural_sensitivity/<run>/structural_sensitivity_report.html
 ```
 
-Run:
+Main machine-readable outputs:
 
-```powershell
-drivetrain-study validate .\projects\arizona
-drivetrain-study ingest .\projects\arizona
-drivetrain-study build-track .\projects\arizona
+```text
+structural_metric_ranges.csv
+structural_parameter_levels.csv
+replicate_results.csv
+summary.json
+run_manifest.json
+input_contracts.json
 ```
-
-Inspect the newest:
-
-- `results/ingestion/<run>/rejected_telemetry_points.csv`
-- `results/ingestion/<run>/telemetry_cleanup_map.png`
-- `results/track_build/<run>/track/rejected_map_points.csv`
-- `results/track_build/<run>/review/telemetry_cleanup_map.png`
-
-The cleanup does not alter source FIT/GPX files, interpolate coordinates, or
-silently repair sustained excursions.

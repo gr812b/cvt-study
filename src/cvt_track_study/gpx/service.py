@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from cvt_track_study.config.project import ProjectError, ProjectLoader, ResolutionResult
+from cvt_track_study.config import ProjectError, ProjectLoader, ResolutionResult
 
 from .cleanup import apply_telemetry_cleanup
 from .export import export_ingestion_results

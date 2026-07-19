@@ -1,27 +1,48 @@
 {
-  "base_repository": "gr812b/cvt-study",
-  "intended_base_branch": "main",
-  "replacement_or_new_file_count": 15,
-  "python_files_compiled": [
-    "tests/test_telemetry_cleanup.py",
-    "src/cvt_track_study/gpx/model.py",
-    "src/cvt_track_study/gpx/cleanup.py",
-    "src/cvt_track_study/gpx/service.py",
-    "src/cvt_track_study/gpx/export.py",
-    "src/cvt_track_study/gpx/__init__.py",
-    "src/cvt_track_study/track/model.py",
-    "src/cvt_track_study/track/reconstruction.py",
-    "src/cvt_track_study/track/service.py",
-    "src/cvt_track_study/track/export.py"
+  "repository": "gr812b/cvt-study",
+  "purpose": "All-declared structural screening, absolute metrics, progress/ETA, and complete HTML reporting",
+  "new_source_files": [
+    "src/cvt_track_study/studies/service_v9.py",
+    "src/cvt_track_study/studies/structural_analysis.py",
+    "src/cvt_track_study/studies/structural_reporting.py",
+    "src/cvt_track_study/config/project_v9.py"
   ],
-  "focused_algorithm_smoke_tests": {
-    "isolated_pre_lap_excursion": "passed",
-    "isolated_post_map_outlier": "passed"
+  "replaced_source_files": [
+    "src/cvt_track_study/studies/planning.py",
+    "src/cvt_track_study/studies/__init__.py",
+    "src/cvt_track_study/runtime/progress.py",
+    "src/cvt_track_study/config/__init__.py",
+    "src/cvt_track_study/gpx/service.py",
+    "src/cvt_track_study/track/service.py"
+  ],
+  "new_report": "structural_sensitivity_report.html",
+  "new_tables": [
+    "structural_metric_ranges.csv",
+    "structural_parameter_levels.csv"
+  ],
+  "static_compilation": "passed after final patches",
+  "compiled_python_files": [
+    "tests/test_structural_auto_discovery.py",
+    "tests/test_structural_absolute_summary.py",
+    "tests/test_progress_reporter_eta.py",
+    "tests/test_structural_html_report.py",
+    "src/cvt_track_study/studies/planning.py",
+    "src/cvt_track_study/studies/structural_analysis.py",
+    "src/cvt_track_study/studies/structural_reporting.py",
+    "src/cvt_track_study/studies/service_v9.py",
+    "src/cvt_track_study/studies/__init__.py",
+    "src/cvt_track_study/runtime/progress.py",
+    "src/cvt_track_study/config/project_v9.py",
+    "src/cvt_track_study/config/__init__.py",
+    "src/cvt_track_study/gpx/service.py",
+    "src/cvt_track_study/track/service.py"
+  ],
+  "focused_runtime_tests": {
+    "all_declared_structural_discovery": "passed",
+    "wildcard_validation_compatibility": "passed",
+    "absolute_metric_summary_and_ranking": "passed",
+    "progress_eta_output": "passed",
+    "html_plots_and_csv_artifacts": "passed"
   },
-  "compatibility": {
-    "ingestion_manifest_schema_version": 1,
-    "track_build_manifest_schema_version": 1,
-    "main_track_map": "analysis-valid laps only",
-    "full_audit_map": "review/telemetry_cleanup_map.png"
-  }
+  "arizona_ready_study_file": "structural_sensitivity_all_declared_arizona.toml"
 }

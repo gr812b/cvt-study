@@ -15,7 +15,9 @@ from cvt_track_study.gpx.cleanup import create_telemetry_cleanup_map
 
 from .model import TrackBuildResult
 from .review import (
+    build_event_interval_audit,
     create_elevation_profile,
+    create_event_group_timeline,
     create_track_map,
     write_review_html,
     write_review_summary,
@@ -95,12 +97,21 @@ def export_track_build(
             result.response_features,
             track / "response_features.csv",
         )
+        interval_audit = build_event_interval_audit(
+            result.response_features,
+            result.centreline.length_m,
+        )
+        _write_frame(
+            interval_audit,
+            track / "event_interval_audit.csv",
+        )
         _write_frame(result.event_passes, track / "event_passes.csv")
         _write_frame(result.gate_evidence, track / "gate_evidence.csv")
         _write_frame(result.gate_review, track / "gate_review.csv")
 
         review = temporary / "review"
         map_path = review / "track_map.png"
+        timeline_path = review / "event_group_timeline.png"
         elevation_path = review / "elevation_profile.png"
         valid_lap_ids = set(
             result.laps.loc[result.laps["analysis_valid"], "lap_id"].astype(int)
@@ -114,6 +125,11 @@ def export_track_build(
             review_matched_points,
             result.event_projection,
             result.gate_review,
+        )
+        create_event_group_timeline(
+            timeline_path,
+            interval_audit,
+            result.centreline.length_m,
         )
         create_elevation_profile(
             elevation_path, result.track_profile
@@ -136,7 +152,9 @@ def export_track_build(
         write_review_html(
             review / "track_review.html",
             map_path=map_path,
+            timeline_path=timeline_path,
             elevation_path=elevation_path,
+            interval_audit=interval_audit,
             gate_review=result.gate_review,
             laps=result.laps,
         )

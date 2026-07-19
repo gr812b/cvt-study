@@ -8,7 +8,7 @@ from pathlib import Path
 from collections.abc import Mapping
 
 from cvt_track_study.config.diagnostics import DiagnosticBag
-from cvt_track_study.config.project import ProjectError, ProjectLoader
+from cvt_track_study.config import ProjectError, ProjectLoader
 from cvt_track_study.gpx.cleanup import apply_telemetry_cleanup
 from cvt_track_study.gpx.model import GPXRunMetadata
 from cvt_track_study.gpx.ingestion import (
