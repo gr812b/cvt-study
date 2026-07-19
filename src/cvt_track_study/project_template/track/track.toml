@@ -25,8 +25,39 @@ profile_spacing_m = 5.0
 maximum_map_error_m = 20.0
 speed_spike_threshold_mps = 4.0
 
+# Conservative, auditable removal of isolated GPS excursions.
+# Longer or ambiguous excursions are retained for review and may reject a lap.
+[track.telemetry_cleanup]
+enabled = true
+maximum_excursion_points = 3
+minimum_excursion_leg_m = 35.0
+impossible_speed_multiplier = 1.5
+maximum_bridge_speed_multiplier = 1.0
+maximum_bridge_gap_s = 8.0
+maximum_auto_removed_fraction = 0.005
+maximum_auto_removed_points = 25
+isolated_map_error_m = 40.0
+maximum_isolated_map_outlier_points = 3
+
 # These windows are relative to each physical feature's start/end after it has
 # been projected onto the common along-track coordinate s.
+# The centreline is a robust pointwise median across all provisionally valid
+# cleaned laps. Laps are then checked against a consensus built without
+# themselves; clear sustained geometry outliers are excluded and the consensus
+# is rebuilt until stable.
+[track.centreline_consensus]
+minimum_laps = 3
+maximum_iterations = 6
+convergence_tolerance_m = 0.10
+smoothing_window_nodes = 5
+leave_one_out_p95_limit_m = 15.0
+sustained_error_threshold_m = 15.0
+minimum_sustained_outlier_fraction = 0.05
+strong_sustained_outlier_fraction = 0.15
+maximum_leave_one_out_shift_m = 5.0
+robust_mad_multiplier = 3.5
+maximum_outlier_fraction_per_iteration = 0.20
+
 [track.event_windows]
 approach_before_m = 35.0
 approach_gap_m = 15.0

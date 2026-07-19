@@ -1,0 +1,116 @@
+# Fully explicit reduced-order drivetrain definition.
+#
+# No values are supplied by a vehicle profile. Every drivetrain quantity
+# currently consumed by the simulator is declared locally in this file.
+#
+# efficiency is the single lumped mechanical efficiency used from engine output
+# through the bounded/reference CVT and final drive to the driven wheel.
+
+[drivetrain.efficiency]
+nominal = 1
+unit = "1"
+
+[drivetrain.efficiency.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja lumped CVT and final-drive mechanical-efficiency estimate"
+notes = "Use measured input/output power data or a validated operating map when available."
+
+[drivetrain.efficiency.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 0.75
+upper = 1
+
+[drivetrain.final_drive_ratio]
+nominal = 7.556
+unit = "1"
+
+[drivetrain.final_drive_ratio.source]
+kind = "derived"
+reference = "McMaster Baja gearbox and sprocket reduction declaration"
+notes = "Confirm from the exact installed gear and sprocket tooth counts."
+
+[drivetrain.final_drive_ratio.uncertainty]
+distribution = "fixed"
+reason = "The reduction is exact once the installed integer tooth counts are confirmed."
+
+[drivetrain.engine.model]
+nominal = "baja_br10_reference_v1"
+
+[drivetrain.engine.model.source]
+kind = "engineering_estimate"
+reference = "Framework tabulated Briggs Baja reference engine curve"
+notes = "This is the only engine-curve family currently implemented by the reduced-order simulator."
+
+[drivetrain.engine.model.uncertainty]
+distribution = "fixed"
+reason = "Engine model-form selection is fixed; available-power uncertainty is carried by power_scale."
+
+[drivetrain.engine.target_speed]
+nominal = 3000.0
+unit = "rpm"
+
+[drivetrain.engine.target_speed.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja nominal CVT engine-speed target"
+notes = "The bounded ideal CVT attempts to operate the reference engine around this target."
+
+[drivetrain.engine.target_speed.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 2900.0
+upper = 3200.0
+
+[drivetrain.engine.power_scale]
+nominal = 1.0
+unit = "1"
+
+[drivetrain.engine.power_scale.source]
+kind = "engineering_estimate"
+reference = "Scale applied to the framework Baja reference engine curve"
+notes = "1.0 uses the reference curve unchanged; uncertainty captures engine condition and available-power error."
+
+[drivetrain.engine.power_scale.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.75
+mode = 1.0
+upper = 1.05
+
+[drivetrain.cvt.maximum_reduction_ratio]
+nominal = 3.5
+unit = "1"
+
+[drivetrain.cvt.maximum_reduction_ratio.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja declared maximum CVT reduction ratio"
+notes = "Confirm from measured primary and secondary running radii at full low ratio."
+
+[drivetrain.cvt.maximum_reduction_ratio.uncertainty]
+distribution = "fixed"
+reason = "This will be controlled as an optimized param"
+
+[drivetrain.cvt.minimum_reduction_ratio]
+nominal = 0.9
+unit = "1"
+
+[drivetrain.cvt.minimum_reduction_ratio.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja declared minimum CVT reduction ratio"
+notes = "Confirm from measured primary and secondary running radii at full overdrive."
+
+[drivetrain.cvt.minimum_reduction_ratio.uncertainty]
+distribution = "fixed"
+reason = "This will be controlled as an optimized param"
+
+[drivetrain.cvt.launch_clutch_model]
+nominal = "ideal_slip"
+
+[drivetrain.cvt.launch_clutch_model.source]
+kind = "engineering_estimate"
+reference = "Reduced-order ideal launch-clutch approximation"
+notes = "The current track-study model does not reproduce detailed centrifugal clutch or belt engagement dynamics."
+
+[drivetrain.cvt.launch_clutch_model.uncertainty]
+distribution = "fixed"
+reason = "The baseline uses the explicitly declared ideal-slip launch approximation."

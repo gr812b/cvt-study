@@ -33,3 +33,6 @@ htmlcov/
 # markers and intentionally committed regression fixtures.
 **/results/*
 !**/results/.gitkeep
+
+
+/projects

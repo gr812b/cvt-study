@@ -1,0 +1,15 @@
+[[runs]]
+file = "fit/mcmaster_arizona_endurance_1.fit"
+run_id = "arizona_endurance_1"
+vehicle_id = "mcmaster"
+driver_id = "ariel"
+use_for_centreline = true
+use_for_gate_evidence = true
+
+[[runs]]
+file = "fit/mcmaster_arizona_endurance_3.fit"
+run_id = "arizona_endurance_3"
+vehicle_id = "mcmaster"
+driver_id = "ariel"
+use_for_centreline = true
+use_for_gate_evidence = true

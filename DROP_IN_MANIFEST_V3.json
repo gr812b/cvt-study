@@ -1,0 +1,11 @@
+{
+  "error_fixed": "assignment destination is read-only",
+  "root_cause": "Pandas Copy-on-Write returned read-only ndarray views that consensus code modified in place",
+  "changed_from_v2": [
+    "src/cvt_track_study/track/laps.py",
+    "tests/test_consensus_writable_arrays.py",
+    "DROP_IN_README_V3.md"
+  ],
+  "static_compilation": "passed",
+  "compiled_python_files": 15
+}

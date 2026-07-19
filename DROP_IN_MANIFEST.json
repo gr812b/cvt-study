@@ -1,0 +1,27 @@
+{
+  "base_repository": "gr812b/cvt-study",
+  "intended_base_branch": "main",
+  "replacement_or_new_file_count": 15,
+  "python_files_compiled": [
+    "tests/test_telemetry_cleanup.py",
+    "src/cvt_track_study/gpx/model.py",
+    "src/cvt_track_study/gpx/cleanup.py",
+    "src/cvt_track_study/gpx/service.py",
+    "src/cvt_track_study/gpx/export.py",
+    "src/cvt_track_study/gpx/__init__.py",
+    "src/cvt_track_study/track/model.py",
+    "src/cvt_track_study/track/reconstruction.py",
+    "src/cvt_track_study/track/service.py",
+    "src/cvt_track_study/track/export.py"
+  ],
+  "focused_algorithm_smoke_tests": {
+    "isolated_pre_lap_excursion": "passed",
+    "isolated_post_map_outlier": "passed"
+  },
+  "compatibility": {
+    "ingestion_manifest_schema_version": 1,
+    "track_build_manifest_schema_version": 1,
+    "main_track_map": "analysis-valid laps only",
+    "full_audit_map": "review/telemetry_cleanup_map.png"
+  }
+}

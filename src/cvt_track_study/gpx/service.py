@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping
 
 from cvt_track_study.config.project import ProjectError, ProjectLoader, ResolutionResult
 
+from .cleanup import apply_telemetry_cleanup
 from .export import export_ingestion_results
 from .model import GPXIngestionResult, GPXRunMetadata
 from .ingestion import TelemetryParseError, ingest_telemetry_run
@@ -22,10 +23,12 @@ def ingest_project(
     resolution = ProjectLoader().resolve(project)
     if resolution.error_count:
         raise ProjectError(
-            f"Project validation failed with {resolution.error_count} error(s); run cvt-study validate first."
+            f"Project validation failed with {resolution.error_count} error(s); "
+            "run cvt-study validate first."
         )
     selected = set(run_ids)
     raw_runs = resolution.data.get("runs", [])
+    track_config = resolution.data.get("track", {})
     results: list[GPXIngestionResult] = []
     for raw in raw_runs:
         if not isinstance(raw, Mapping):
@@ -43,8 +46,9 @@ def ingest_project(
             use_for_gate_evidence=bool(raw["use_for_gate_evidence"]),
         )
         try:
-            results.append(ingest_telemetry_run(metadata))
-        except TelemetryParseError as exc:
+            parsed = ingest_telemetry_run(metadata)
+            results.append(apply_telemetry_cleanup(parsed, track_config))
+        except (TelemetryParseError, ValueError) as exc:
             raise ProjectError(str(exc)) from exc
     if selected:
         found = {item.metadata.run_id for item in results}
@@ -69,6 +73,14 @@ def ingest_project(
         },
         "source_formats": {
             item.metadata.run_id: item.summary["source_format"] for item in results
+        },
+        "cleaned_point_counts": {
+            item.metadata.run_id: int(item.summary["clean_positioned_point_count"])
+            for item in results
+        },
+        "rejected_excursion_point_counts": {
+            item.metadata.run_id: int(item.summary["isolated_excursion_point_count"])
+            for item in results
         },
     }
     export_ingestion_results(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +30,7 @@ class TrackBuildResult:
     gate_review: pd.DataFrame
     diagnostics: tuple[Diagnostic, ...]
     metadata: dict[str, Any]
+    rejected_map_points: pd.DataFrame = field(default_factory=pd.DataFrame)
     output_directory: Path | None = None
 
     @property

@@ -1,0 +1,169 @@
+# Fully explicit reduced-order vehicle definition.
+#
+# No vehicle profile is inherited. Every vehicle quantity currently consumed by
+# the simulator is declared locally in this file.
+#
+# Aerodynamic convention:
+#   The simulator consumes drag_area = Cd * frontal_area.
+#   Current decomposition retained for engineering traceability:
+#       drag coefficient Cd = 0.60
+#       frontal area A      = 1.11484 m^2
+#       CdA                 = 0.668904 m^2
+#
+# Surface friction itself belongs in track.toml. The tire quantities below
+# describe how this vehicle uses that available surface traction.
+
+[vehicle]
+id = "mcmaster"
+profiles = []
+
+[vehicle.mass]
+nominal = 280
+unit = "kg"
+
+[vehicle.mass.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja race-ready vehicle mass currently declared for the Arizona study"
+notes = "Use a race-ready four-corner-scale measurement when available."
+
+[vehicle.mass.uncertainty]
+distribution = "normal"
+role = "structural"
+confidence_half_width = 10
+confidence_level = 0.9
+
+[vehicle.gravity]
+nominal = 9.80665
+unit = "m/s^2"
+
+[vehicle.gravity.source]
+kind = "derived"
+reference = "Conventional standard gravity, exact definition"
+
+[vehicle.gravity.uncertainty]
+distribution = "fixed"
+reason = "9.80665 m/s^2 is the exact conventional standard gravity used by this model."
+
+[vehicle.tire_diameter]
+nominal = 22.0
+unit = "in"
+
+[vehicle.tire_diameter.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja 22-inch nominal tire declaration"
+notes = "Loaded rolling diameter should be measured on the race-ready vehicle."
+
+[vehicle.tire_diameter.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 21.5
+upper = 22.5
+
+[vehicle.wheel_rotational_inertia]
+nominal = 0.29
+unit = "kg*m^2"
+
+[vehicle.wheel_rotational_inertia.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja driven wheel, hub, and axle reduced rotational-inertia estimate"
+notes = "Equivalent inertia referred to one modeled driven-wheel coordinate."
+
+[vehicle.wheel_rotational_inertia.uncertainty]
+distribution = "normal"
+role = "structural"
+confidence_half_width = 0.05
+confidence_level = 0.8
+
+[vehicle.driven_normal_load_fraction]
+nominal = 0.65
+unit = "1"
+
+[vehicle.driven_normal_load_fraction.source]
+kind = "engineering_estimate"
+reference = "McMaster Baja static driven-axle normal-load fraction estimate"
+notes = "Reduced-order constant fraction; does not model longitudinal load transfer."
+
+[vehicle.driven_normal_load_fraction.uncertainty]
+distribution = "normal"
+role = "structural"
+confidence_half_width = 0.1
+confidence_level = 0.98
+
+[vehicle.aero.drag_area]
+nominal = 0.668904
+unit = "m^2"
+
+[vehicle.aero.drag_area.source]
+kind = "engineering_estimate"
+reference = "CdA derived from Cd = 0.60 and frontal area = 1.11484 m^2"
+notes = "The current simulator consumes CdA directly rather than Cd and frontal area separately."
+
+[vehicle.aero.drag_area.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.45
+mode = 0.668904
+upper = 0.95
+
+[vehicle.aero.air_density]
+nominal = 1.10
+unit = "kg/m^3"
+
+[vehicle.aero.air_density.source]
+kind = "engineering_estimate"
+reference = "Representative warm Arizona endurance air-density estimate"
+notes = "Can later be calculated from measured temperature, pressure, humidity, and elevation."
+
+[vehicle.aero.air_density.uncertainty]
+distribution = "uniform"
+role = "structural"
+lower = 0.95
+upper = 1.225
+
+[vehicle.rolling_resistance_coefficient]
+nominal = 0.025
+unit = "1"
+
+[vehicle.rolling_resistance_coefficient.source]
+kind = "engineering_estimate"
+reference = "Loose-surface Baja rolling-resistance estimate"
+notes = "Represents the reduced-order non-aerodynamic rolling loss outside explicit obstacle losses."
+
+[vehicle.rolling_resistance_coefficient.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.012
+mode = 0.025
+upper = 0.050
+
+[vehicle.tire.peak_traction_scale]
+nominal = 1.0
+unit = "1"
+
+[vehicle.tire.peak_traction_scale.source]
+kind = "engineering_estimate"
+reference = "Reduced-order McMaster Baja tire force-ceiling scale"
+notes = "Multiplies the track surface friction force ceiling; 1.0 applies the declared track value unchanged."
+
+[vehicle.tire.peak_traction_scale.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.70
+mode = 1.0
+upper = 1.20
+
+[vehicle.tire.slip_stiffness]
+nominal = 2500.0
+unit = "N*s/m"
+
+[vehicle.tire.slip_stiffness.source]
+kind = "engineering_estimate"
+reference = "Reduced-order McMaster Baja longitudinal tire-slip buildup estimate"
+notes = "Controls how quickly longitudinal tire force approaches the traction ceiling with relative wheel-ground speed."
+
+[vehicle.tire.slip_stiffness.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 1400.0
+mode = 2500.0
+upper = 4000.0

@@ -1,5 +1,5 @@
 [project]
-name = "mcmaster_arizona_endurance_2025"
+name = "Baja Arizona Endurance"
 schema_version = 1
 track = "track/track.toml"
 runs = "track/runs.toml"

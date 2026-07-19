@@ -1,20 +1,20 @@
 [study]
-name = "full_uncertainty"
-type = "full_uncertainty"
-vehicle_id = "vehicle_A"
+name = "track_robustness"
+type = "track_robustness"
+vehicle_id = "mcmaster"
 random_seed = 20260715
 
 [base_case]
 study = "baseline"
 
 [sampling]
-mode = "all_declared"
-replicates = 100
+mode = "measured_track"
+replicates = 30
 paired_scenarios = true
 gate_sampling = "paired_lap"
 
 [reporting]
-bootstrap_resamples = 2000
+bootstrap_resamples = 1000
 
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01

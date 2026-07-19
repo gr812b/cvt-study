@@ -9,8 +9,12 @@ from collections.abc import Mapping
 
 from cvt_track_study.config.diagnostics import DiagnosticBag
 from cvt_track_study.config.project import ProjectError, ProjectLoader
+from cvt_track_study.gpx.cleanup import apply_telemetry_cleanup
 from cvt_track_study.gpx.model import GPXRunMetadata
-from cvt_track_study.gpx.ingestion import TelemetryParseError, ingest_telemetry_run
+from cvt_track_study.gpx.ingestion import (
+    TelemetryParseError,
+    ingest_telemetry_run,
+)
 
 from .export import export_track_build
 from .model import TrackBuildResult
@@ -25,8 +29,10 @@ def build_project_track(
     resolution = ProjectLoader().resolve(project)
     if resolution.error_count:
         raise ProjectError(
-            f"Project validation failed with {resolution.error_count} error(s); run cvt-study validate first."
+            f"Project validation failed with {resolution.error_count} error(s); "
+            "run cvt-study validate first."
         )
+    track_config = resolution.data.get("track", {})
     ingestion_results = []
     for raw in resolution.data.get("runs", []):
         if not isinstance(raw, Mapping):
@@ -35,18 +41,27 @@ def build_project_track(
             run_id=str(raw["run_id"]),
             vehicle_id=str(raw["vehicle_id"]),
             driver_id=str(raw["driver_id"]),
-            source_file=(resolution.paths.runs_file.parent / str(raw["file"])).resolve(),
+            source_file=(
+                resolution.paths.runs_file.parent / str(raw["file"])
+            ).resolve(),
             use_for_centreline=bool(raw["use_for_centreline"]),
             use_for_gate_evidence=bool(raw["use_for_gate_evidence"]),
         )
         try:
-            ingestion_results.append(ingest_telemetry_run(metadata))
-        except TelemetryParseError as exc:
+            parsed = ingest_telemetry_run(metadata)
+            ingestion_results.append(
+                apply_telemetry_cleanup(parsed, track_config)
+            )
+        except (TelemetryParseError, ValueError) as exc:
             raise ProjectError(str(exc)) from exc
     if not ingestion_results:
-        raise ProjectError("Track reconstruction requires at least one telemetry run.")
+        raise ProjectError(
+            "Track reconstruction requires at least one telemetry run."
+        )
     ingestion_errors = [
-        item.metadata.run_id for item in ingestion_results if item.error_count
+        item.metadata.run_id
+        for item in ingestion_results
+        if item.error_count
     ]
     if ingestion_errors:
         raise ProjectError(
@@ -58,7 +73,6 @@ def build_project_track(
     diagnostics = DiagnosticBag(resolution.diagnostics)
     for ingestion in ingestion_results:
         diagnostics.extend(ingestion.diagnostics)
-    track_config = resolution.data.get("track", {})
     raw_events = resolution.data.get("events", [])
     try:
         (
@@ -71,14 +85,21 @@ def build_project_track(
             event_passes,
             gate_evidence,
             gate_review,
+            rejected_map_points,
         ) = build_track_evidence(
-            tuple(ingestion_results), track_config, raw_events, diagnostics
+            tuple(ingestion_results),
+            track_config,
+            raw_events,
+            diagnostics,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ProjectError(f"Track reconstruction failed: {exc}") from exc
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output = output_directory or resolution.paths.results_directory / "track_build" / stamp
+    output = (
+        output_directory
+        or resolution.paths.results_directory / "track_build" / stamp
+    )
     if not output.is_absolute():
         output = (Path.cwd() / output).resolve()
     metadata = {
@@ -86,7 +107,9 @@ def build_project_track(
         "phase": 3,
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "project_root": str(resolution.paths.root),
-        "run_ids": [item.metadata.run_id for item in ingestion_results],
+        "run_ids": [
+            item.metadata.run_id for item in ingestion_results
+        ],
         "source_telemetry_sha256": {
             item.metadata.run_id: item.summary["source_sha256"]
             for item in ingestion_results
@@ -95,11 +118,29 @@ def build_project_track(
             item.metadata.run_id: item.summary["source_format"]
             for item in ingestion_results
         },
-        "reference_lap_id": int(laps.loc[laps["reference_lap"], "lap_id"].iloc[0]),
+        "reference_lap_id": int(
+            laps.loc[laps["reference_lap"], "lap_id"].iloc[0]
+        ),
+        "centreline_method": "iterative_robust_multi_lap_consensus",
+        "centreline_input_lap_count": int(
+            laps["centreline_included"].sum()
+        ),
+        "centreline_excluded_lap_count": int(
+            laps["consensus_excluded"].sum()
+        ),
+        "centreline_consensus_iteration_count": int(
+            laps["consensus_iteration_count"].max()
+        ),
         "track_length_m": centreline.length_m,
         "complete_lap_count": len(laps),
         "valid_lap_count": int(laps["analysis_valid"].sum()),
-        "accepted_gate_count": int((gate_review["recommendation"] == "accepted").sum()),
+        "accepted_gate_count": int(
+            (gate_review["recommendation"] == "accepted").sum()
+        ),
+        "pre_lap_rejected_point_count": sum(
+            len(item.rejected_points) for item in ingestion_results
+        ),
+        "post_map_rejected_point_count": len(rejected_map_points),
         "grade_force_enabled": False,
     }
     result = TrackBuildResult(
@@ -114,6 +155,7 @@ def build_project_track(
         event_passes=event_passes,
         gate_evidence=gate_evidence,
         gate_review=gate_review,
+        rejected_map_points=rejected_map_points,
         diagnostics=diagnostics.items,
         metadata=metadata,
     )

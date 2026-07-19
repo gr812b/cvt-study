@@ -1,5 +1,10 @@
 """GPX and FIT raw telemetry ingestion."""
 
+from .cleanup import (
+    TelemetryCleanupSettings,
+    apply_telemetry_cleanup,
+    create_telemetry_cleanup_map,
+)
 from .fit_parser import FITParseError, ingest_fit_run
 from .ingestion import TelemetryParseError, ingest_telemetry_run
 from .model import (
@@ -18,9 +23,12 @@ __all__ = [
     "GPXParseError",
     "GPXRunMetadata",
     "FITParseError",
+    "TelemetryCleanupSettings",
     "TelemetryIngestionResult",
     "TelemetryParseError",
     "TelemetryRunMetadata",
+    "apply_telemetry_cleanup",
+    "create_telemetry_cleanup_map",
     "ingest_fit_run",
     "ingest_gpx_run",
     "ingest_telemetry_run",

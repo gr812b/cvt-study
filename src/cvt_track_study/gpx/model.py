@@ -6,7 +6,7 @@ to change when FIT recordings are introduced.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,7 @@ class GPXIngestionResult:
     segments: pd.DataFrame
     summary: dict[str, Any]
     diagnostics: tuple[Diagnostic, ...]
+    rejected_points: pd.DataFrame = field(default_factory=pd.DataFrame)
 
     @property
     def error_count(self) -> int:

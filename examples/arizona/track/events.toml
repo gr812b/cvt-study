@@ -1,0 +1,1088 @@
+# Arizona endurance physical events.
+#
+# Sequence numbers are positive and unique:
+# start_finish = 1; physical events = 2 through 41.
+
+[[events]]
+id = "start_finish"
+name = "Start / finish"
+sequence = 1
+kind = "point"
+analysis_role = "lap_gate"
+response_group_id = "start_finish"
+gate_candidate = false
+notes = "Dedicated lap-segmentation reference supplied by the user."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47505833
+longitude_deg = -111.29451111
+horizontal_uncertainty_m = 5.0
+source = "user-supplied coordinate: 32°28'30.21\"N 111°17'40.24\"W"
+
+[events.extent]
+before_anchor_m = 2.0
+after_anchor_m = 2.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "small lap-gate reference extent; not a physical obstacle"
+
+[[events]]
+id = "turn_1"
+name = "Turn 1"
+sequence = 2
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E01"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47484900
+longitude_deg = -111.29461500
+horizontal_uncertainty_m = 5.4
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_2"
+name = "Turn 2"
+sequence = 3
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E02"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47485000
+longitude_deg = -111.29524700
+horizontal_uncertainty_m = 9.3
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "long_hill"
+name = "Long Hill"
+sequence = 4
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E03"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47607100
+longitude_deg = -111.29536700
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47607100
+longitude_deg = -111.29536700
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47640400
+longitude_deg = -111.29534500
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "bump_4"
+name = "Bump 4"
+sequence = 5
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E04"
+gate_candidate = true
+notes = "response grouping: separate; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47656200
+longitude_deg = -111.29485700
+horizontal_uncertainty_m = 8.0
+source = "corrected anchor recovered from shifted columns in supplied obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_5"
+name = "Turn 5"
+sequence = 6
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E05"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47650300
+longitude_deg = -111.29470100
+horizontal_uncertainty_m = 5.0
+source = "corrected anchor recovered from shifted columns in supplied obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "bump_6"
+name = "Bump 6"
+sequence = 7
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E06"
+gate_candidate = true
+notes = "response grouping: separate; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47632200
+longitude_deg = -111.29461000
+horizontal_uncertainty_m = 5.0
+source = "corrected anchor recovered from shifted columns in supplied obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_7"
+name = "Turn 7"
+sequence = 8
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E07"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47624100
+longitude_deg = -111.29456200
+horizontal_uncertainty_m = 12.1
+source = "corrected anchor recovered from shifted columns in supplied obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "crazy_ruts"
+name = "Crazy Ruts"
+sequence = 9
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E08"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47633400
+longitude_deg = -111.29349300
+horizontal_uncertainty_m = 10.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47633400
+longitude_deg = -111.29349300
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47644900
+longitude_deg = -111.29315600
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "banked_turn"
+name = "Banked Turn"
+sequence = 10
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E09"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47624100
+longitude_deg = -111.29281500
+horizontal_uncertainty_m = 9.6
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_10"
+name = "Turn 10"
+sequence = 11
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E10"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47605900
+longitude_deg = -111.29345600
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "slaloms_11"
+name = "Slaloms 11"
+sequence = 12
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E11"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47586900
+longitude_deg = -111.29318700
+horizontal_uncertainty_m = 8.5
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47586900
+longitude_deg = -111.29318700
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47586100
+longitude_deg = -111.29286700
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "turn_12"
+name = "Turn 12"
+sequence = 13
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "response grouping: join"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47588500
+longitude_deg = -111.29281700
+horizontal_uncertainty_m = 8.3
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "slaloms_13"
+name = "Slaloms 13"
+sequence = 14
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "response grouping: join; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47580000
+longitude_deg = -111.29269700
+horizontal_uncertainty_m = 10.2
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47580000
+longitude_deg = -111.29269700
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47560700
+longitude_deg = -111.29279200
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "turn_14"
+name = "Turn 14"
+sequence = 15
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C02"
+gate_candidate = true
+notes = "response grouping: join"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47563800
+longitude_deg = -111.29274000
+horizontal_uncertainty_m = 5.9
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "hills_15"
+name = "Hills 15"
+sequence = 16
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E15"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47557300
+longitude_deg = -111.29312900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47557300
+longitude_deg = -111.29312900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47556600
+longitude_deg = -111.29339800
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "pit"
+name = "Pit"
+sequence = 17
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E16"
+gate_candidate = true
+notes = "response grouping: separate; treated as a point event by user decision; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47521600
+longitude_deg = -111.29337900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "hill_18"
+name = "Hill 18"
+sequence = 18
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E17"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47518800
+longitude_deg = -111.29311900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47518800
+longitude_deg = -111.29311900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47517300
+longitude_deg = -111.29305400
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "bumps_20"
+name = "Bumps 20"
+sequence = 19
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E18"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47500100
+longitude_deg = -111.29276900
+horizontal_uncertainty_m = 6.6
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47500100
+longitude_deg = -111.29276900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47476100
+longitude_deg = -111.29277500
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "ruts_21"
+name = "Ruts 21"
+sequence = 20
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E19"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47465300
+longitude_deg = -111.29274500
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47465300
+longitude_deg = -111.29274500
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47452100
+longitude_deg = -111.29275900
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "big_hill"
+name = "Big Hill"
+sequence = 21
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E20"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47431600
+longitude_deg = -111.29273000
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47431600
+longitude_deg = -111.29273000
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47405900
+longitude_deg = -111.29277000
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "bumps_23"
+name = "Bumps 23"
+sequence = 22
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E21"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47389900
+longitude_deg = -111.29299900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47389900
+longitude_deg = -111.29299900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47409600
+longitude_deg = -111.29317200
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "hill_tires"
+name = "Hill/Tires"
+sequence = 23
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E22"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47444200
+longitude_deg = -111.29313900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47444200
+longitude_deg = -111.29313900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47467500
+longitude_deg = -111.29314600
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "long_hill_25"
+name = "Long Hill 25"
+sequence = 24
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E23"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47494500
+longitude_deg = -111.29334500
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47494500
+longitude_deg = -111.29334500
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47498300
+longitude_deg = -111.29351000
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "drop"
+name = "Drop"
+sequence = 25
+kind = "point"
+analysis_role = "feature"
+response_group_id = "C04"
+gate_candidate = true
+notes = "response grouping: join; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47507800
+longitude_deg = -111.29367200
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_27"
+name = "Turn 27"
+sequence = 26
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C04"
+gate_candidate = true
+notes = "response grouping: join"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47501000
+longitude_deg = -111.29373900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "turn_28"
+name = "Turn 28"
+sequence = 27
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E26"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47478300
+longitude_deg = -111.29363800
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "hills_29"
+name = "Hills 29"
+sequence = 28
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E27"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47446200
+longitude_deg = -111.29356600
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47446200
+longitude_deg = -111.29356600
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47426300
+longitude_deg = -111.29358500
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "ruts_30"
+name = "Ruts 30"
+sequence = 29
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E28"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47400800
+longitude_deg = -111.29361900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47400800
+longitude_deg = -111.29361900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47391900
+longitude_deg = -111.29386400
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "ruts_31"
+name = "Ruts 31"
+sequence = 30
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E29"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47408100
+longitude_deg = -111.29403700
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47408100
+longitude_deg = -111.29403700
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47430400
+longitude_deg = -111.29406300
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "bumps_32"
+name = "Bumps 32"
+sequence = 31
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E30"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47460000
+longitude_deg = -111.29405600
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47460000
+longitude_deg = -111.29405600
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47492800
+longitude_deg = -111.29411700
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "pipe_33"
+name = "Pipe 33"
+sequence = 32
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E31"
+gate_candidate = true
+notes = "response grouping: separate; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47517200
+longitude_deg = -111.29411400
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "tires_34"
+name = "Tires 34"
+sequence = 33
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E32"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47538200
+longitude_deg = -111.29383100
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47538200
+longitude_deg = -111.29383100
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47535800
+longitude_deg = -111.29384300
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "turn_35"
+name = "Turn 35"
+sequence = 34
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E33"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47541500
+longitude_deg = -111.29381100
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "logs"
+name = "Logs"
+sequence = 35
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E34"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47547600
+longitude_deg = -111.29390300
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47547600
+longitude_deg = -111.29390300
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47549900
+longitude_deg = -111.29399300
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "turn_37"
+name = "Turn 37"
+sequence = 36
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "E35"
+gate_candidate = true
+notes = "response grouping: separate"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47552800
+longitude_deg = -111.29402300
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "ruts_38"
+name = "Ruts 38"
+sequence = 37
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "C06"
+gate_candidate = true
+notes = "response grouping: join; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47582800
+longitude_deg = -111.29388800
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47582800
+longitude_deg = -111.29388800
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47591500
+longitude_deg = -111.29393400
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"
+
+[[events]]
+id = "turn_39"
+name = "Turn 39"
+sequence = 38
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "C06"
+gate_candidate = true
+notes = "response grouping: join"
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 32.47591800
+longitude_deg = -111.29387400
+horizontal_uncertainty_m = 5.8
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 10.0
+after_anchor_m = 10.0
+before_anchor_uncertainty_m = 5.0
+after_anchor_uncertainty_m = 5.0
+source = "provisional turn influence window; retain uncertainty until map/video review"
+
+[[events]]
+id = "pipe_40"
+name = "Pipe 40"
+sequence = 39
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E38"
+gate_candidate = true
+notes = "response grouping: separate; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47596600
+longitude_deg = -111.29416700
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "hole"
+name = "Hole"
+sequence = 40
+kind = "point"
+analysis_role = "feature"
+response_group_id = "E39"
+gate_candidate = true
+notes = "response grouping: separate; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 32.47603100
+longitude_deg = -111.29516600
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.extent]
+before_anchor_m = 3.0
+after_anchor_m = 3.0
+before_anchor_uncertainty_m = 3.0
+after_anchor_uncertainty_m = 3.0
+source = "provisional point-event window; retain uncertainty until map/video review"
+
+[[events]]
+id = "long_pit"
+name = "Long Pit"
+sequence = 41
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "E40"
+gate_candidate = true
+notes = "response grouping: separate; anchor and supplied second coordinate define interval endpoints; order resolves against driving direction; profile family assigned provisionally; severity remains uncertain"
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 32.47559300
+longitude_deg = -111.29473900
+horizontal_uncertainty_m = 5.0
+source = "anchor supplied in reviewed obstacle sheet"
+
+[events.start]
+latitude_deg = 32.47559300
+longitude_deg = -111.29473900
+horizontal_uncertainty_m = 5.0
+source = "first interval coordinate from reviewed obstacle sheet"
+
+[events.end]
+latitude_deg = 32.47540400
+longitude_deg = -111.29458300
+horizontal_uncertainty_m = 5.0
+source = "second interval coordinate from reviewed obstacle sheet"

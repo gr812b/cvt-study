@@ -1,0 +1,92 @@
+[track]
+name = "Baja Arizona Endurance"
+profiles = ["builtin.track.dirt_closed_course_v1"]
+closed_course = true
+surface_class = "dirt"
+
+[track.elevation]
+store_from_gpx = true
+use_for_grade_force = false
+
+[track.reconstruction]
+lap_gate_event_id = "start_finish"
+lap_gate_radius_m = 15.0
+
+minimum_lap_time_s = 120.0
+
+maximum_reasonable_speed_mps = 25.0
+maximum_normal_time_step_s = 2.5
+stationary_speed_mps = 0.8
+minimum_speed_coverage_fraction = 0.80
+speed_spike_threshold_mps = 3.3333333333
+
+centreline_spacing_m = 3.0
+profile_spacing_m = 5.0
+maximum_map_error_m = 20.0
+
+
+[track.centreline_consensus]
+minimum_laps = 3
+maximum_iterations = 6
+convergence_tolerance_m = 0.10
+smoothing_window_nodes = 5
+
+leave_one_out_p95_limit_m = 15.0
+sustained_error_threshold_m = 15.0
+minimum_sustained_outlier_fraction = 0.05
+strong_sustained_outlier_fraction = 0.15
+
+maximum_leave_one_out_shift_m = 5.0
+robust_mad_multiplier = 3.5
+maximum_outlier_fraction_per_iteration = 0.20
+
+
+[track.event_windows]
+approach_before_m = 30.0
+approach_gap_m = 10.0
+entry_before_m = 5.0
+entry_gap_m = 1.0
+exit_gap_m = 5.0
+exit_length_m = 15.0
+recovery_limit_m = 60.0
+
+[track.gate_confidence]
+minimum_valid_passes = 5
+target_pass_count = 10
+
+braking_threshold_mps = 0.8
+repeatability_scale_mps = 2.0
+vehicle_agreement_scale_mps = 2.0
+accept_score = 60.0
+review_score = 40.0
+
+weight_pass_count = 0.15
+weight_speed_repeatability = 0.25
+weight_braking_evidence = 0.20
+weight_pace_independence = 0.15
+weight_coordinate_quality = 0.15
+weight_cross_vehicle_agreement = 0.10
+
+
+[track.telemetry_cleanup]
+enabled = true
+
+# Automatically remove only isolated points or very short bursts.
+maximum_excursion_points = 3
+
+# Both jumps into and out of the excursion must be clearly abnormal.
+minimum_excursion_leg_m = 35.0
+impossible_speed_multiplier = 1.5
+
+# Connecting the valid points on either side must remain physically plausible.
+maximum_bridge_speed_multiplier = 1.0
+maximum_bridge_gap_s = 8.0
+
+# Never silently clean a substantial portion of a recording.
+maximum_auto_removed_fraction = 0.005
+maximum_auto_removed_points = 25
+
+# Conservative second-stage check after the centreline exists.
+isolated_map_error_m = 40.0
+maximum_isolated_map_outlier_points = 3
+
