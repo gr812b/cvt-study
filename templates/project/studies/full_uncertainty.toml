@@ -9,12 +9,32 @@ study = "baseline"
 
 [sampling]
 mode = "all_declared"
-replicates = 100
+replicates = 120
 paired_scenarios = true
 gate_sampling = "paired_lap"
 
+# Consume the latest data-only track-robustness ensemble. If it does not exist,
+# build it first. Track cases are unweighted epistemic stress scenarios, not
+# probability-calibrated random draws.
+[track_ensemble]
+enabled = true
+result_directory = "latest"
+auto_build = true
+study = "track_robustness"
+maximum_cases = 20
+include_categories = [
+  "nominal",
+  "data_support",
+  "telemetry_cleanup",
+  "centreline",
+  "event_windows",
+  "gate_policy",
+  "gate_weighting",
+]
+
 [reporting]
 bootstrap_resamples = 2000
+html_report = true
 
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01

@@ -1,21 +1,38 @@
 [study]
 name = "track_robustness"
 type = "track_robustness"
-vehicle_id = "mcmaster"
 random_seed = 20260715
 
-[base_case]
-study = "baseline"
+# Reconstructs the Arizona track repeatedly from the same FIT evidence.
+# No vehicle, drivetrain, or longitudinal simulation participates.
 
-[sampling]
-mode = "measured_track"
-replicates = 30
-paired_scenarios = true
-gate_sampling = "paired_lap"
+[robustness]
+include_leave_one_run_out = true
+include_leave_one_vehicle_out = true
+include_leave_one_driver_out = true
+include_gate_policy_cases = true
+include_event_window_cases = true
+include_centreline_cases = true
+include_cleanup_cases = true
+maximum_cases = 40
+
+[thresholds]
+maximum_centreline_p95_shift_m = 5.0
+maximum_event_p95_shift_m = 10.0
+maximum_track_length_relative_shift = 0.02
+minimum_gate_classification_agreement = 0.80
+maximum_gate_target_p80_range_mps = 2.0
+
+# Gate-frontier interpretation. These are stress-case frequencies, not probabilities.
+core_gate_definition_acceptance_fraction = 0.75
+near_miss_gate_definition_acceptance_fraction = 0.20
+high_speed_gate_review_kmh = 30.0
+minimum_braking_evidence_score_for_high_speed_gate = 50.0
+
+# Only stable, non-extreme alternatives enter downstream answer uncertainty.
+minimum_gate_set_jaccard_for_ensemble = 0.50
+minimum_nominal_gate_retention_fraction_for_ensemble = 0.60
+maximum_new_gate_count_for_ensemble = 8
 
 [reporting]
-bootstrap_resamples = 1000
-
-[quality]
-maximum_abs_energy_balance_relative_error = 0.01
-maximum_abs_powertrain_balance_relative_error = 0.01
+html_report = true

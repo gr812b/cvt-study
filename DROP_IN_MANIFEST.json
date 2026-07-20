@@ -1,48 +1,51 @@
 {
   "repository": "gr812b/cvt-study",
-  "purpose": "All-declared structural screening, absolute metrics, progress/ETA, and complete HTML reporting",
-  "new_source_files": [
-    "src/cvt_track_study/studies/service_v9.py",
-    "src/cvt_track_study/studies/structural_analysis.py",
+  "intended_base_commit": "8108f967a76689e6f49b9f65e4ce9a16c12e6bd8",
+  "overlay_order": [
+    "cvt-study-six-report-refactor.zip",
+    "cvt-study-track-robustness-report-v2-dropin.zip",
+    "this archive"
+  ],
+  "purpose": "Regenerable, defensible structural-sensitivity HTML reporting from completed machine artifacts",
+  "replaced_files": [
     "src/cvt_track_study/studies/structural_reporting.py",
-    "src/cvt_track_study/config/project_v9.py"
+    "src/cvt_track_study/reports/postprocess.py"
   ],
-  "replaced_source_files": [
-    "src/cvt_track_study/studies/planning.py",
-    "src/cvt_track_study/studies/__init__.py",
-    "src/cvt_track_study/runtime/progress.py",
-    "src/cvt_track_study/config/__init__.py",
-    "src/cvt_track_study/gpx/service.py",
-    "src/cvt_track_study/track/service.py"
+  "compatibility_files_included": [
+    "src/cvt_track_study/reports/html.py",
+    "src/cvt_track_study/reports/catalog.py"
   ],
-  "new_report": "structural_sensitivity_report.html",
-  "new_tables": [
-    "structural_metric_ranges.csv",
-    "structural_parameter_levels.csv"
+  "added_tests": [
+    "tests/test_structural_report_v2.py",
+    "tests/test_structural_report_postprocess.py"
   ],
-  "static_compilation": "passed after final patches",
-  "compiled_python_files": [
-    "tests/test_structural_auto_discovery.py",
-    "tests/test_structural_absolute_summary.py",
-    "tests/test_progress_reporter_eta.py",
-    "tests/test_structural_html_report.py",
-    "src/cvt_track_study/studies/planning.py",
-    "src/cvt_track_study/studies/structural_analysis.py",
-    "src/cvt_track_study/studies/structural_reporting.py",
-    "src/cvt_track_study/studies/service_v9.py",
-    "src/cvt_track_study/studies/__init__.py",
-    "src/cvt_track_study/runtime/progress.py",
-    "src/cvt_track_study/config/project_v9.py",
-    "src/cvt_track_study/config/__init__.py",
-    "src/cvt_track_study/gpx/service.py",
-    "src/cvt_track_study/track/service.py"
-  ],
-  "focused_runtime_tests": {
-    "all_declared_structural_discovery": "passed",
-    "wildcard_validation_compatibility": "passed",
-    "absolute_metric_summary_and_ranking": "passed",
-    "progress_eta_output": "passed",
-    "html_plots_and_csv_artifacts": "passed"
+  "simulation_changes": false,
+  "report_regeneration_requires_simulation": false,
+  "preserved_plot_contract": {
+    "headline_tornado_plots": true,
+    "mechanism_heatmap": true,
+    "legacy_structural_sensitivity_plot_when_present": true,
+    "legacy_filename_aliases": [
+      "structural_maximumpeed_tornado.png",
+      "structural_engine_tornado.png"
+    ]
   },
-  "arizona_ready_study_file": "structural_sensitivity_all_declared_arizona.toml"
+  "new_report_features": [
+    "nominal metric strip",
+    "tested ranges on tornado labels",
+    "absolute performance versus finite-ratio driver comparison",
+    "top-parameter response curves",
+    "ratio occupancy sensitivity",
+    "measurement priorities",
+    "multiplicative uncertainty-family warning",
+    "three-state sortable tables",
+    "sticky identity columns",
+    "collapsible supporting appendices"
+  ],
+  "validation": {
+    "static_compilation": "passed",
+    "focused_tests": "2 passed",
+    "real_completed_run_regeneration": "passed",
+    "simulations_rerun": false
+  }
 }

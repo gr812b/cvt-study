@@ -1,5 +1,5 @@
-"""Paired study execution, attribution, and decision reporting."""
+"""Sensitivity, uncertainty, track defensibility, and design comparison."""
 
-from .service_v9 import run_study_project
+from .router_v10 import run_study_project
 
 __all__ = ["run_study_project"]

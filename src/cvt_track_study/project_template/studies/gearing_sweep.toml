@@ -11,18 +11,38 @@ study = "baseline"
 path = "drivetrain.final_drive_ratio"
 values = [5.5, 6.2, 6.9, 7.556, 8.2, 8.9, 9.6]
 
+# Every candidate sees the same joint structural, measured-traversal, and track
+# reconstruction scenario. This is intentionally more demanding than a nominal
+# gearing sweep.
 [sampling]
-mode = "measured_track"
-replicates = 7
+mode = "all_declared"
+replicates = 30
 paired_scenarios = true
 gate_sampling = "paired_lap"
+
+[track_ensemble]
+enabled = true
+result_directory = "latest"
+auto_build = true
+study = "track_robustness"
+maximum_cases = 20
+include_categories = [
+  "nominal",
+  "data_support",
+  "telemetry_cleanup",
+  "centreline",
+  "event_windows",
+  "gate_policy",
+  "gate_weighting",
+]
 
 [decision_thresholds]
 maximum_time_penalty_s = 3.0
 maximum_opportunity_loss_kj = 120.0
 
 [reporting]
-bootstrap_resamples = 1000
+bootstrap_resamples = 2000
+html_report = true
 
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01
