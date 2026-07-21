@@ -82,9 +82,23 @@ should be believed?
 
 Primary output: `full_uncertainty_report.html`.
 
-The report begins with completion and numerical health, then absolute lap-time
-and energy distributions, paired bounded/infinite differences, ratio occupancy,
-physical loss distributions, attribution, scenario explorer, and convergence.
+The recommended configuration uses `sampling.layout = "cross_track_cases"`.
+Under that layout, `sampling.replicates` means the number of common structural
+and measured-traversal draws replayed on **every** admitted track interpretation.
+For example, 30 draws and 14 track cases produce 420 joint scenarios. This makes
+track-case differences paired and directly interpretable instead of confounding
+the track case with a different vehicle or measured-lap draw.
+
+The report begins with a complete inventory of what varied and its declared
+range, followed by study adequacy, absolute lap-time distributions, paired
+bounded/infinite differences, ratio occupancy, physical losses, uncertainty
+families, a searchable all-input driver explorer, track-case effects, scenario
+examples, and convergence of both central values and tails.
+
+Track cases remain unweighted epistemic alternatives rather than calibrated
+probabilities. The report therefore separates within-track variability from the
+between-track envelope and does not label pooled scenario percentiles as real-
+world confidence intervals.
 
 By default it consumes the latest successful `track_robustness` ensemble as an
 outer set of **unweighted epistemic scenarios**. These alternatives are not

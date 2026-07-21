@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import random
 import shutil
 from typing import Any
 
@@ -36,6 +37,7 @@ from cvt_track_study.simulation.service import SimulationError
 from cvt_track_study.track import build_project_track
 from cvt_track_study.track.robustness import run_track_robustness_project
 from cvt_track_study.uncertainty import (
+    GateSampleIdentity,
     SamplingPlan,
     ScenarioDraw,
     ScenarioSampler,
@@ -62,6 +64,14 @@ class TrackVariant:
     label: str
     bundle_path: Path
     bundle: TrackBundle
+
+
+
+@dataclass(frozen=True)
+class ScheduledScenario:
+    variant: TrackVariant
+    scenario: ScenarioDraw
+    base_draw_id: int
 
 
 def run_joint_ensemble_project(
@@ -146,11 +156,14 @@ def run_joint_ensemble_project(
         variant.case_id: ScenarioSampler(registry=registry, bundle=variant.bundle, plan=plan)
         for variant in variants
     }
-    draws = {case_id: sampler.draw_all() for case_id, sampler in samplers.items()}
-    selected: list[tuple[TrackVariant, ScenarioDraw]] = []
-    for replicate in range(replicates):
-        variant = variants[replicate % len(variants)]
-        selected.append((variant, draws[variant.case_id][replicate]))
+    sampling_layout = _sampling_layout(sampling)
+    selected, schedule_metadata = _schedule_scenarios(
+        variants=variants,
+        samplers=samplers,
+        plan=plan,
+        replicates=replicates,
+        sampling_layout=sampling_layout,
+    )
 
     fingerprint = canonical_fingerprint(
         {
@@ -169,6 +182,8 @@ def run_joint_ensemble_project(
                 for variant in variants
             ],
             "replicates_override": replicates_override,
+            "sampling_layout": sampling_layout,
+            "base_draw_count": schedule_metadata["base_draw_count"],
         }
     )
     default_output = (
@@ -190,13 +205,13 @@ def run_joint_ensemble_project(
     reporter = ProgressReporter(total=len(selected), label="scenarios", enabled=progress)
     reporter.begin(
         f"{len(selected)} paired scenarios across {len(variants)} track case(s), "
+        f"{schedule_metadata['base_draw_count']} common draw(s), "
         f"{len(design_points)} design point(s), {workers} worker(s)"
     )
 
-    variant_by_id = {variant.case_id: variant for variant in variants}
-
-    def execute_or_resume(item: tuple[TrackVariant, ScenarioDraw]) -> dict[str, Any]:
-        variant, scenario = item
+    def execute_or_resume(item: ScheduledScenario) -> dict[str, Any]:
+        variant = item.variant
+        scenario = item.scenario
         checkpoint = workspace.load_checkpoint(scenario.replicate)
         if checkpoint is not None:
             result = dict(checkpoint["result"])
@@ -214,12 +229,15 @@ def run_joint_ensemble_project(
             cache=cache,
         )
         for row in result["rows"]:
+            row["base_draw_id"] = item.base_draw_id
+            row["track_pair_id"] = f"draw-{item.base_draw_id:06d}"
             row["track_case_id"] = variant.case_id
             row["track_case_category"] = variant.category
             row["track_bundle_fingerprint"] = variant.bundle.data.get(
                 "content_fingerprint_sha256"
             )
         result["track_case_id"] = variant.case_id
+        result["base_draw_id"] = item.base_draw_id
         workspace.write_checkpoint(scenario.replicate, {"result": result})
         return result
 
@@ -229,7 +247,7 @@ def run_joint_ensemble_project(
             result = execute_or_resume(item)
             results.append(result)
             reporter.advance(
-                f"replicate {item[1].replicate}; track={result['track_case_id']}"
+                f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; track={result['track_case_id']}"
             )
     else:
         with ThreadPoolExecutor(max_workers=min(workers, len(selected))) as executor:
@@ -239,7 +257,7 @@ def run_joint_ensemble_project(
                 result = future.result()
                 results.append(result)
                 reporter.advance(
-                    f"replicate {item[1].replicate}; track={result['track_case_id']}"
+                    f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; track={result['track_case_id']}"
                 )
 
     order = {point.identifier: index for index, point in enumerate(design_points)}
@@ -253,8 +271,12 @@ def run_joint_ensemble_project(
     convergence = convergence_summary(study_type, rows)
 
     scenario_payloads: list[dict[str, Any]] = []
-    for variant, scenario in selected:
+    for item in selected:
+        variant = item.variant
+        scenario = item.scenario
         payload = dict(scenario.serializable())
+        payload["base_draw_id"] = item.base_draw_id
+        payload["track_pair_id"] = f"draw-{item.base_draw_id:06d}"
         payload["track_case_id"] = variant.case_id
         payload["track_case_category"] = variant.category
         payload["track_bundle_fingerprint"] = variant.bundle.data.get(
@@ -265,21 +287,21 @@ def run_joint_ensemble_project(
     sampled_gate_ids = sorted(
         {
             gate_id
-            for _, scenario in selected
-            for gate_id in scenario.gate_target_speeds_mps
+            for item in selected
+            for gate_id in item.scenario.gate_target_speeds_mps
         }
     )
     fallback_gate_ids = sorted(
         {
             gate_id
-            for _, scenario in selected
-            for gate_id in scenario.independently_sampled_gate_ids
+            for item in selected
+            for gate_id in item.scenario.independently_sampled_gate_ids
         }
     )
     stochastic_by_role: dict[str, list[str]] = {}
     for registered in registry.stochastic():
         stochastic_by_role.setdefault(registered.category, []).append(registered.path)
-    requested = sum(len(points) for points in draws.values())
+    requested = int(schedule_metadata["requested_sampler_draw_count"])
     manifest = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "framework_contract": "measured-track-drivetrain-framework-v1.0-six-report",
@@ -313,8 +335,8 @@ def run_joint_ensemble_project(
         "gate_sampling_policy": plan.gate_sampling,
         "sampled_gate_ids": sampled_gate_ids,
         "sampled_gate_count": len(sampled_gate_ids),
-        "paired_gate_identity_count": min(
-            sampler.paired_gate_identity_count for sampler in samplers.values()
+        "paired_gate_identity_count": int(
+            schedule_metadata["common_gate_identity_count"]
         ),
         "independent_gate_fallback_ids": fallback_gate_ids,
         "track_bundle_content_fingerprint": nominal_bundle.data.get(
@@ -328,8 +350,18 @@ def run_joint_ensemble_project(
         "track_ensemble_policy": (
             "unweighted_epistemic_scenarios_not_calibrated_probabilities"
         ),
-        "track_case_assignment": "deterministic_round_robin_across_replicates",
-        "unused_sampler_draw_count": requested - len(selected),
+        "track_case_assignment": str(schedule_metadata["track_case_assignment"]),
+        "sampling_layout": sampling_layout,
+        "base_draw_count": int(schedule_metadata["base_draw_count"]),
+        "scenarios_per_track_case": int(schedule_metadata["scenarios_per_track_case"]),
+        "track_case_pairing_complete": bool(schedule_metadata["track_case_pairing_complete"]),
+        "common_gate_identity_count_across_track_ensemble": int(
+            schedule_metadata["common_gate_identity_count"]
+        ),
+        "sampling_replicates_interpretation": str(
+            schedule_metadata["replicates_interpretation"]
+        ),
+        "unused_sampler_draw_count": max(0, requested - len(selected)),
         "bootstrap_resamples": int(raw.get("reporting", {}).get("bootstrap_resamples", 1000)),
         "numerical_quality": quality,
         "evidence_assessment": dict(
@@ -339,6 +371,41 @@ def run_joint_ensemble_project(
             "telemetry elevation uncertainty (grade force remains disabled pending the materiality screen)"
         ],
     }
+
+    nominal_reference_rows: list[dict[str, Any]] = []
+    if study_type == "full_uncertainty":
+        nominal_scenario = ScenarioDraw(
+            replicate=-1,
+            seed=seed,
+            sampling_mode="nominal",
+        )
+        nominal_result = service_v8._execute_scenario(
+            scenario=nominal_scenario,
+            design_points=design_points,
+            study_type=study_type,
+            vehicle_id=vehicle_id,
+            vehicle_raw=vehicle_raw,
+            base_study=base_study,
+            track_raw=resolution.data["track"],
+            bundle=nominal_bundle,
+            cache=cache,
+        )
+        nominal_reference_rows = list(nominal_result["rows"])
+        for row in nominal_reference_rows:
+            row["base_draw_id"] = -1
+            row["track_pair_id"] = "nominal-reference"
+            row["track_case_id"] = "nominal"
+            row["track_case_category"] = "nominal"
+            row["track_bundle_fingerprint"] = nominal_bundle.data.get(
+                "content_fingerprint_sha256"
+            )
+        manifest["nominal_reference_available"] = bool(nominal_reference_rows)
+        manifest["nominal_reference_bounded_simulation_count"] = int(
+            nominal_result["bounded_simulation_count"]
+        )
+        manifest["nominal_reference_reference_simulation_count"] = int(
+            nominal_result["reference_simulation_count"]
+        )
 
     resolution.export(workspace.path / "resolved_inputs")
     phase6_service._write_bundle_snapshot(workspace.path, nominal_bundle, nominal_path)
@@ -353,6 +420,12 @@ def run_joint_ensemble_project(
         input_contracts=input_contracts(registry),
         study_type=study_type,
     )
+    if nominal_reference_rows:
+        (workspace.path / "nominal_reference.json").write_text(
+            json.dumps(nominal_reference_rows, indent=2, sort_keys=True, allow_nan=False)
+            + "\n",
+            encoding="utf-8",
+        )
     write_provenance(
         workspace.path,
         build_provenance(
@@ -376,6 +449,174 @@ def run_joint_ensemble_project(
     committed = workspace.commit()
     write_results_index(resolution.paths.results_directory)
     return committed
+
+
+
+def _sampling_layout(sampling: Mapping[str, Any]) -> str:
+    raw = str(sampling.get("layout", "round_robin_track_cases")).strip().lower()
+    aliases = {
+        "round_robin": "round_robin_track_cases",
+        "legacy": "round_robin_track_cases",
+        "crossed": "cross_track_cases",
+        "fully_crossed": "cross_track_cases",
+        "paired_track_cases": "cross_track_cases",
+    }
+    layout = aliases.get(raw, raw)
+    if layout not in {"round_robin_track_cases", "cross_track_cases"}:
+        raise SimulationError(
+            "sampling.layout must be 'round_robin_track_cases' or "
+            "'cross_track_cases'."
+        )
+    return layout
+
+
+def _schedule_scenarios(
+    *,
+    variants: Sequence[TrackVariant],
+    samplers: Mapping[str, ScenarioSampler],
+    plan: SamplingPlan,
+    replicates: int,
+    sampling_layout: str,
+) -> tuple[tuple[ScheduledScenario, ...], dict[str, Any]]:
+    if sampling_layout == "round_robin_track_cases":
+        draws = {case_id: sampler.draw_all() for case_id, sampler in samplers.items()}
+        scheduled = tuple(
+            ScheduledScenario(
+                variant=variants[replicate % len(variants)],
+                scenario=draws[variants[replicate % len(variants)].case_id][replicate],
+                base_draw_id=replicate,
+            )
+            for replicate in range(replicates)
+        )
+        counts = [
+            sum(item.variant.case_id == variant.case_id for item in scheduled)
+            for variant in variants
+        ]
+        common_count = min(
+            (sampler.paired_gate_identity_count for sampler in samplers.values()),
+            default=0,
+        )
+        return scheduled, {
+            "base_draw_count": replicates,
+            "scenarios_per_track_case": min(counts, default=0),
+            "track_case_pairing_complete": len(variants) <= 1,
+            "common_gate_identity_count": common_count,
+            "requested_sampler_draw_count": sum(len(points) for points in draws.values()),
+            "track_case_assignment": "deterministic_round_robin_across_replicates",
+            "replicates_interpretation": "total joint scenarios",
+        }
+
+    if plan.gate_sampling != "paired_lap":
+        raise SimulationError(
+            "sampling.layout='cross_track_cases' requires "
+            "sampling.gate_sampling='paired_lap' so one measured traversal "
+            "identity can be replayed on every track interpretation."
+        )
+
+    nominal_sampler = samplers[variants[0].case_id]
+    base_draws = nominal_sampler.draw_all()
+    common_identities = _common_gate_identities(variants)
+    has_active_gates = any(variant.bundle.active_speed_gates for variant in variants)
+    if has_active_gates and not common_identities:
+        raise SimulationError(
+            "No measured lap identity is available at every active gate across "
+            "the selected track ensemble. Reduce the track-case set or add "
+            "evidence before using cross_track_cases."
+        )
+
+    scheduled: list[ScheduledScenario] = []
+    scenario_index = 0
+    for base_draw_id, base in enumerate(base_draws):
+        identity = None
+        if common_identities:
+            chooser = random.Random(int(base.seed) ^ 0x4356545F54524143)
+            identity = common_identities[chooser.randrange(len(common_identities))]
+        for variant in variants:
+            gate_values = (
+                _gate_values_for_identity(variant.bundle, identity)
+                if identity is not None
+                else {}
+            )
+            scenario = ScenarioDraw(
+                replicate=scenario_index,
+                seed=base.seed,
+                sampling_mode=base.sampling_mode,
+                quantity_values_si=base.quantity_values_si,
+                choice_values=base.choice_values,
+                gate_target_speeds_mps=gate_values,
+                gate_sample_identity=identity,
+                independently_sampled_gate_ids=(),
+            )
+            scheduled.append(
+                ScheduledScenario(
+                    variant=variant,
+                    scenario=scenario,
+                    base_draw_id=base_draw_id,
+                )
+            )
+            scenario_index += 1
+
+    return tuple(scheduled), {
+        "base_draw_count": len(base_draws),
+        "scenarios_per_track_case": len(base_draws),
+        "track_case_pairing_complete": True,
+        "common_gate_identity_count": len(common_identities),
+        "requested_sampler_draw_count": len(base_draws),
+        "track_case_assignment": "fully_crossed_common_draws",
+        "replicates_interpretation": "common structural/traversal draws per track case",
+    }
+
+
+def _gate_samples_for_bundle(
+    bundle: TrackBundle,
+) -> dict[str, dict[tuple[str, int, str, str], float]]:
+    rows: dict[str, dict[tuple[str, int, str, str], float]] = {}
+    for gate in bundle.active_speed_gates:
+        parsed: dict[tuple[str, int, str, str], float] = {}
+        distribution = gate.get("target_speed_distribution", {})
+        for sample in distribution.get("samples", []):
+            key = (
+                str(sample["run_id"]),
+                int(sample["lap_id"]),
+                str(sample["vehicle_id"]),
+                str(sample["driver_id"]),
+            )
+            parsed[key] = float(sample["value_mps"])
+        if parsed:
+            rows[str(gate["id"])] = parsed
+    return rows
+
+
+def _common_gate_identities(
+    variants: Sequence[TrackVariant],
+) -> tuple[GateSampleIdentity, ...]:
+    identity_sets: list[set[tuple[str, int, str, str]]] = []
+    for variant in variants:
+        for samples in _gate_samples_for_bundle(variant.bundle).values():
+            identity_sets.append(set(samples))
+    if not identity_sets:
+        return ()
+    common = set.intersection(*identity_sets)
+    return tuple(GateSampleIdentity(*key) for key in sorted(common))
+
+
+def _gate_values_for_identity(
+    bundle: TrackBundle,
+    identity: GateSampleIdentity,
+) -> dict[str, float]:
+    values: dict[str, float] = {}
+    missing: list[str] = []
+    for gate_id, samples in _gate_samples_for_bundle(bundle).items():
+        if identity.key not in samples:
+            missing.append(gate_id)
+            continue
+        values[gate_id] = samples[identity.key]
+    if missing:
+        raise SimulationError(
+            f"Measured traversal {identity.key!r} lacks gate evidence for "
+            + ", ".join(sorted(missing))
+        )
+    return values
 
 
 def _nominal_bundle_path(

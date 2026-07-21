@@ -1,51 +1,94 @@
 {
-  "repository": "gr812b/cvt-study",
-  "intended_base_commit": "8108f967a76689e6f49b9f65e4ce9a16c12e6bd8",
-  "overlay_order": [
-    "cvt-study-six-report-refactor.zip",
-    "cvt-study-track-robustness-report-v2-dropin.zip",
-    "this archive"
+  "base_commit": "8108f967a76689e6f49b9f65e4ce9a16c12e6bd8",
+  "changed_or_new_file_count": 14,
+  "files": [
+    {
+      "path": "DROP_IN_README.md",
+      "sha256": "28a89110a4a6d746c0e415b0a47166bba6c6f2f799fb0cafefc0223818183307",
+      "size_bytes": 4799
+    },
+    {
+      "path": "docs/methods/SIX_REPORT_WORKFLOW.md",
+      "sha256": "d112d0142b9f6a3132262584a7b65c8fba2de5b6711141a83a9470b76c41f1c2",
+      "size_bytes": 4892
+    },
+    {
+      "path": "examples/arizona/studies/full_uncertainty.toml",
+      "sha256": "96f52bbd55b808196a771cf5058d92e54ec553d5c235d836b6c2e3b278a5aed6",
+      "size_bytes": 1152
+    },
+    {
+      "path": "examples/reference_project/studies/full_uncertainty.toml",
+      "sha256": "9926f5235fc8355dcb5521cab17d4e006bcdee20fe07fd82d944ee8a97662fe4",
+      "size_bytes": 1153
+    },
+    {
+      "path": "project_updates/arizona/studies/full_uncertainty.toml",
+      "sha256": "96f52bbd55b808196a771cf5058d92e54ec553d5c235d836b6c2e3b278a5aed6",
+      "size_bytes": 1152
+    },
+    {
+      "path": "src/cvt_track_study/cli.py",
+      "sha256": "f2ff563107cf6a18ee433e94e93e6d73be0b8c9c0a078b48da9d2b4d7a1462dd",
+      "size_bytes": 15480
+    },
+    {
+      "path": "src/cvt_track_study/project_template/studies/full_uncertainty.toml",
+      "sha256": "9926f5235fc8355dcb5521cab17d4e006bcdee20fe07fd82d944ee8a97662fe4",
+      "size_bytes": 1153
+    },
+    {
+      "path": "src/cvt_track_study/reports/full_uncertainty.py",
+      "sha256": "90fb57dedf082ef8214d2c3feef3eb0287c195c78326290182b69054ba60dd02",
+      "size_bytes": 71121
+    },
+    {
+      "path": "src/cvt_track_study/reports/html.py",
+      "sha256": "0781a066c8e63d12a4f4793f2764e7f5c06d73c12f08be248bb4315479b3ce9a",
+      "size_bytes": 16399
+    },
+    {
+      "path": "src/cvt_track_study/reports/postprocess.py",
+      "sha256": "e9f7a222a9596716439e27950665b0a3a698029306e4f3a0e1b7e4f8666b1f4f",
+      "size_bytes": 39364
+    },
+    {
+      "path": "src/cvt_track_study/studies/ensemble_v10.py",
+      "sha256": "9d57ea56cf6006e9041032853f6c7effaba4a38ddefb972eb00c5ab6685807d9",
+      "size_bytes": 29548
+    },
+    {
+      "path": "templates/project/studies/full_uncertainty.toml",
+      "sha256": "9926f5235fc8355dcb5521cab17d4e006bcdee20fe07fd82d944ee8a97662fe4",
+      "size_bytes": 1153
+    },
+    {
+      "path": "tests/test_full_uncertainty_crossed_schedule.py",
+      "sha256": "73672d4b50210ae18d478a0231b66291e2a4c8076ab24a2577143d112aa71854",
+      "size_bytes": 3256
+    },
+    {
+      "path": "tests/test_full_uncertainty_report_v2.py",
+      "sha256": "813c32cb6382557a550e1de6d8a6a3fe5116ffc88a8e00921dd4d4b0091b916f",
+      "size_bytes": 7848
+    }
   ],
-  "purpose": "Regenerable, defensible structural-sensitivity HTML reporting from completed machine artifacts",
-  "replaced_files": [
-    "src/cvt_track_study/studies/structural_reporting.py",
-    "src/cvt_track_study/reports/postprocess.py"
-  ],
-  "compatibility_files_included": [
-    "src/cvt_track_study/reports/html.py",
-    "src/cvt_track_study/reports/catalog.py"
-  ],
-  "added_tests": [
-    "tests/test_structural_report_v2.py",
-    "tests/test_structural_report_postprocess.py"
-  ],
-  "simulation_changes": false,
-  "report_regeneration_requires_simulation": false,
-  "preserved_plot_contract": {
-    "headline_tornado_plots": true,
-    "mechanism_heatmap": true,
-    "legacy_structural_sensitivity_plot_when_present": true,
-    "legacy_filename_aliases": [
-      "structural_maximumpeed_tornado.png",
-      "structural_engine_tornado.png"
-    ]
+  "focused_validation": {
+    "crossed_scheduler_algorithm_check": "passed",
+    "existing_120_scenario_report_regeneration": "passed",
+    "full_repository_suite": "not run in this environment",
+    "python_static_compilation": "passed",
+    "synthetic_report_test": "passed"
   },
-  "new_report_features": [
-    "nominal metric strip",
-    "tested ranges on tornado labels",
-    "absolute performance versus finite-ratio driver comparison",
-    "top-parameter response curves",
-    "ratio occupancy sensitivity",
-    "measurement priorities",
-    "multiplicative uncertainty-family warning",
-    "three-state sortable tables",
-    "sticky identity columns",
-    "collapsible supporting appendices"
+  "overlay_order": [
+    "six-report refactor",
+    "track robustness report v2",
+    "structural sensitivity report v2",
+    "this full uncertainty v2 drop-in"
   ],
-  "validation": {
-    "static_compilation": "passed",
-    "focused_tests": "2 passed",
-    "real_completed_run_regeneration": "passed",
-    "simulations_rerun": false
-  }
+  "purpose": "Paired crossed track-case full uncertainty execution and complete regenerable reporting",
+  "recommended_draws_per_track_case": 30,
+  "recommended_sampling_layout": "cross_track_cases",
+  "report_regeneration_without_simulation": true,
+  "repository": "gr812b/cvt-study"
 }

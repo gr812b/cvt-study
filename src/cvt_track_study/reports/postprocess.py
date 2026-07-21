@@ -172,85 +172,12 @@ def write_nominal_simulation_report(output: Path) -> Path:
 
 
 def write_full_uncertainty_report(output: Path) -> Path:
-    output = output.resolve()
-    rows = _read_csv(output / "replicate_results.csv")
-    summary = read_json(output / "summary.json", {})
-    convergence = read_json(output / "convergence.json", {})
-    manifest = read_json(output / "run_manifest.json", {})
-    attribution = _read_csv(output / "uncertainty_attribution.csv")
-    energy = _read_csv(output / "energy_accounting.csv")
-    plots = output / "report_plots"
-    plots.mkdir(exist_ok=True)
-    _uncertainty_plots(rows, attribution, energy, plots)
+    """Regenerate the full report from saved artifacts without simulation."""
 
-    completed_rate = _bool_fraction(rows, "bounded_completed")
-    reference_rate = _bool_fraction(rows, "reference_completed")
-    dominance_rate = _bool_fraction(rows, "reference_dominance_pass")
-    gate_rate = _bool_fraction(rows, "bounded_gates_compliant_0p5_kmh")
-    unique_scenarios = int(rows["replicate"].nunique()) if "replicate" in rows else len(rows)
-    design_count = int(rows["design_id"].nunique()) if "design_id" in rows else 1
-    cards = metric_cards(
-        [
-            ("Scenario draws", str(unique_scenarios), "note"),
-            ("Designs", str(design_count), "note"),
-            ("Bounded completion", _percent(completed_rate), "good" if completed_rate >= 0.95 else "warning" if completed_rate >= 0.8 else "bad"),
-            ("Reference completion", _percent(reference_rate), "good" if reference_rate >= 0.95 else "warning"),
-            ("Reference dominance", _percent(dominance_rate), "good" if dominance_rate >= 0.99 else "warning"),
-            ("Gate compliance", _percent(gate_rate), "good" if gate_rate >= 0.99 else "warning"),
-        ]
-    )
-    body = _scope_html("full_uncertainty") + cards
-    body += (
-        '<div class="card note"><strong>Read absolute performance first.</strong> A narrow bounded-versus-infinite '
-        "difference can coexist with a wide or censored lap-time distribution. Incomplete scenarios are evidence, "
-        "not rows to silently drop.</div>"
-    )
-    body += "<h2>Run health and censoring</h2>"
-    body += dataframe_table(_quality_table(rows, manifest))
-    body += figure(plots / "absolute_lap_time_distribution.png", "Absolute bounded and infinite-reference lap-time distributions. Incomplete cases are reported separately rather than treated as completed laps.")
-    body += figure(plots / "completion_by_design.png", "Completion fraction by design or nominal case.")
+    from .full_uncertainty import regenerate_full_uncertainty_report
 
-    if "track_case_id" in rows:
-        body += "<h2>Track-inference ensemble</h2>"
-        body += (
-            '<div class="card note"><strong>Epistemic interpretation.</strong> Track cases are '
-            'unweighted defensible reconstruction alternatives, not probability-calibrated random outcomes.</div>'
-        )
-        body += figure(plots / "track_case_lap_time.png", "Absolute bounded lap time grouped by reconstructed-track case.")
-        body += figure(plots / "track_case_penalty.png", "Paired finite-range penalty grouped by reconstructed-track case.")
-
-    body += "<h2>Paired bounded-versus-infinite result</h2>"
-    body += figure(plots / "paired_penalty_distribution.png", "Distribution of paired finite-ratio lap-time penalties.")
-    body += figure(plots / "ratio_occupancy_distribution.png", "Bounded-CVT time at maximum ratio, within the variable region, and at minimum ratio.")
-
-    body += "<h2>Physical energy and opportunity accounting</h2>"
-    body += figure(plots / "physical_loss_distribution.png", "Median physical losses with p10–p90 scenario ranges. Opportunity loss is intentionally kept separate from dissipative losses.")
-    body += dataframe_table(energy, max_rows=250)
-
-    body += "<h2>Uncertainty attribution</h2>"
-    body += figure(plots / "top_uncertainty_drivers.png", "Largest screening associations with absolute bounded lap time. Correlated inputs must be interpreted as groups rather than causal shares.")
-    body += dataframe_table(attribution, max_rows=250)
-
-    body += "<h2>Scenario explorer</h2>"
-    body += dataframe_table(_scenario_explorer(rows), max_rows=80)
-    body += "<h2>Convergence and effective evidence</h2>"
-    body += f"<pre>{html.escape(json.dumps(convergence, indent=2, sort_keys=True))}</pre>"
-    body += "<h2>Sampling contract</h2>"
-    body += f"<pre>{html.escape(json.dumps(_manifest_subset(manifest), indent=2, sort_keys=True))}</pre>"
-
-    target = output / REPORTS["full_uncertainty"].html_filename
-    target.write_text(
-        render_page(
-            title=REPORTS["full_uncertainty"].title,
-            subtitle=REPORTS["full_uncertainty"].question,
-            body=body,
-            report_key="full_uncertainty",
-            source_note="Scenario-level CSV and JSON artifacts are retained beside this report.",
-        ),
-        encoding="utf-8",
-    )
-    return _register(output, "full_uncertainty", target)
-
+    target = regenerate_full_uncertainty_report(output)
+    return _register(output.resolve(), "full_uncertainty", target)
 
 def write_design_comparison_report(output: Path) -> Path:
     output = output.resolve()

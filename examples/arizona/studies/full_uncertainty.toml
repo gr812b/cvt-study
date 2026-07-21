@@ -9,7 +9,11 @@ study = "baseline"
 
 [sampling]
 mode = "all_declared"
-replicates = 120
+# Number of common structural + measured-traversal draws replayed on every
+# admitted track interpretation. With 14 track cases, 30 creates 420 joint
+# scenarios. Increase toward 50 only after checking convergence.
+replicates = 30
+layout = "cross_track_cases"
 paired_scenarios = true
 gate_sampling = "paired_lap"
 
@@ -34,6 +38,7 @@ include_categories = [
 
 [reporting]
 bootstrap_resamples = 2000
+top_driver_count = 15
 html_report = true
 
 [quality]

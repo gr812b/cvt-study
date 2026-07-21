@@ -113,7 +113,15 @@ def build_parser() -> argparse.ArgumentParser:
         item.add_argument("--study", default=default_study)
         if command != "track-robustness":
             item.add_argument("--bundle", type=Path, help="Use an existing validated track bundle.")
-            item.add_argument("--replicates", type=int)
+            item.add_argument(
+                "--replicates",
+                type=int,
+                help=(
+                    "Override the configured draw count. For full uncertainty with "
+                    "sampling.layout='cross_track_cases', this is the number of common "
+                    "structural/traversal draws replayed on every track case."
+                ),
+            )
             item.add_argument("--no-cache", action="store_true")
         else:
             item.set_defaults(bundle=None, replicates=None, no_cache=False)

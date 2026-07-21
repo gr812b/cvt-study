@@ -48,6 +48,9 @@ h3 { margin-top:1.55rem; scroll-margin-top:1rem; }
 .figure img { display:block; max-width:100%; height:auto; border:1px solid var(--line); border-radius:8px; }
 .caption { color:var(--muted); font-size:.9rem; margin-top:.4rem; max-width:78rem; }
 .table-note { color:var(--muted); font-size:.91rem; margin:.55rem 0 .65rem; max-width:78rem; }
+.table-controls { display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; margin:.45rem 0 .55rem; }
+.table-search { min-width:18rem; max-width:34rem; width:100%; padding:.48rem .6rem; border:1px solid var(--line); border-radius:7px; background:Canvas; color:var(--ink); }
+.table-count { color:var(--muted); font-size:.86rem; }
 .table-wrap { overflow:auto; max-height:680px; border:1px solid var(--line); border-radius:8px; position:relative; }
 .table-wrap.compact { max-height:520px; }
 table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:.86rem; }
@@ -96,6 +99,25 @@ SCRIPT = r"""
     if (kind === 'number') return Number(a) - Number(b);
     return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
   }
+
+  document.querySelectorAll('input[data-table-search]').forEach((input) => {
+    const table = document.getElementById(input.dataset.tableSearch);
+    if (!table || !table.tBodies[0]) return;
+    const rows = Array.from(table.tBodies[0].rows);
+    const count = document.querySelector('[data-table-count="' + input.dataset.tableSearch + '"]');
+    function applyFilter() {
+      const query = input.value.trim().toLocaleLowerCase();
+      let visible = 0;
+      rows.forEach((row) => {
+        const match = !query || row.textContent.toLocaleLowerCase().includes(query);
+        row.hidden = !match;
+        if (match) visible += 1;
+      });
+      if (count) count.textContent = visible + ' of ' + rows.length + ' rows';
+    }
+    input.addEventListener('input', applyFilter);
+    applyFilter();
+  });
 
   document.querySelectorAll('table[data-sortable="true"]').forEach((table) => {
     const body = table.tBodies[0];
@@ -176,6 +198,8 @@ def dataframe_table(
     table_id: str | None = None,
     compact: bool = False,
     column_labels: Mapping[str, str] | None = None,
+    searchable: bool = False,
+    search_placeholder: str = "Search rows…",
 ) -> str:
     """Render a readable table with optional sticky identity columns and sorting.
 
@@ -267,8 +291,17 @@ def dataframe_table(
         rows.append(f'<tr data-original-index="{original_index}">' + "".join(cells) + "</tr>")
 
     wrap_class = "table-wrap compact" if compact else "table-wrap"
+    controls = ""
+    if searchable:
+        controls = (
+            '<div class="table-controls"><input class="table-search" type="search" '
+            f'data-table-search="{html.escape(identifier)}" placeholder="{html.escape(search_placeholder)}" '
+            'aria-label="Search table rows">'
+            f'<span class="table-count" data-table-count="{html.escape(identifier)}"></span></div>'
+        )
     return (
-        f'<div class="{wrap_class}"><table id="{html.escape(identifier)}" '
+        controls
+        + f'<div class="{wrap_class}"><table id="{html.escape(identifier)}" '
         f'data-sortable="{"true" if sortable else "false"}"><thead><tr>'
         + "".join(head_cells)
         + "</tr></thead><tbody>"
