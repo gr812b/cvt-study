@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import html
 import json
+import re
 from datetime import datetime, timezone
 from itertools import count
 from pathlib import Path
@@ -27,12 +28,13 @@ body { font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, san
 main { max-width:1320px; margin:0 auto; padding:2rem 2.2rem 4rem; }
 header { border-bottom:1px solid var(--line); margin-bottom:1.6rem; }
 h1 { font-size:2rem; margin:.1rem 0 .35rem; }
-h2 { margin-top:2.6rem; border-bottom:1px solid var(--line); padding-bottom:.4rem; scroll-margin-top:1rem; }
+h2 { margin-top:2.6rem; border-bottom:1px solid var(--line); padding-bottom:.4rem; scroll-margin-top:1.25rem; }
 h3 { margin-top:1.55rem; scroll-margin-top:1rem; }
 .subtitle { color:var(--muted); max-width:78rem; }
-.report-nav { display:flex; flex-wrap:wrap; gap:.45rem .9rem; padding:.75rem 0 1rem; border-bottom:1px solid var(--line); }
-.report-nav a { color:var(--accent); text-decoration:none; font-weight:650; }
-.report-nav a:hover { text-decoration:underline; }
+.report-nav { display:flex; flex-wrap:wrap; gap:.45rem .65rem; padding:.7rem .8rem; margin:.3rem 0 1.35rem; border:1px solid var(--line); border-radius:9px; background:var(--panel); }
+.report-nav::before { content:"Quick links"; color:var(--muted); font-size:.8rem; font-weight:750; text-transform:uppercase; letter-spacing:.04em; width:100%; }
+.report-nav a { color:var(--accent); text-decoration:none; font-weight:650; padding:.18rem .42rem; border-radius:5px; }
+.report-nav a:hover { text-decoration:underline; background:color-mix(in srgb, var(--accent) 9%, transparent); }
 .scope { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.8rem; margin:1.1rem 0; }
 .card { border:1px solid var(--line); border-radius:10px; padding:.9rem 1rem; background:var(--panel); }
 .card .label { color:var(--muted); font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; }
@@ -317,6 +319,58 @@ def metric_cards(records: Iterable[tuple[str, str, str]]) -> str:
     ) + "</div>"
 
 
+def _slugify_heading(value: str) -> str:
+    plain = html.unescape(re.sub(r"<[^>]+>", "", value)).strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", plain).strip("-")
+    return slug or "section"
+
+
+def _with_automatic_navigation(body: str) -> tuple[str, str]:
+    """Add stable h2 anchors and one top-level quick-link bar.
+
+    Reports that already provide a deliberate ``report-nav`` keep it unchanged.
+    Every other report receives links generated from its h2 headings, which keeps
+    the six canonical reports consistent without forcing each scientific writer
+    to duplicate navigation markup.
+    """
+
+    if 'class="report-nav"' in body or "class='report-nav'" in body:
+        return body, ""
+
+    used = set(re.findall(r'\bid=["\']([^"\']+)["\']', body, flags=re.I))
+    headings: list[tuple[str, str]] = []
+
+    pattern = re.compile(r"<h2(?P<attrs>[^>]*)>(?P<label>.*?)</h2>", re.I | re.S)
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = match.group("attrs")
+        label_html = match.group("label")
+        found = re.search(r'\bid=["\']([^"\']+)["\']', attrs, flags=re.I)
+        if found:
+            identifier = found.group(1)
+        else:
+            base = _slugify_heading(label_html)
+            identifier = base
+            suffix = 2
+            while identifier in used:
+                identifier = f"{base}-{suffix}"
+                suffix += 1
+            used.add(identifier)
+            attrs = attrs + f' id="{html.escape(identifier, quote=True)}"'
+        label = html.unescape(re.sub(r"<[^>]+>", "", label_html)).strip()
+        headings.append((identifier, label))
+        return f"<h2{attrs}>{label_html}</h2>"
+
+    updated = pattern.sub(replace, body)
+    if not headings:
+        return updated, ""
+    links = ''.join(
+        f'<a href="#{html.escape(identifier, quote=True)}">{html.escape(label)}</a>'
+        for identifier, label in headings
+    )
+    return updated, f'<nav class="report-nav" aria-label="Report sections">{links}</nav>'
+
+
 def render_page(
     *,
     title: str,
@@ -326,11 +380,13 @@ def render_page(
     source_note: str = "",
 ) -> str:
     generated = datetime.now(timezone.utc).isoformat()
+    body, navigation = _with_automatic_navigation(body)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(title)}</title><style>{CSS}</style></head><body><main>
-<header><div class="subtitle">Measured-track drivetrain framework · {html.escape(report_key)}</div>
+<header id="top"><div class="subtitle">Measured-track drivetrain framework · {html.escape(report_key)}</div>
 <h1>{html.escape(title)}</h1><p class="subtitle">{html.escape(subtitle)}</p></header>
+{navigation}
 {body}
 <footer>Generated {html.escape(generated)}. {html.escape(source_note)}</footer>
 </main><script>{SCRIPT}</script></body></html>"""

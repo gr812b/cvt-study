@@ -66,23 +66,237 @@ def primary_report_path(output: Path) -> Path | None:
 
 
 def write_track_evidence_report(output: Path) -> Path:
+    """Render the nominal track-evidence package using the shared report shell.
+
+    ``track_review.html`` remains as a legacy filename, but it is rewritten to the
+    same self-contained document so users do not encounter two visual systems in
+    one track-build result.
+    """
+
     output = output.resolve()
-    source = output / "review" / "track_review.html"
-    if not source.is_file():
-        raise FileNotFoundError(f"Cannot write track evidence report; missing {source}")
-    target = output / "review" / REPORTS["track_evidence"].html_filename
-    text = source.read_text(encoding="utf-8")
-    text = text.replace("<title>CVT track review</title>", "<title>Track evidence and reconstruction report</title>")
-    text = text.replace("<h1>Track reconstruction review</h1>", "<h1>Track evidence and reconstruction report</h1>")
-    scope = (
-        '<div class="note"><strong>Purpose.</strong> This report documents the nominal track inferred '
-        "from the supplied telemetry and reviewed event evidence. It does not test drivetrain performance "
-        "or claim that arbitrary reconstruction settings are harmless; that question belongs to the separate "
-        "track robustness report.</div>"
+    review = output / "review"
+    review.mkdir(parents=True, exist_ok=True)
+
+    manifest = read_json(output / "track_build_manifest.json", {})
+    diagnostics_raw = read_json(output / "diagnostics.json", [])
+    run_summaries_raw = read_json(output / "ingestion" / "run_summaries.json", [])
+    laps = _read_csv(output / "track" / "lap_quality.csv")
+    events = _read_csv(output / "track" / "event_projection.csv")
+    intervals = _read_csv(output / "track" / "event_interval_audit.csv")
+    gates = _read_csv(output / "track" / "gate_review.csv")
+    rejected_telemetry = _read_csv(output / "ingestion" / "rejected_telemetry_points.csv")
+    rejected_map = _read_csv(output / "track" / "rejected_map_points.csv")
+
+    diagnostics = pd.DataFrame(diagnostics_raw if isinstance(diagnostics_raw, list) else [])
+    run_summaries = pd.DataFrame(
+        run_summaries_raw if isinstance(run_summaries_raw, list) else []
     )
-    marker = "<h1>Track evidence and reconstruction report</h1>"
-    text = text.replace(marker, marker + scope, 1)
-    target.write_text(text, encoding="utf-8")
+
+    track_length = float(manifest.get("track_length_m", math.nan))
+    if not laps.empty and "analysis_valid" in laps:
+        valid_flags = laps["analysis_valid"]
+        if pd.api.types.is_bool_dtype(valid_flags.dtype):
+            valid_laps = int(valid_flags.fillna(False).sum())
+        else:
+            valid_laps = int(
+                valid_flags.astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum()
+            )
+    else:
+        valid_laps = int(manifest.get("valid_lap_count", 0))
+    accepted = int((gates.get("recommendation", pd.Series(dtype=str)).astype(str) == "accepted").sum())
+    review_count = int((gates.get("recommendation", pd.Series(dtype=str)).astype(str) == "recommended_review").sum())
+    must_fix = int((gates.get("recommendation", pd.Series(dtype=str)).astype(str) == "must_fix").sum())
+
+    cards = metric_cards(
+        [
+            ("Reconstructed length", _fmt(track_length, " m"), "note"),
+            ("Valid evidence laps", str(valid_laps), "good" if valid_laps else "warning"),
+            ("Physical features", str(len(events)), "note"),
+            ("Accepted gates", str(accepted), "good"),
+            ("Recommended review", str(review_count), "warning" if review_count else "good"),
+            ("Must fix", str(must_fix), "bad" if must_fix else "good"),
+        ]
+    )
+
+    body = _scope_html("track_evidence") + cards
+    body += (
+        '<div class="card note"><strong>Interpretation boundary.</strong> This is the selected '
+        'nominal reconstruction from the supplied telemetry and reviewed event evidence. It documents '
+        'what was inferred; sensitivity to reconstruction choices is handled separately by the track '
+        'robustness report.</div>'
+    )
+
+    body += '<h2>Executive evidence summary</h2>'
+    body += (
+        '<div class="section-intro"><strong>What this section shows.</strong> The central evidence '
+        'package: the retained telemetry, consensus centreline, interpreted events, and selected speed '
+        'constraints. Review warnings below are retained rather than hidden.</div>'
+    )
+    body += figure(
+        review / "track_map.png",
+        "Consensus centreline, retained evidence laps, event anchors and gate-response markers.",
+    )
+    body += figure(
+        review / "telemetry_cleanup_map.png",
+        "Retained and rejected telemetry points. Rejections remain available in the machine-readable audit tables.",
+    )
+
+    body += '<h2>Event interpretation</h2>'
+    body += (
+        '<div class="section-intro"><strong>What this section shows.</strong> Every physical response '
+        'group is placed on the common along-track coordinate. Long, wrapped, or otherwise suspicious '
+        'intervals are surfaced explicitly before the full supporting table.</div>'
+    )
+    suspicious = pd.DataFrame()
+    if not intervals.empty and "interval_audit_flags" in intervals:
+        suspicious = intervals[
+            intervals["interval_audit_flags"].fillna("").astype(str).str.strip().ne("")
+        ].copy()
+    if suspicious.empty:
+        body += '<div class="card good"><strong>Interval audit.</strong> No event-interval flags were raised.</div>'
+    else:
+        body += (
+            f'<div class="card warning"><strong>Interval audit.</strong> {len(suspicious)} response '
+            'group(s) carry wrap, extent, or reconstruction-review flags. Inspect the timeline and '
+            'flagged table before using them as physical obstacles.</div>'
+        )
+    body += figure(
+        review / "event_group_timeline.png",
+        "Resolved event-group extents along the common s coordinate. Hatching marks groups with interval-review flags.",
+    )
+    if not suspicious.empty:
+        body += dataframe_table(
+            suspicious,
+            columns=(
+                "sequence", "response_group_id", "name", "feature_start_s_m",
+                "feature_end_s_m", "feature_length_m", "wraps_start_finish",
+                "interval_audit_flags",
+            ),
+            sticky_columns=("sequence", "response_group_id", "name"),
+            searchable=True,
+            max_rows=200,
+            table_id="flagged-event-intervals",
+        )
+
+    body += '<h2>Gate evidence and qualification</h2>'
+    body += (
+        '<div class="section-intro"><strong>What this section shows.</strong> Gate confidence is an '
+        'evidence score, not a probability that a gate is true. The compact table keeps the decision, '
+        'speed range, pass support, coordinate quality, and braking signature visible; the complete '
+        'table remains in the appendix.</div>'
+    )
+    gate_columns = (
+        "response_group_id", "event_name", "sequence", "recommendation",
+        "overall_confidence_score", "valid_pass_count", "entry_speed_median_mps",
+        "entry_speed_p10_mps", "entry_speed_p90_mps", "coordinate_effective_error_m",
+        "slowdown_signature", "cross_vehicle_status", "reasons", "suggested_action",
+    )
+    body += dataframe_table(
+        gates,
+        columns=gate_columns,
+        sticky_columns=("response_group_id", "event_name"),
+        searchable=True,
+        max_rows=300,
+        table_id="track-evidence-gates",
+    )
+
+    body += '<h2>Elevation and lap support</h2>'
+    body += (
+        '<div class="section-intro"><strong>What this section shows.</strong> Elevation and lap-quality '
+        'evidence are preserved for review. Telemetry elevation is not converted into vehicle grade '
+        'force unless that capability is explicitly enabled elsewhere.</div>'
+    )
+    body += figure(
+        review / "elevation_profile.png",
+        "Median telemetry elevation with the p10–p90 between-lap band; retained for evidence review only.",
+    )
+    lap_columns = (
+        "lap_id", "run_id", "vehicle_id", "duration_s", "analysis_valid",
+        "speed_coverage_fraction", "p95_map_error_m", "time_gap_count", "quality_flags",
+    )
+    body += dataframe_table(
+        laps,
+        columns=lap_columns,
+        sticky_columns=("lap_id", "run_id"),
+        searchable=True,
+        max_rows=300,
+        table_id="track-evidence-laps",
+    )
+
+    body += '<h2>Evidence provenance and diagnostics</h2>'
+    body += (
+        '<div class="section-intro"><strong>What this section shows.</strong> The source runs, cleanup '
+        'counts, reconstruction diagnostics, and bundle fingerprints needed to reproduce or challenge '
+        'the nominal track.</div>'
+    )
+    if not diagnostics.empty:
+        body += dataframe_table(
+            diagnostics,
+            sticky_columns=("severity", "code"),
+            searchable=True,
+            max_rows=300,
+            table_id="track-evidence-diagnostics",
+        )
+    if not run_summaries.empty:
+        body += '<h3>Telemetry run summaries</h3>'
+        body += dataframe_table(
+            run_summaries,
+            sticky_columns=("run_id", "vehicle_id", "driver_id"),
+            searchable=True,
+            max_rows=100,
+            table_id="track-evidence-runs",
+        )
+    body += '<h3>Track-build contract</h3>'
+    body += f'<pre>{html.escape(json.dumps(manifest, indent=2, sort_keys=True))}</pre>'
+
+    body += '<h2>Detailed supporting tables and files</h2>'
+    body += (
+        '<div class="section-intro"><strong>Underlying data.</strong> These appendices retain the full '
+        'event and rejection tables without forcing them ahead of the major plots and conclusions.</div>'
+    )
+    body += '<details><summary>Complete event-interval audit</summary>'
+    body += dataframe_table(
+        intervals,
+        sticky_columns=("sequence", "response_group_id", "name"),
+        searchable=True,
+        max_rows=1000,
+        table_id="complete-event-intervals",
+    ) + '</details>'
+    body += '<details><summary>Complete event projection table</summary>'
+    body += dataframe_table(
+        events,
+        sticky_columns=("sequence", "response_group_id", "name"),
+        searchable=True,
+        max_rows=1000,
+        table_id="complete-event-projection",
+    ) + '</details>'
+    body += '<details><summary>Rejected telemetry points</summary>'
+    body += dataframe_table(
+        rejected_telemetry, searchable=True, max_rows=max(2000, len(rejected_telemetry)), table_id="rejected-telemetry"
+    ) + '</details>'
+    body += '<details><summary>Rejected map-matched points</summary>'
+    body += dataframe_table(
+        rejected_map, searchable=True, max_rows=max(2000, len(rejected_map)), table_id="rejected-map-points"
+    ) + '</details>'
+    body += (
+        '<ul><li><code>track_bundle.json</code></li><li><code>track/centreline.csv</code></li>'
+        '<li><code>track/gate_evidence.csv</code></li><li><code>track/event_passes.csv</code></li>'
+        '<li><code>configuration/resolved_inputs.toml</code></li></ul>'
+    )
+
+    target = review / REPORTS["track_evidence"].html_filename
+    document = render_page(
+        title=REPORTS["track_evidence"].title,
+        subtitle=REPORTS["track_evidence"].question,
+        body=body,
+        report_key="track_evidence",
+        source_note="Track-build CSV, JSON, image, and bundle artifacts remain the source of truth.",
+    )
+    target.write_text(document, encoding="utf-8")
+
+    # Preserve the historical path while preventing it from remaining the odd
+    # visual outlier in a freshly generated track-build directory.
+    (review / "track_review.html").write_text(document, encoding="utf-8")
     return _register(output, "track_evidence", target)
 
 

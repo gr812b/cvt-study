@@ -1564,7 +1564,7 @@ def _write_track_robustness_html(
         '<nav class="report-nav" aria-label="Report sections">'
         '<a href="#summary">Summary</a><a href="#centreline">Centreline</a>'
         '<a href="#events">Events</a><a href="#gates">Gates</a>'
-        '<a href="#ensemble">Track ensemble</a><a href="#appendix">Detailed tables</a></nav>'
+        '<a href="#ensemble">Track ensemble</a><a href="#interpretation">Interpretation</a><a href="#appendix">Detailed tables</a></nav>'
     )
     body = nav
     body += (
@@ -1712,7 +1712,7 @@ def _write_track_robustness_html(
             max_rows=250,
         )
 
-    body += '<h2>5. Interpretation and decision rules</h2>'
+    body += '<h2 id="interpretation">5. Interpretation and decision rules</h2>'
     body += '<div class="section-intro"><strong>How to read the report.</strong>A stable centreline does not prove every gate. A stable target speed does not prove the observed speed is track-driven. Policy acceptance frequencies are selected stress-test results, not independent trials or probabilities. Cross-vehicle weighting remains a sensitivity test until multiple vehicles supply evidence.</div>'
     body += '<h3>Configured thresholds</h3><pre>' + html.escape(json.dumps(dict(thresholds), indent=2, sort_keys=True)) + '</pre>'
 
