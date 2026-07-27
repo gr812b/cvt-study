@@ -1,0 +1,35 @@
+{
+  "artifact_review": "20260727T133417Z.zip",
+  "old_point_radius_detection": {
+    "gate_radius_m": 8.0,
+    "start_finish_visits": 26,
+    "detected_laps": 25
+  },
+  "new_segment_radius_detection": {
+    "gate_radius_m": 8.0,
+    "start_finish_visits": 45,
+    "detected_laps": 44
+  },
+  "expected_ordered_alignment": {
+    "csv_rows": 43,
+    "matched_csv_rows": 43,
+    "excluded_but_sequence_preserved": [
+      16,
+      24,
+      30,
+      32
+    ],
+    "reconstructed_race_laps": 39,
+    "unmatched_gpx_laps": 1
+  },
+  "included_lap_path_distance_m": {
+    "minimum": 1804.3,
+    "median": 1841.6,
+    "maximum": 1882.1
+  },
+  "notes": [
+    "Segment detection catches gate crossings between retained GPX points.",
+    "Strict index is justified here because long route laps 16 and 24 align with long CSV pit/service rows 16 and 24.",
+    "The final unmatched GPX lap remains auditable rather than shifting all later CSV rows."
+  ]
+}

@@ -27,13 +27,16 @@ def export_ingestion_results(
 
     final = output_directory.resolve()
     final.parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=f".{final.name}-", dir=final.parent))
+    temporary = Path(
+        tempfile.mkdtemp(prefix=f".{final.name}-", dir=final.parent)
+    )
     try:
         resolved_results = tuple(results)
         run_summaries: list[dict[str, Any]] = []
         all_points: list[pd.DataFrame] = []
         all_segments: list[pd.DataFrame] = []
         all_rejected: list[pd.DataFrame] = []
+        all_reconstruction_laps: list[pd.DataFrame] = []
         all_diagnostics: list[dict[str, Any]] = []
         for result in resolved_results:
             run_dir = temporary / "runs" / result.metadata.run_id
@@ -49,6 +52,17 @@ def export_ingestion_results(
                 run_dir / "diagnostics.json",
                 [item.to_dict() for item in result.diagnostics],
             )
+            if not result.reconstruction_laps.empty:
+                _write_dataframe(
+                    result.reconstruction_laps,
+                    run_dir / "lap_time_reconstruction.csv",
+                )
+                all_reconstruction_laps.append(result.reconstruction_laps)
+            if result.augmented_gpx_text is not None:
+                (run_dir / "reconstructed_timed.gpx").write_text(
+                    result.augmented_gpx_text + "\n",
+                    encoding="utf-8",
+                )
             create_telemetry_cleanup_map(
                 run_dir / "telemetry_cleanup_map.png",
                 result.points,
@@ -71,14 +85,28 @@ def export_ingestion_results(
             if all_rejected
             else pd.DataFrame()
         )
+        combined_reconstruction = (
+            pd.concat(all_reconstruction_laps, ignore_index=True)
+            if all_reconstruction_laps
+            else pd.DataFrame()
+        )
 
         _write_dataframe(
             pd.DataFrame(run_summaries), temporary / "run_summaries.csv"
         )
-        _write_dataframe(combined_points, temporary / "canonical_points.csv")
-        _write_dataframe(combined_segments, temporary / "segments.csv")
         _write_dataframe(
-            combined_rejected, temporary / "rejected_telemetry_points.csv"
+            combined_points, temporary / "canonical_points.csv"
+        )
+        _write_dataframe(
+            combined_segments, temporary / "segments.csv"
+        )
+        _write_dataframe(
+            combined_rejected,
+            temporary / "rejected_telemetry_points.csv",
+        )
+        _write_dataframe(
+            combined_reconstruction,
+            temporary / "lap_time_reconstruction.csv",
         )
         create_telemetry_cleanup_map(
             temporary / "telemetry_cleanup_map.png",
@@ -98,13 +126,23 @@ def export_ingestion_results(
 
 def _write_dataframe(frame: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(path, index=False, date_format="%Y-%m-%dT%H:%M:%S.%fZ")
+    frame.to_csv(
+        path,
+        index=False,
+        date_format="%Y-%m-%dT%H:%M:%S.%fZ",
+    )
 
 
 def _write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False, default=str)
+        json.dumps(
+            value,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=False,
+            default=str,
+        )
         + "\n",
         encoding="utf-8",
     )

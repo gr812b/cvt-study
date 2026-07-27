@@ -1,4 +1,4 @@
-"""Conservative, auditable cleanup of isolated GPS coordinate excursions.
+﻿"""Conservative, auditable cleanup of isolated GPS coordinate excursions.
 
 The cleanup is intentionally narrow. It does not smooth a route, snap points to
 a centreline, or repair sustained off-course travel. It removes only short
@@ -369,12 +369,18 @@ def create_telemetry_cleanup_map(
     output.parent.mkdir(parents=True, exist_ok=True)
     figure, axis = plt.subplots(figsize=(11, 8))
 
-    retained = retained_points.dropna(
-        subset=["latitude_deg", "longitude_deg"]
-    ).copy()
-    rejected = rejected_points.dropna(
-        subset=["latitude_deg", "longitude_deg"]
-    ).copy()
+    coordinate_columns = ["latitude_deg", "longitude_deg"]
+
+    retained = (
+        retained_points.dropna(subset=coordinate_columns).copy()
+        if set(coordinate_columns).issubset(retained_points.columns)
+        else pd.DataFrame(columns=coordinate_columns)
+    )
+    rejected = (
+        rejected_points.dropna(subset=coordinate_columns).copy()
+        if set(coordinate_columns).issubset(rejected_points.columns)
+        else pd.DataFrame(columns=coordinate_columns)
+    )
 
     combined = pd.concat(
         [retained[["latitude_deg", "longitude_deg"]],
@@ -633,7 +639,7 @@ def _collapse_invalid_coordinate_diagnostics(
     )
     location = ""
     if indices:
-        location = f" Affected source-record span: {indices[0]}–{indices[-1]}."
+        location = f" Affected source-record span: {indices[0]}â€“{indices[-1]}."
     retained.append(
         Diagnostic(
             severity=Severity.WARNING,
@@ -808,3 +814,4 @@ def _fraction(value: Any, default: float) -> float:
     if not math.isfinite(number) or not 0 < number <= 1:
         raise ValueError(f"Expected a fraction in (0, 1], got {value!r}")
     return number
+

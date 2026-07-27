@@ -1,0 +1,8 @@
+{
+  "fit_gate_error_std_mps": 0.09552848401409392,
+  "latin_hypercube_strata_test": "passed",
+  "obstacle_energy_scale_test": "passed",
+  "rank_correlation_spearman": 0.7730103313145706,
+  "reconstructed_gate_error_std_mps": 0.9977872907744608,
+  "report_overlay_test": "passed"
+}

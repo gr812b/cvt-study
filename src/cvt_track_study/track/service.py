@@ -9,12 +9,8 @@ from collections.abc import Mapping
 
 from cvt_track_study.config.diagnostics import DiagnosticBag
 from cvt_track_study.config import ProjectError, ProjectLoader
-from cvt_track_study.gpx.cleanup import apply_telemetry_cleanup
-from cvt_track_study.gpx.model import GPXRunMetadata
-from cvt_track_study.gpx.ingestion import (
-    TelemetryParseError,
-    ingest_telemetry_run,
-)
+from cvt_track_study.gpx.ingestion import TelemetryParseError
+from cvt_track_study.gpx.pipeline import ingest_configured_run
 
 from .export import export_track_build
 from .model import TrackBuildResult
@@ -33,24 +29,23 @@ def build_project_track(
             "run cvt-study validate first."
         )
     track_config = resolution.data.get("track", {})
+    raw_events = tuple(
+        item
+        for item in resolution.data.get("events", [])
+        if isinstance(item, Mapping)
+    )
     ingestion_results = []
     for raw in resolution.data.get("runs", []):
         if not isinstance(raw, Mapping):
             continue
-        metadata = GPXRunMetadata(
-            run_id=str(raw["run_id"]),
-            vehicle_id=str(raw["vehicle_id"]),
-            driver_id=str(raw["driver_id"]),
-            source_file=(
-                resolution.paths.runs_file.parent / str(raw["file"])
-            ).resolve(),
-            use_for_centreline=bool(raw["use_for_centreline"]),
-            use_for_gate_evidence=bool(raw["use_for_gate_evidence"]),
-        )
         try:
-            parsed = ingest_telemetry_run(metadata)
             ingestion_results.append(
-                apply_telemetry_cleanup(parsed, track_config)
+                ingest_configured_run(
+                    raw,
+                    runs_directory=resolution.paths.runs_file.parent,
+                    track_config=track_config,
+                    events=raw_events,
+                )
             )
         except (TelemetryParseError, ValueError) as exc:
             raise ProjectError(str(exc)) from exc
@@ -73,7 +68,6 @@ def build_project_track(
     diagnostics = DiagnosticBag(resolution.diagnostics)
     for ingestion in ingestion_results:
         diagnostics.extend(ingestion.diagnostics)
-    raw_events = resolution.data.get("events", [])
     try:
         (
             centreline,
@@ -103,7 +97,7 @@ def build_project_track(
     if not output.is_absolute():
         output = (Path.cwd() / output).resolve()
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "phase": 3,
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "project_root": str(resolution.paths.root),
@@ -118,6 +112,12 @@ def build_project_track(
             item.metadata.run_id: item.summary["source_format"]
             for item in ingestion_results
         },
+        "lap_time_reconstructed_runs": [
+            item.metadata.run_id
+            for item in ingestion_results
+            if bool(item.summary.get("lap_time_reconstruction_applied"))
+        ],
+        "reconstructed_speed_evidence_is_supplemental": True,
         "reference_lap_id": int(
             laps.loc[laps["reference_lap"], "lap_id"].iloc[0]
         ),

@@ -1,12 +1,13 @@
 """Canonical telemetry ingestion data structures.
 
 The historical GPX names remain public aliases so existing callers do not need
-to change when FIT recordings are introduced.
+to change when FIT recordings or optional lap-time reconstruction are used.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,36 @@ CANONICAL_POINT_COLUMNS = (
 
 
 @dataclass(frozen=True)
+class LapTimeReconstructionConfig:
+    """Optional contract for assigning timing to an untimed GPX.
+
+    The GPX point order is retained. Each detected lap receives the duration
+    declared in the CSV and a constant point-to-point time interval within
+    that lap. Local speed then follows from measured point spacing divided by
+    that reconstructed interval.
+    """
+
+    lap_times_file: Path
+    lap_index_column: str = "lap"
+    lap_time_column: str = "lap_time"
+    include_column: str | None = "include"
+    gate_radius_m: float | None = None
+    minimum_points_per_lap: int = 30
+    expected_point_period_s: float = 1.0
+    maximum_point_period_error_fraction: float = 0.35
+    alignment_mode: str = "cadence_dynamic_programming"
+    minimum_csv_lap_time_s: float | None = None
+    maximum_csv_lap_time_s: float | None = None
+    maximum_alignment_error_fraction: float = 0.65
+    skip_detected_lap_penalty: float = 1.0
+    skip_csv_lap_penalty: float = 1.5
+    minimum_matched_laps: int = 3
+    allow_unmatched_laps: bool = False
+    export_augmented_gpx: bool = True
+    synthetic_start_time_utc: datetime | None = None
+
+
+@dataclass(frozen=True)
 class GPXRunMetadata:
     run_id: str
     vehicle_id: str
@@ -58,6 +89,7 @@ class GPXRunMetadata:
     source_file: Path
     use_for_centreline: bool
     use_for_gate_evidence: bool
+    lap_time_reconstruction: LapTimeReconstructionConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +100,8 @@ class GPXIngestionResult:
     summary: dict[str, Any]
     diagnostics: tuple[Diagnostic, ...]
     rejected_points: pd.DataFrame = field(default_factory=pd.DataFrame)
+    reconstruction_laps: pd.DataFrame = field(default_factory=pd.DataFrame)
+    augmented_gpx_text: str | None = None
 
     @property
     def error_count(self) -> int:

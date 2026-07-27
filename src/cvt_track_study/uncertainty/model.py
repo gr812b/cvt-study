@@ -28,6 +28,7 @@ class ScenarioDraw:
     gate_target_speeds_mps: Mapping[str, float] = field(default_factory=dict)
     gate_sample_identity: GateSampleIdentity | None = None
     independently_sampled_gate_ids: tuple[str, ...] = ()
+    sampling_design: str = "latin_hypercube_rank_correlated"
 
     def serializable(self) -> dict[str, object]:
         identity = None
@@ -42,9 +43,16 @@ class ScenarioDraw:
             "replicate": self.replicate,
             "seed": self.seed,
             "sampling_mode": self.sampling_mode,
+            "sampling_design": (
+                "nominal" if self.sampling_mode == "nominal" else self.sampling_design
+            ),
             "quantity_values_si": dict(sorted(self.quantity_values_si.items())),
             "choice_values": dict(sorted(self.choice_values.items())),
-            "gate_target_speeds_mps": dict(sorted(self.gate_target_speeds_mps.items())),
+            "gate_target_speeds_mps": dict(
+                sorted(self.gate_target_speeds_mps.items())
+            ),
             "gate_sample_identity": identity,
-            "independently_sampled_gate_ids": list(self.independently_sampled_gate_ids),
+            "independently_sampled_gate_ids": list(
+                self.independently_sampled_gate_ids
+            ),
         }

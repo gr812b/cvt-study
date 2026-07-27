@@ -21,13 +21,7 @@ def speed_gate_contracts(
             eligible["event_id"].astype(str) == group_id
         ].dropna(subset=["entry_speed_mps"])
         samples = [
-            {
-                "lap_id": int(sample["lap_id"]),
-                "run_id": str(sample["run_id"]),
-                "vehicle_id": str(sample["vehicle_id"]),
-                "driver_id": str(sample["driver_id"]),
-                "value_mps": float(sample["entry_speed_mps"]),
-            }
+            _sample_contract(sample, value_column="entry_speed_mps")
             for _, sample in samples_frame.sort_values(["run_id", "lap_id"]).iterrows()
         ]
         anchor = float(row["anchor_s_m"])
@@ -62,8 +56,19 @@ def speed_gate_contracts(
                         "median_mps": float(row["entry_speed_median_mps"]),
                         "p90_mps": float(row["entry_speed_p90_mps"]),
                         "mean_mps": float(row["entry_speed_mean_mps"]),
-                        "standard_deviation_mps": float(row["entry_speed_standard_deviation_mps"]),
+                        "standard_deviation_mps": float(
+                            row["entry_speed_standard_deviation_mps"]
+                        ),
                         "iqr_mps": float(row["entry_speed_iqr_mps"]),
+                        **_certainty_summary(samples),
+                    },
+                    "measurement_error_contract": {
+                        "native_fit": "small error; speed_certainty=native_high",
+                        "lap_time_reconstructed": (
+                            "larger error sampled coherently across gates for the "
+                            "selected traversal"
+                        ),
+                        "negative_speed_policy": "truncate_at_zero",
                     },
                 },
                 "confidence": {
@@ -73,8 +78,11 @@ def speed_gate_contracts(
                     "braking_evidence_score": float(row["braking_evidence_score"]),
                     "pace_independence_score": float(row["pace_independence_score"]),
                     "coordinate_quality_score": float(row["coordinate_quality_score"]),
-                    "cross_vehicle_agreement_score": float(row["cross_vehicle_agreement_score"]),
+                    "cross_vehicle_agreement_score": float(
+                        row["cross_vehicle_agreement_score"]
+                    ),
                     "cross_vehicle_status": str(row["cross_vehicle_status"]),
+                    "speed_source_certainty": _certainty_summary(samples),
                     "reasons": split_tokens(row.get("reasons"), separator=";"),
                 },
                 "review_priority": int(row["review_priority"]),
@@ -92,11 +100,7 @@ def speed_gate_contracts(
             ].dropna(subset=["event_min_speed_mps", "event_min_rel_m"])
             response_samples = [
                 {
-                    "lap_id": int(sample["lap_id"]),
-                    "run_id": str(sample["run_id"]),
-                    "vehicle_id": str(sample["vehicle_id"]),
-                    "driver_id": str(sample["driver_id"]),
-                    "value_mps": float(sample["event_min_speed_mps"]),
+                    **_sample_contract(sample, value_column="event_min_speed_mps"),
                     "location_rel_m": float(sample["event_min_rel_m"]),
                 }
                 for _, sample in response_frame.sort_values(
@@ -144,6 +148,12 @@ def speed_gate_contracts(
                                 row["event_min_speed_standard_deviation_mps"]
                             ),
                             "iqr_mps": float(row["event_min_speed_iqr_mps"]),
+                            **_certainty_summary(response_samples),
+                        },
+                        "measurement_error_contract": {
+                            "native_fit": "small error",
+                            "lap_time_reconstructed": "larger coherent error",
+                            "negative_speed_policy": "truncate_at_zero",
                         },
                     },
                     "confidence": {
@@ -159,6 +169,7 @@ def speed_gate_contracts(
                         "leave_one_out_max_location_shift_m": float(
                             row["sustained_leave_one_out_max_location_shift_m"]
                         ),
+                        "speed_source_certainty": _certainty_summary(response_samples),
                         "reasons": [str(row["sustained_gate_reason"])],
                     },
                     "review_priority": int(row["review_priority"]),
@@ -172,3 +183,37 @@ def speed_gate_contracts(
                 }
             )
     return gates
+
+
+def _sample_contract(sample: Any, *, value_column: str) -> dict[str, Any]:
+    certainty = str(sample.get("speed_certainty", "unavailable"))
+    sigma = sample.get("speed_measurement_standard_deviation_mps", 0.75)
+    weight = sample.get("speed_evidence_weight", 0.5)
+    return {
+        "lap_id": int(sample["lap_id"]),
+        "run_id": str(sample["run_id"]),
+        "vehicle_id": str(sample["vehicle_id"]),
+        "driver_id": str(sample["driver_id"]),
+        "value_mps": float(sample[value_column]),
+        "speed_certainty": certainty,
+        "evidence_weight": float(weight),
+        "measurement_standard_deviation_mps": float(sigma),
+    }
+
+
+def _certainty_summary(samples: list[dict[str, Any]]) -> dict[str, Any]:
+    counts: dict[str, int] = {}
+    sigmas: list[float] = []
+    for sample in samples:
+        certainty = str(sample.get("speed_certainty", "unavailable"))
+        counts[certainty] = counts.get(certainty, 0) + 1
+        sigmas.append(float(sample.get("measurement_standard_deviation_mps", 0.75)))
+    return {
+        "speed_certainty_counts": counts,
+        "mean_measurement_standard_deviation_mps": (
+            sum(sigmas) / len(sigmas) if sigmas else 0.0
+        ),
+        "reconstructed_sample_count": sum(
+            count for label, count in counts.items() if label.startswith("reconstructed_")
+        ),
+    }

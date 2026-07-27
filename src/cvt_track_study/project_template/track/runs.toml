@@ -1,15 +1,48 @@
-# Add one [[runs]] table per GPX or FIT recording. An empty project is valid to configure,
-# but build-track will later require at least one centreline run.
+# Add one [[runs]] table per physical GPX or FIT recording. An empty project
+# is valid to configure, but build-track later requires a centreline run.
 runs = []
 
-# Example:
+# Native FIT/timed GPX example:
+#
 # [[runs]]
-# file = "gpx/vehicle_A_run_01.gpx"
+# file = "gpx/vehicle_A_run_01.fit"
 # vehicle_id = "vehicle_A"
 # run_id = "A01"
 # driver_id = "driver_1"
 # use_for_centreline = true
 # use_for_gate_evidence = true
 #
-# FIT is preferred when both files are exports of the same device recording.
-# Do not declare the GPX copy as a second run: one run_id is one physical recording.
+# FIT is preferred when FIT and GPX are exports of the same physical recording.
+# Do not declare both as independent evidence.
+
+# Optional untimed-GPX reconstruction:
+#
+# [[runs]]
+# file = "gpx/vehicle_B_untimed.gpx"
+# vehicle_id = "vehicle_B"
+# run_id = "B01_reconstructed"
+# driver_id = "driver_2"
+# use_for_centreline = true
+# use_for_gate_evidence = true
+#
+# [runs.lap_time_reconstruction]
+# enabled = true
+# lap_times_file = "lap_times/vehicle_B_laps.csv"
+# lap_index_column = "lap"
+# lap_time_column = "lap_time_s"
+# alignment_mode = "cadence_dynamic_programming"
+# include_column = "include"
+# expected_point_period_s = 1.0
+# maximum_point_period_error_fraction = 0.35
+# maximum_alignment_error_fraction = 0.65
+# minimum_csv_lap_time_s = 180.0
+# maximum_csv_lap_time_s = 420.0
+# skip_detected_lap_penalty = 1.0
+# skip_csv_lap_penalty = 1.5
+# minimum_matched_laps = 3
+# minimum_points_per_lap = 30
+# allow_unmatched_laps = false
+# export_augmented_gpx = true
+#
+# This does not turn reconstructed speed into native telemetry. Vehicle and
+# driver identity are retained and the output is tagged as supplemental.

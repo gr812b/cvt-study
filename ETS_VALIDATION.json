@@ -1,0 +1,15 @@
+{
+  "certainty_counts": {
+    "reconstructed_low_medium": 39
+  },
+  "declared_csv_lap_count": 43,
+  "detected_spatial_lap_count": 49,
+  "excluded_csv_lap_count": 4,
+  "included_csv_lap_count": 39,
+  "maximum_inferred_point_period_s": 1.316723404255319,
+  "median_inferred_point_period_s": 1.1218,
+  "minimum_inferred_point_period_s": 0.6744766949152543,
+  "reconstructed_lap_count": 39,
+  "reconstructed_point_count": 9711,
+  "unmatched_detected_lap_count": 10
+}

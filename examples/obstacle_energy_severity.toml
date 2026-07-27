@@ -1,0 +1,19 @@
+# Optional override in a baseline study. If omitted, the same contract is supplied
+# by the framework default.
+[track_realization.obstacle_energy_severity]
+nominal = 1.0
+unit = "1"
+notes = "Multiplies dissipative obstacle work only; does not scale geometry, grade, normal load, traction, model choice, or individual feature parameters."
+
+[track_realization.obstacle_energy_severity.source]
+kind = "engineering_estimate"
+reference = "course-wide obstacle energy severity screening family v1"
+notes = "Low/nominal/high are screening cases, not calibrated probabilities."
+
+[track_realization.obstacle_energy_severity.uncertainty]
+distribution = "triangular"
+lower = 0.6
+mode = 1.0
+upper = 1.4
+role = "structural"
+reason = "Use one coherent course-wide burden while retaining per-feature inclusion, model-form, and parameter uncertainty separately."

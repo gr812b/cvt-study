@@ -1,0 +1,29 @@
+[[runs]]
+run_id = "ets_78_maryland_reconstructed"
+vehicle_id = "ets_78"
+driver_id = "ets_driver_unknown"
+file = "telemetry/ETS.gpx"
+use_for_centreline = true
+use_for_gate_evidence = true
+
+[runs.lap_time_reconstruction]
+enabled = true
+lap_times_file = "lap_times/78_Baja_ETS.csv"
+lap_index_column = "lap"
+lap_time_column = "lap_time_s"
+expected_point_period_s = 1.0
+alignment_mode = "cadence_dynamic_programming"
+# The race export contains four long pit/stoppage laps. They remain in the audit
+# but are not used to create a local speed trace.
+minimum_csv_lap_time_s = 180.0
+maximum_csv_lap_time_s = 420.0
+maximum_point_period_error_fraction = 0.35
+maximum_alignment_error_fraction = 0.65
+skip_detected_lap_penalty = 1.0
+skip_csv_lap_penalty = 1.5
+minimum_matched_laps = 20
+# Extra spatial loops and excluded pit/stoppage rows are permitted only because
+# they remain explicit in lap_time_reconstruction.csv.
+allow_unmatched_laps = true
+gate_radius_m = 8.0
+export_augmented_gpx = true
