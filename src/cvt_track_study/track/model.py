@@ -31,6 +31,8 @@ class TrackBuildResult:
     diagnostics: tuple[Diagnostic, ...]
     metadata: dict[str, Any]
     rejected_map_points: pd.DataFrame = field(default_factory=pd.DataFrame)
+    route_variant_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
+    route_variant_pairwise: pd.DataFrame = field(default_factory=pd.DataFrame)
     output_directory: Path | None = None
 
     @property

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from collections.abc import Mapping
+from typing import Any
 
-from cvt_track_study.config.diagnostics import DiagnosticBag
+import numpy as np
+import pandas as pd
+
 from cvt_track_study.config import ProjectError, ProjectLoader
+from cvt_track_study.config.diagnostics import DiagnosticBag
 from cvt_track_study.gpx.ingestion import TelemetryParseError
 from cvt_track_study.gpx.pipeline import ingest_configured_run
 
@@ -69,6 +73,12 @@ def build_project_track(
     for ingestion in ingestion_results:
         diagnostics.extend(ingestion.diagnostics)
     try:
+        evidence = build_track_evidence(
+            tuple(ingestion_results),
+            track_config,
+            raw_events,
+            diagnostics,
+        )
         (
             centreline,
             laps,
@@ -80,12 +90,7 @@ def build_project_track(
             gate_evidence,
             gate_review,
             rejected_map_points,
-        ) = build_track_evidence(
-            tuple(ingestion_results),
-            track_config,
-            raw_events,
-            diagnostics,
-        )
+        ) = evidence
     except (KeyError, TypeError, ValueError) as exc:
         raise ProjectError(f"Track reconstruction failed: {exc}") from exc
 
@@ -96,6 +101,46 @@ def build_project_track(
     )
     if not output.is_absolute():
         output = (Path.cwd() / output).resolve()
+
+    route_summary = evidence.route_variant_summary
+    route_pairwise = evidence.route_variant_pairwise
+    route_settings = evidence.route_variant_settings
+    route_variant_metadata = {
+        "enabled": bool(route_settings.enabled),
+        "selection_policy": route_settings.selection,
+        "reference_run_id": route_settings.reference_run_id,
+        "selected_variant_id": evidence.selected_route_variant_id,
+        "supported_variant_count": int(
+            route_summary.get("supported", pd.Series(dtype=bool)).astype(bool).sum()
+        ),
+        "detected_variant_count": int(len(route_summary)),
+        "pairwise_comparison_count": int(len(route_pairwise)),
+        "thresholds": {
+            "minimum_supported_laps": route_settings.minimum_supported_laps,
+            "sample_spacing_m": route_settings.sample_spacing_m,
+            "same_variant_p95_distance_m": (
+                route_settings.same_variant_p95_distance_m
+            ),
+            "divergence_distance_m": route_settings.divergence_distance_m,
+            "maximum_divergent_fraction": (
+                route_settings.maximum_divergent_fraction
+            ),
+            "maximum_length_relative_difference": (
+                route_settings.maximum_length_relative_difference
+            ),
+            "maximum_within_variant_length_deviation_fraction": (
+                route_settings.maximum_within_variant_length_deviation_fraction
+            ),
+        },
+        "variants": _json_records(route_summary),
+        "pairwise_comparisons": _json_records(route_pairwise),
+        "interpretation": (
+            "Supported alternate route variants are retained as valid route evidence "
+            "but excluded from the selected route's centreline and speed-gate evidence. "
+            "They are not averaged together and are not called telemetry errors."
+        ),
+    }
+
     metadata = {
         "schema_version": 2,
         "phase": 3,
@@ -142,6 +187,7 @@ def build_project_track(
         ),
         "post_map_rejected_point_count": len(rejected_map_points),
         "grade_force_enabled": False,
+        "route_variant_detection": route_variant_metadata,
     }
     result = TrackBuildResult(
         resolution=resolution,
@@ -156,8 +202,24 @@ def build_project_track(
         gate_evidence=gate_evidence,
         gate_review=gate_review,
         rejected_map_points=rejected_map_points,
+        route_variant_summary=route_summary,
+        route_variant_pairwise=route_pairwise,
         diagnostics=diagnostics.items,
         metadata=metadata,
     )
     export_track_build(output, result)
     return replace(result, output_directory=output)
+
+
+def _json_records(frame: pd.DataFrame) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for raw in frame.to_dict(orient="records"):
+        row: dict[str, Any] = {}
+        for key, value in raw.items():
+            if isinstance(value, np.generic):
+                value = value.item()
+            if isinstance(value, float) and not np.isfinite(value):
+                value = None
+            row[str(key)] = value
+        records.append(row)
+    return records

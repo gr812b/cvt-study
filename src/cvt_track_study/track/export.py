@@ -81,6 +81,14 @@ def export_track_build(
         _write_frame(centreline_frame, track / "centreline.csv")
         _write_frame(result.laps, track / "lap_quality.csv")
         _write_frame(
+            result.route_variant_summary,
+            track / "route_variant_summary.csv",
+        )
+        _write_frame(
+            result.route_variant_pairwise,
+            track / "route_variant_pairwise.csv",
+        )
+        _write_frame(
             result.matched_points,
             track / "map_matched_points.csv",
         )

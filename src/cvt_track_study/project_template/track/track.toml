@@ -25,6 +25,25 @@ profile_spacing_m = 5.0
 maximum_map_error_m = 20.0
 speed_spike_threshold_mps = 4.0
 
+# Optional handling for repeated, genuinely different closed-course paths.
+# Detection is disabled by default to preserve existing projects. When enabled,
+# laps are compared by spatial path before centreline consensus; supported
+# alternatives are retained in the audit rather than averaged together.
+[track.route_variants]
+enabled = false
+minimum_supported_laps = 2
+sample_spacing_m = 5.0
+same_variant_p95_distance_m = 10.0
+divergence_distance_m = 15.0
+maximum_divergent_fraction = 0.03
+maximum_length_relative_difference = 0.08
+maximum_within_variant_length_deviation_fraction = 0.15
+# Safest policy when more than one repeated route exists. The build stops and
+# prints the detected route inventory until a selection policy is declared.
+selection = "require_explicit"
+reference_run_id = ""
+selected_variant_id = ""
+
 # Conservative, auditable removal of isolated GPS excursions.
 # Longer or ambiguous excursions are retained for review and may reject a lap.
 [track.telemetry_cleanup]
