@@ -53,6 +53,13 @@ h3 { margin-top:1.55rem; scroll-margin-top:1rem; }
 .table-controls { display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; margin:.45rem 0 .55rem; }
 .table-search { min-width:18rem; max-width:34rem; width:100%; padding:.48rem .6rem; border:1px solid var(--line); border-radius:7px; background:Canvas; color:var(--ink); }
 .table-count { color:var(--muted); font-size:.86rem; }
+.design-order-control { display:flex; flex-wrap:wrap; gap:.55rem 1rem; align-items:center;
+  margin:1.1rem 0 1.4rem; }
+.design-order-control label { font-weight:700; }
+.design-order-control select { min-width:15rem; padding:.48rem .6rem; border:1px solid var(--line);
+  border-radius:7px; background:Canvas; color:var(--ink); }
+.design-order-control .order-help { flex-basis:100%; color:var(--muted); font-size:.9rem; }
+[data-design-order-view][hidden] { display:none !important; }
 .table-wrap { overflow:auto; max-height:680px; border:1px solid var(--line); border-radius:8px; position:relative; }
 .table-wrap.compact { max-height:520px; }
 table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:.86rem; }
@@ -159,6 +166,18 @@ SCRIPT = r"""
       });
     });
     updateStickyOffsets(table);
+  });
+
+  document.querySelectorAll('select[data-design-order-select]').forEach((select) => {
+    function applyDesignOrder() {
+      const selected = select.value;
+      document.querySelectorAll('[data-design-order-view]').forEach((view) => {
+        view.hidden = view.dataset.designOrderView !== selected;
+      });
+      document.querySelectorAll('table').forEach(updateStickyOffsets);
+    }
+    select.addEventListener('change', applyDesignOrder);
+    applyDesignOrder();
   });
   window.addEventListener('resize', () => {
     document.querySelectorAll('table').forEach(updateStickyOffsets);

@@ -400,7 +400,10 @@ def write_design_comparison_report(output: Path) -> Path:
     plots = output / "report_plots"
     plots.mkdir(exist_ok=True)
     ranking = _design_ranking(rows)
-    _design_plots(rows, ranking, plots)
+    configured, order_note = _design_configuration_order(
+        rows, ranking, output=output, manifest=manifest
+    )
+    _design_plots(rows, ranking, configured, plots)
 
     winner = ranking.iloc[0]["design_id"] if not ranking.empty else "unresolved"
     completion = float(ranking.iloc[0]["completion_fraction"]) if not ranking.empty else math.nan
@@ -408,7 +411,7 @@ def write_design_comparison_report(output: Path) -> Path:
         [
             ("Candidates", str(len(ranking)), "note"),
             ("Scenario draws", str(int(rows["replicate"].nunique()) if "replicate" in rows else 0), "note"),
-            ("Best median lap time", str(winner), "good" if len(ranking) else "warning"),
+            ("Top paired design", str(winner), "good" if len(ranking) else "warning"),
             ("Winner completion", _percent(completion), "good" if completion >= 0.95 else "warning"),
         ]
     )
@@ -418,19 +421,41 @@ def write_design_comparison_report(output: Path) -> Path:
         "realizations. The ranking table reports absolute performance, completion, and paired reference penalty; "
         "a candidate is not preferred merely because it fails difficult scenarios.</div>"
     )
-    body += "<h2>Decision table</h2>" + dataframe_table(ranking, max_rows=100)
+    body += _design_order_control(order_note)
+    body += "<h2>Decision table</h2>" + _design_order_views(
+        dataframe_table(ranking, max_rows=100),
+        dataframe_table(configured, max_rows=100),
+    )
     body += (
         '<p class="subtitle">Paired win fraction and regret compare candidates within the same '
         'scenario. Non-completing candidates cannot win a scenario and are not rewarded by being '
         'absent from difficult cases.</p>'
     )
     body += "<h2>Absolute performance</h2>"
-    body += figure(plots / "design_lap_time.png", "Median bounded lap time with p10–p90 scenario ranges.")
-    body += figure(plots / "design_completion.png", "Completion probability for every candidate.")
+    body += _ordered_design_figure(
+        plots,
+        "design_lap_time",
+        "Median bounded lap time with p10–p90 scenario ranges.",
+    )
+    body += _ordered_design_figure(
+        plots, "design_completion", "Completion probability for every candidate."
+    )
     body += "<h2>CVT mechanism and reference comparison</h2>"
-    body += figure(plots / "design_penalty.png", "Paired lap-time penalty relative to the infinite-ratio reference.")
-    body += figure(plots / "design_ratio_time.png", "Median time spent at the maximum ratio, in the variable region, and at the minimum ratio.")
-    body += figure(plots / "design_track_case_matrix.png", "Median bounded lap time for every design and reconstructed-track case represented in the paired scenarios.")
+    body += _ordered_design_figure(
+        plots,
+        "design_penalty",
+        "Paired lap-time penalty relative to the infinite-ratio reference.",
+    )
+    body += _ordered_design_figure(
+        plots,
+        "design_ratio_time",
+        "Median time spent at the maximum ratio, in the variable region, and at the minimum ratio.",
+    )
+    body += _ordered_design_figure(
+        plots,
+        "design_track_case_matrix",
+        "Median bounded lap time for every design and reconstructed-track case represented in the paired scenarios.",
+    )
     body += "<h2>Candidate-level raw summaries</h2>" + dataframe_table(rows, max_rows=250)
     body += "<h2>Study contract</h2>" + f"<pre>{html.escape(json.dumps(_manifest_subset(manifest), indent=2, sort_keys=True))}</pre>"
 
@@ -917,34 +942,335 @@ def _design_ranking(rows: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _design_plots(rows: pd.DataFrame, ranking: pd.DataFrame, plots: Path) -> None:
-    if ranking.empty: return
-    labels=ranking["design_id"].astype(str).tolist(); x=np.arange(len(ranking))
-    fig,ax=plt.subplots(figsize=(max(9,.8*len(labels)),5.5)); med=ranking["lap_time_median_s"].to_numpy(float); low=ranking["lap_time_p10_s"].to_numpy(float); high=ranking["lap_time_p90_s"].to_numpy(float); ax.bar(x,med); ax.errorbar(x,med,yerr=np.vstack((med-low,high-med)),fmt="none",capsize=3); ax.set_xticks(x,labels,rotation=30,ha="right"); ax.set_ylabel("Lap time [s]"); ax.set_title("Absolute bounded performance by design"); ax.grid(True,axis="y",alpha=.25); fig.tight_layout(); fig.savefig(plots/"design_lap_time.png",dpi=180); plt.close(fig)
-    fig,ax=plt.subplots(figsize=(max(9,.8*len(labels)),4.8)); ax.bar(x,ranking["completion_fraction"]); ax.set_ylim(0,1); ax.set_xticks(x,labels,rotation=30,ha="right"); ax.set_ylabel("Completion fraction"); ax.set_title("Completion reliability"); ax.grid(True,axis="y",alpha=.25); fig.tight_layout(); fig.savefig(plots/"design_completion.png",dpi=180); plt.close(fig)
-    fig,ax=plt.subplots(figsize=(max(9,.8*len(labels)),4.8)); ax.bar(x,ranking["penalty_median_s"]); ax.axhline(0,linewidth=1); ax.set_xticks(x,labels,rotation=30,ha="right"); ax.set_ylabel("Median penalty [s]"); ax.set_title("Paired bounded-versus-infinite penalty"); ax.grid(True,axis="y",alpha=.25); fig.tight_layout(); fig.savefig(plots/"design_penalty.png",dpi=180); plt.close(fig)
-    ratio_cols=[c for c in ("bounded_time_maximum_ratio_s","bounded_time_variable_ratio_s","bounded_time_minimum_ratio_s") if c in rows]
+def _design_configuration_order(
+    rows: pd.DataFrame,
+    ranking: pd.DataFrame,
+    *,
+    output: Path,
+    manifest: Mapping[str, Any],
+) -> tuple[pd.DataFrame, str]:
+    """Order candidates by declared Cartesian axes, with numeric fallback.
+
+    The first configured design variable is the outer key.  The next variable
+    varies within it, matching ``itertools.product`` in the design-grid runner.
+    """
+
+    if ranking.empty or rows.empty or "design_id" not in rows:
+        return ranking.copy(), "No configuration order was available."
+
+    paths = _design_paths_for_order(rows, manifest)
+    candidate_values = _candidate_design_values(rows, paths)
+    configured_values = _configured_axis_values(output, manifest, paths)
+    used_configuration = bool(configured_values) and all(
+        path in configured_values for path in paths
+    )
+    if not used_configuration:
+        configured_values = {
+            path: sorted(
+                {
+                    float(values[path])
+                    for values in candidate_values.values()
+                    if path in values and np.isfinite(float(values[path]))
+                }
+            )
+            for path in paths
+        }
+
+    original_order = {
+        str(design_id): index
+        for index, design_id in enumerate(rows["design_id"].drop_duplicates())
+    }
+
+    def value_index(path: str, value: float) -> int:
+        declared = configured_values.get(path, [])
+        for index, candidate in enumerate(declared):
+            if np.isclose(float(candidate), float(value), rtol=0.0, atol=1e-12):
+                return index
+        return len(declared)
+
+    def order_key(design_id: Any) -> tuple[Any, ...]:
+        identifier = str(design_id)
+        values = candidate_values.get(identifier, {})
+        axis_key = tuple(
+            value_index(path, values[path]) if path in values else math.inf
+            for path in paths
+        )
+        return (*axis_key, original_order.get(identifier, math.inf), identifier)
+
+    identifiers = sorted(ranking["design_id"].astype(str), key=order_key)
+    order = {identifier: index for index, identifier in enumerate(identifiers)}
+    configured = (
+        ranking.assign(_configuration_order=ranking["design_id"].astype(str).map(order))
+        .sort_values("_configuration_order", kind="stable")
+        .drop(columns="_configuration_order")
+        .reset_index(drop=True)
+    )
+    if used_configuration:
+        note = (
+            "Configuration order follows the declared design-variable and value "
+            "order. For Cartesian sweeps, the first variable is outermost and "
+            "each later variable varies within it."
+        )
+    else:
+        note = (
+            "The original declared value order was unavailable, so configuration "
+            "order uses each design axis from minimum to maximum; the first axis "
+            "is outermost."
+        )
+    return configured, note
+
+
+def _design_paths_for_order(
+    rows: pd.DataFrame, manifest: Mapping[str, Any]
+) -> tuple[str, ...]:
+    declared = manifest.get("design_variable_paths", ())
+    if isinstance(declared, list) and declared:
+        return tuple(str(path) for path in declared)
+    indexed: list[tuple[int, str]] = []
+    for column in rows.columns:
+        if not column.startswith("design_axis_") or not column.endswith("_path"):
+            continue
+        try:
+            index = int(column.removeprefix("design_axis_").removesuffix("_path"))
+        except ValueError:
+            continue
+        values = rows[column].dropna().astype(str)
+        if not values.empty:
+            indexed.append((index, values.iloc[0]))
+    if indexed:
+        return tuple(path for _, path in sorted(indexed))
+    if "design_path" in rows:
+        values = rows["design_path"].dropna().astype(str)
+        if not values.empty:
+            return (values.iloc[0],)
+    return ()
+
+
+def _candidate_design_values(
+    rows: pd.DataFrame, paths: tuple[str, ...]
+) -> dict[str, dict[str, float]]:
+    candidates: dict[str, dict[str, float]] = {}
+    for design_id, group in rows.groupby("design_id", sort=False):
+        values: dict[str, Any] = {}
+        if "design_values_json" in group:
+            try:
+                parsed = json.loads(str(group["design_values_json"].iloc[0]))
+                if isinstance(parsed, Mapping):
+                    values.update(parsed)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+        for path in paths:
+            column = f"design::{path}"
+            if path not in values and column in group:
+                values[path] = group[column].iloc[0]
+        if len(paths) == 1 and paths[0] not in values and "design_value" in group:
+            values[paths[0]] = group["design_value"].iloc[0]
+        numeric: dict[str, float] = {}
+        for path, value in values.items():
+            try:
+                numeric[str(path)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        candidates[str(design_id)] = numeric
+    return candidates
+
+
+def _configured_axis_values(
+    output: Path,
+    manifest: Mapping[str, Any],
+    paths: tuple[str, ...],
+) -> dict[str, list[float]]:
+    candidates = (
+        output / "resolved_inputs" / "resolved_inputs.toml",
+        output / "configuration" / "resolved_inputs.toml",
+    )
+    config_path = next((path for path in candidates if path.is_file()), None)
+    study_name = str(manifest.get("study_name", ""))
+    if config_path is None or not study_name:
+        return {}
+    try:
+        try:
+            import tomllib
+        except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
+            import tomli as tomllib  # type: ignore[no-redef]
+        config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    study = nested_get(config, "studies", study_name, default={})
+    if not isinstance(study, Mapping):
+        return {}
+    multiple = study.get("design_variables")
+    if isinstance(multiple, list) and multiple:
+        variables = multiple
+    else:
+        single = study.get("design_variable")
+        variables = [single] if isinstance(single, Mapping) else []
+    configured: dict[str, list[float]] = {}
+    for variable in variables:
+        if not isinstance(variable, Mapping):
+            continue
+        path = str(variable.get("path", ""))
+        values = variable.get("values")
+        if path not in paths or not isinstance(values, list):
+            continue
+        try:
+            configured[path] = [float(value) for value in values]
+        except (TypeError, ValueError):
+            return {}
+    return configured
+
+
+def _design_order_control(order_note: str) -> str:
+    return (
+        '<div class="design-order-control card note">'
+        '<label for="design-order-select">Candidate order</label>'
+        '<select id="design-order-select" data-design-order-select>'
+        '<option value="ranked" selected>Ranked by paired result</option>'
+        '<option value="configured">Configuration order</option>'
+        '</select>'
+        f'<div class="order-help">{html.escape(order_note)}</div>'
+        '</div>'
+    )
+
+
+def _design_order_views(ranked_html: str, configured_html: str) -> str:
+    return (
+        '<div data-design-order-view="ranked">'
+        + ranked_html
+        + '</div><div data-design-order-view="configured" hidden>'
+        + configured_html
+        + "</div>"
+    )
+
+
+def _ordered_design_figure(plots: Path, stem: str, caption: str) -> str:
+    return _design_order_views(
+        figure(plots / f"{stem}.png", caption),
+        figure(plots / f"{stem}_configured.png", caption),
+    )
+
+
+def _design_plots(
+    rows: pd.DataFrame,
+    ranking: pd.DataFrame,
+    configured: pd.DataFrame,
+    plots: Path,
+) -> None:
+    if ranking.empty:
+        return
+    _write_ordered_design_plots(rows, ranking, plots, suffix="")
+    _write_ordered_design_plots(rows, configured, plots, suffix="_configured")
+
+
+def _write_ordered_design_plots(
+    rows: pd.DataFrame,
+    ordered: pd.DataFrame,
+    plots: Path,
+    *,
+    suffix: str,
+) -> None:
+    labels = ordered["design_id"].astype(str).tolist()
+    x = np.arange(len(ordered))
+
+    fig, ax = plt.subplots(figsize=(max(9, 0.8 * len(labels)), 5.5))
+    med = ordered["lap_time_median_s"].to_numpy(float)
+    low = ordered["lap_time_p10_s"].to_numpy(float)
+    high = ordered["lap_time_p90_s"].to_numpy(float)
+    ax.bar(x, med)
+    ax.errorbar(
+        x,
+        med,
+        yerr=np.vstack((med - low, high - med)),
+        fmt="none",
+        capsize=3,
+        ecolor="black",
+    )
+    ax.set_xticks(x, labels, rotation=30, ha="right")
+    ax.set_ylabel("Lap time [s]")
+    ax.set_title("Absolute bounded performance by design")
+    ax.grid(True, axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(plots / f"design_lap_time{suffix}.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(max(9, 0.8 * len(labels)), 4.8))
+    ax.bar(x, ordered["completion_fraction"])
+    ax.set_ylim(0, 1)
+    ax.set_xticks(x, labels, rotation=30, ha="right")
+    ax.set_ylabel("Completion fraction")
+    ax.set_title("Completion reliability")
+    ax.grid(True, axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(plots / f"design_completion{suffix}.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(max(9, 0.8 * len(labels)), 4.8))
+    ax.bar(x, ordered["penalty_median_s"])
+    ax.axhline(0, linewidth=1)
+    ax.set_xticks(x, labels, rotation=30, ha="right")
+    ax.set_ylabel("Median penalty [s]")
+    ax.set_title("Paired bounded-versus-infinite penalty")
+    ax.grid(True, axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(plots / f"design_penalty{suffix}.png", dpi=180)
+    plt.close(fig)
+
+    ratio_cols = [
+        column
+        for column in (
+            "bounded_time_maximum_ratio_s",
+            "bounded_time_variable_ratio_s",
+            "bounded_time_minimum_ratio_s",
+        )
+        if column in rows
+    ]
     if ratio_cols:
-        medians=rows.groupby("design_id")[ratio_cols].median().reindex(labels); fig,ax=plt.subplots(figsize=(max(9,.85*len(labels)),5.5)); bottom=np.zeros(len(labels));
-        for c in ratio_cols:
-            vals=medians[c].to_numpy(float); ax.bar(x,vals,bottom=bottom,label=c.replace("bounded_time_","").replace("_s","").replace("_"," ")); bottom+=vals
-        ax.set_xticks(x,labels,rotation=30,ha="right"); ax.set_ylabel("Median time [s]"); ax.set_title("CVT ratio-region occupancy by design"); ax.legend(); ax.grid(True,axis="y",alpha=.25); fig.tight_layout(); fig.savefig(plots/"design_ratio_time.png",dpi=180); plt.close(fig)
+        medians = rows.groupby("design_id")[ratio_cols].median().reindex(labels)
+        fig, ax = plt.subplots(figsize=(max(9, 0.85 * len(labels)), 5.5))
+        bottom = np.zeros(len(labels))
+        for column in ratio_cols:
+            values = medians[column].to_numpy(float)
+            ax.bar(
+                x,
+                values,
+                bottom=bottom,
+                label=column.replace("bounded_time_", "")
+                .replace("_s", "")
+                .replace("_", " "),
+            )
+            bottom += values
+        ax.set_xticks(x, labels, rotation=30, ha="right")
+        ax.set_ylabel("Median time [s]")
+        ax.set_title("CVT ratio-region occupancy by design")
+        ax.legend()
+        ax.grid(True, axis="y", alpha=0.25)
+        fig.tight_layout()
+        fig.savefig(plots / f"design_ratio_time{suffix}.png", dpi=180)
+        plt.close(fig)
+
     if "track_case_id" in rows and "bounded_lap_time_s" in rows:
         matrix = rows.pivot_table(
             index="track_case_id",
             columns="design_id",
             values="bounded_lap_time_s",
             aggfunc="median",
-        )
+        ).reindex(columns=labels)
         if not matrix.empty:
             fig, ax = plt.subplots(
-                figsize=(max(9, 0.8 * len(matrix.columns)), max(5.5, 0.42 * len(matrix.index)))
+                figsize=(
+                    max(9, 0.8 * len(matrix.columns)),
+                    max(5.5, 0.42 * len(matrix.index)),
+                )
             )
-            image = ax.imshow(matrix.to_numpy(float), aspect="auto", interpolation="nearest")
-            ax.set_xticks(np.arange(len(matrix.columns)), matrix.columns, rotation=30, ha="right")
+            image = ax.imshow(
+                matrix.to_numpy(float), aspect="auto", interpolation="nearest"
+            )
+            ax.set_xticks(
+                np.arange(len(matrix.columns)), matrix.columns, rotation=30, ha="right"
+            )
             ax.set_yticks(np.arange(len(matrix.index)), matrix.index)
             ax.set_title("Median bounded lap time by design and track reconstruction")
             fig.colorbar(image, ax=ax, label="Lap time [s]")
             fig.tight_layout()
-            fig.savefig(plots / "design_track_case_matrix.png", dpi=180)
+            fig.savefig(plots / f"design_track_case_matrix{suffix}.png", dpi=180)
             plt.close(fig)
