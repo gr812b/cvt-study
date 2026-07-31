@@ -2,6 +2,13 @@
 
 from pathlib import Path
 
+# Install this before importing any report plotting module.  Python always
+# executes the package initializer before a ``cvt_track_study.reports.*``
+# submodule, so the policy also covers direct submodule imports.
+from .contrast_errorbars import install_contrast_errorbars
+
+install_contrast_errorbars()
+
 from .catalog import REPORTS, ReportDefinition, canonical_report_key
 from .postprocess import (
     primary_report_path,

@@ -12,11 +12,16 @@ from cvt_track_study.reports import (
     write_full_uncertainty_report,
     write_structural_report_manifest,
 )
+from cvt_track_study.reports.design_grid_report import (
+    write_multivariable_design_comparison_report,
+)
 from cvt_track_study.track.robustness import run_track_robustness_project
 from cvt_track_study.runtime.results import write_results_index
 
 from .service_v9 import run_study_project as _run_legacy_study
 from .ensemble_v10 import run_joint_ensemble_project
+from .design_replay_v11 import run_uncertainty_informed_design_project
+from .scenario_reduction import uncertainty_informed_design_enabled
 
 
 def run_study_project(
@@ -63,11 +68,13 @@ def run_study_project(
         write_results_index(resolution.paths.results_directory)
         return output
 
-    runner = (
-        run_joint_ensemble_project
-        if study_type in {"full_uncertainty", "design_sweep"}
-        else _run_legacy_study
-    )
+    if study_type == "design_sweep" and uncertainty_informed_design_enabled(raw):
+        runner = run_uncertainty_informed_design_project
+    elif study_type in {"full_uncertainty", "design_sweep"}:
+        runner = run_joint_ensemble_project
+    else:
+        runner = _run_legacy_study
+
     output = runner(
         project,
         study=study,
@@ -87,6 +94,10 @@ def run_study_project(
     elif study_type == "full_uncertainty":
         write_full_uncertainty_report(output)
     elif study_type == "design_sweep":
-        write_design_comparison_report(output)
+        variables = raw.get("design_variables")
+        if isinstance(variables, list) and len(variables) >= 2:
+            write_multivariable_design_comparison_report(output)
+        else:
+            write_design_comparison_report(output)
     write_results_index(resolution.paths.results_directory)
     return output
