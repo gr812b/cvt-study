@@ -26,7 +26,7 @@ from .serialization import json_safe, records
 
 
 def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
-    """Convert a Phase 3 result into the stable simulator/evidence boundary."""
+    """Convert one route member into the stable simulator/evidence boundary."""
 
     length = float(result.centreline.length_m)
     track_cfg = result.resolution.data.get("track", {})
@@ -38,6 +38,7 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
         for feature in physical_features
     )
     grade_screen = screen_grade_materiality(result.track_profile)
+    speed_gates = _simulatable_speed_gates(speed_gate_contracts(result, length))
     simulation_contract = {
         "track_length_m": length,
         "grade_force_enabled": False,
@@ -54,7 +55,16 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
         "observed_profile": observed_profile_contract(result.track_profile),
         "physical_features": physical_features,
         "response_groups": response_groups,
-        "speed_gates": speed_gate_contracts(result, length),
+        "speed_gates": speed_gates,
+    }
+    route_family = {
+        "route_variant_id": result.route_variant_id,
+        "nominal_route_variant_id": result.nominal_route_variant_id,
+        "is_nominal": result.route_variant_id == result.nominal_route_variant_id,
+        "aggregation_policy": "unweighted_equal_course_cases",
+        "course_cases": records(result.course_cases),
+        "shared_gate_evidence": records(result.shared_gate_evidence),
+        "event_route_applicability": records(result.event_route_applicability),
     }
     bundle: dict[str, Any] = {
         "format": TRACK_BUNDLE_FORMAT,
@@ -62,15 +72,19 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "generator": {"package": "cvt-track-study", "version": __version__},
         "identity": {
-            "project_name": str(result.resolution.data.get("project", {}).get("name", "")),
+            "project_name": str(
+                result.resolution.data.get("project", {}).get("name", "")
+            ),
             "track_name": str(track_cfg.get("name", "")),
+            "route_variant_id": result.route_variant_id,
+            "nominal_route_variant_id": result.nominal_route_variant_id,
             "closed_course": bool(track_cfg.get("closed_course", True)),
             "surface_class": str(track_cfg.get("surface_class", "unspecified")),
         },
         "coordinate_contract": {
             "coordinate": "s",
             "unit": "m",
-            "origin": "lap_gate_projected_to_reference_centreline",
+            "origin": "lap_gate_projected_to_this_route_centreline",
             "direction": "recorded_driving_direction",
             "domain": {"minimum": 0.0, "maximum": length},
             "interval_convention": (
@@ -78,18 +92,21 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 "wraps_start_finish marks end_s_m < start_s_m"
             ),
         },
+        "route_family_contract": route_family,
         "simulation_contract": simulation_contract,
         "evidence": {
             "lap_summary": {
                 "complete_lap_count": int(len(result.laps)),
                 "valid_lap_count": int(result.laps["analysis_valid"].sum()),
                 "reference_lap_id": int(
-                    result.laps.loc[result.laps["reference_lap"], "lap_id"].iloc[0]
+                    result.laps.loc[
+                        result.laps["reference_lap"], "lap_id"
+                    ].iloc[0]
                 ),
                 "records": records(result.laps),
             },
             "gate_confidence_method": {
-                "method_version": "1.1.0",
+                "method_version": "1.3.0-route-family-shared-contract",
                 "component_scale": "0_to_100",
                 "overall_scale": "0_to_100",
                 "weights": dict(settings.weights),
@@ -104,21 +121,42 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 },
                 "records": records(result.gate_evidence),
             },
+            "gate_pooling_contract": {
+                "unit": "physical_event_id",
+                "deduplication": "one contribution per lap per physical event",
+                "shared_course_policy": (
+                    "one deduplicated empirical gate contract is scored once and "
+                    "reused across every supported traversal"
+                ),
+                "branch_policy": (
+                    "events whose analysis window overlaps a sustained divergence "
+                    "corridor retain route-specific evidence"
+                ),
+                "compatibility": (
+                    "local route projection must satisfy bracketed event-window "
+                    "coverage, projection error, and local direction checks"
+                ),
+            },
             "grade_materiality_screen": grade_screen,
             "event_passes": records(result.event_passes),
             "review_records": records(result.gate_review),
         },
         "uncertainty_contract": {
             "geometry": {
-                "representation": "declared horizontal and extent uncertainty per physical feature",
-                "propagation_status": "carried_as_evidence_not_yet_sampled",
+                "representation": (
+                    "separate route bundles; declared horizontal and extent "
+                    "uncertainty per physical feature"
+                ),
+                "propagation_status": "route_cases_ready_geometry_uncertainty_still_stored",
             },
             "gate_speed": {
                 "representation": "empirical eligible-lap entry-speed samples",
                 "propagation_status": "ready_for_paired_sampling",
             },
             "obstacle_models": {
-                "representation": "uncertainty-aware model choice and parameters per physical feature",
+                "representation": (
+                    "uncertainty-aware model choice and parameters per physical feature"
+                ),
                 "propagation_status": (
                     "ready_for_role_separated_sampling"
                     if obstacle_models_ready
@@ -132,9 +170,43 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
         },
         "provenance": track_provenance(result),
     }
-    bundle["content_fingerprint_sha256"] = content_fingerprint(bundle)
-    return json_safe(bundle)
+    return _finalize_bundle(bundle)
 
 
-def export_bundle_for_track_build(directory: Path, result: TrackBuildResult) -> TrackBundle:
-    return write_track_bundle(directory / "track_bundle.json", build_track_bundle(result))
+def _simulatable_speed_gates(
+    gates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Keep only gates with an actual empirical target distribution.
+
+    Zero-sample review rows remain available under ``evidence``. They are not
+    simulator gates because no numeric speed target can be defined without
+    inventing data.
+    """
+
+    output: list[dict[str, Any]] = []
+    for gate in gates:
+        distribution = gate.get("target_speed_distribution", {})
+        samples = (
+            distribution.get("samples", [])
+            if isinstance(distribution, dict)
+            else []
+        )
+        if samples:
+            output.append(gate)
+    return output
+
+
+def _finalize_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Sanitize non-finite evidence values before strict JSON fingerprinting."""
+
+    safe_bundle = json_safe(bundle)
+    safe_bundle["content_fingerprint_sha256"] = content_fingerprint(safe_bundle)
+    return safe_bundle
+
+
+def export_bundle_for_track_build(
+    directory: Path, result: TrackBuildResult
+) -> TrackBundle:
+    return write_track_bundle(
+        directory / "track_bundle.json", build_track_bundle(result)
+    )

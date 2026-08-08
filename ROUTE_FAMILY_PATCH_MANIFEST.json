@@ -1,0 +1,167 @@
+{
+  "behavior": {
+    "branch_events_require_source_branch_membership": true,
+    "continuous_bracketed_event_window_coverage": true,
+    "downstream_cases_require_cross_route_eligibility": true,
+    "explicit_smoothing_cases_change_physical_smoothing_strength": true,
+    "full_uncertainty_maximum_cases_balanced_across_routes": true,
+    "full_uncertainty_prefers_physical_track_variants_before_gate_policy_variants": true,
+    "normal_cli_track_robustness_is_route_family_aware": true,
+    "one_shared_course_with_local_branches": true,
+    "robustness_cases_use_topology_family_builder": true,
+    "robustness_failed_only_summary_is_failure_safe": true,
+    "robustness_route_toml_rewrite_preserves_table_newline": true,
+    "route_specific_complete_traversal_bundles_retained_for_simulator": true,
+    "shared_course_gate_contract_scored_once_and_reused": true,
+    "shared_course_projection_tolerance_bounded_below_branch_scale": true,
+    "shared_passes_deduplicated_by_event_and_lap": true,
+    "spacing_robustness_preserves_physical_smoothing_width": true,
+    "top_level_family_robustness_html_report": true,
+    "top_level_standard_track_ensemble_manifest": true,
+    "unweighted_equal_route_course_cases": true,
+    "zero_sample_review_rows_omitted_from_simulator_speed_gates": true
+  },
+  "entry_points": [
+    "drivetrain-study run track-robustness <project>",
+    "drivetrain-study run full-uncertainty <project>",
+    "run_route_family_track_robustness.py (legacy compatibility)",
+    "run_route_family_study.py (legacy compatibility)"
+  ],
+  "file_count": 20,
+  "files": [
+    {
+      "bytes": 4843,
+      "path": "ROUTE_FAMILY_DROP_OVER_ROOT.md",
+      "sha256": "44e9865646bdcbf35e3832a6c5eb973ae72d7df01d17ee3a8396db41811ef6d6"
+    },
+    {
+      "bytes": 1439,
+      "path": "ROUTE_FAMILY_VALIDATION.md",
+      "sha256": "36683c963d42def7c6d19f175e69543d5aa4e363591e09f849b109bb8744e11f"
+    },
+    {
+      "bytes": 4843,
+      "path": "docs/ROUTE_FAMILY_DROP_OVER_ROOT.md",
+      "sha256": "44e9865646bdcbf35e3832a6c5eb973ae72d7df01d17ee3a8396db41811ef6d6"
+    },
+    {
+      "bytes": 7381,
+      "path": "docs/ROUTE_VARIANTS.md",
+      "sha256": "e8dda0cd60e8ee72653824c90c9532632ae34565593be1be63b69c81deb54e8d"
+    },
+    {
+      "bytes": 851,
+      "path": "run_route_family_study.py",
+      "sha256": "0406909e36bb68cde9e9db67937547ef9c6645eef54121b59d0574e74558651f"
+    },
+    {
+      "bytes": 902,
+      "path": "run_route_family_track_robustness.py",
+      "sha256": "a0263a6baa656443af70a140b39ffd752f03b36c829722acac5d9f98890ea918"
+    },
+    {
+      "bytes": 8929,
+      "path": "src/cvt_track_study/bundle/builder.py",
+      "sha256": "c838fbb648d75ae554fc4e2adc9d80eca1f84b9e6ef4de57c73d8dd1b1b50394"
+    },
+    {
+      "bytes": 321,
+      "path": "src/cvt_track_study/studies/__init__.py",
+      "sha256": "e973d32703e3d83d158c15d276d81b8f047e449e128e45dd2142d7c245bbe976"
+    },
+    {
+      "bytes": 12912,
+      "path": "src/cvt_track_study/studies/route_family.py",
+      "sha256": "ac1ed64ca06ac010c33894e3c274f4174755ed1301aaf31cd78a58f02b0bbc9b"
+    },
+    {
+      "bytes": 4965,
+      "path": "src/cvt_track_study/studies/router_v10.py",
+      "sha256": "325ba666e0f095cb46d969a2b2245243dcb0ce4690125a25207b300f8a6d0085"
+    },
+    {
+      "bytes": 596,
+      "path": "src/cvt_track_study/track/__init__.py",
+      "sha256": "4b92ab11742d563469830754abc6557904a250096518fc5f5868a07237b1114e"
+    },
+    {
+      "bytes": 12312,
+      "path": "src/cvt_track_study/track/export.py",
+      "sha256": "901a09a23f1e1e6ae85d93a03b2f26ba6ecb28c4dafeeedace452f4a8bd5a487"
+    },
+    {
+      "bytes": 93980,
+      "path": "src/cvt_track_study/track/family.py",
+      "sha256": "242616888405c0c6a2dc18645c292fd7e3f2d0ea1f457a96d9f071f6f1505677"
+    },
+    {
+      "bytes": 24903,
+      "path": "src/cvt_track_study/track/family_review.py",
+      "sha256": "7ef6185358b24ba0e3fc6fdc7dabd96c58c91be0bec5810a8085a53e7a885ba3"
+    },
+    {
+      "bytes": 2114,
+      "path": "src/cvt_track_study/track/model.py",
+      "sha256": "e76cb592906d7d489fa9e4ce2f5e7f8a7631e6b9cd136cd5c824147325648e00"
+    },
+    {
+      "bytes": 32419,
+      "path": "src/cvt_track_study/track/robustness_family.py",
+      "sha256": "d267be730f30f7f2aef44d677b50c7ee2d1d3a664182a6a1af9c4659e31c5771"
+    },
+    {
+      "bytes": 1656,
+      "path": "src/cvt_track_study/track/router_v10.py",
+      "sha256": "ea4c653f094f8a29932ba85c787a2a64e1a0f5031602cd36886ac66f8a9599a9"
+    },
+    {
+      "bytes": 11743,
+      "path": "src/cvt_track_study/track/service.py",
+      "sha256": "cb11688ec815ac0c5b540165503b78851672153a6e6f387d12ee7deaefc024eb"
+    },
+    {
+      "bytes": 24974,
+      "path": "tests/test_route_family.py",
+      "sha256": "197cd1b918951f9d7171f2549a7626d704e95bd5f984118c28b520a5183be996"
+    },
+    {
+      "bytes": 7510,
+      "path": "tests/test_route_family_review.py",
+      "sha256": "77f401f10b4a9821c4b9e1f53c42b1bce6bd8b00a97c03eff164507681073a15"
+    }
+  ],
+  "format": "drop-over-repository-root",
+  "manifest_self_excluded": true,
+  "maryland_interpretation": {
+    "branch_divergence_threshold_m": 25.0,
+    "expected_shared_section_geometry_support_laps": 35,
+    "expected_supported_traversals": 2,
+    "observed_example_final_valid_laps": [
+      14,
+      21
+    ],
+    "physical_model": "shared backbone + one long/short divergence/re-merge branch",
+    "shared_course_event_projection_limit_m": 15.0,
+    "strict_event_projection_limit_m": 10.0,
+    "supported_data_quality_laps_available_for_local_evidence": 38
+  },
+  "name": "cvt-study-route-family",
+  "patch_revision": 11,
+  "recommended_commands": [
+    "drivetrain-study build-track .\\\\projects\\\\maryland",
+    "drivetrain-study run track-robustness .\\\\projects\\\\maryland",
+    "drivetrain-study run full-uncertainty .\\\\projects\\\\maryland"
+  ],
+  "report_revision": {
+    "balanced_downstream_ensemble_visible": true,
+    "shared_event_contract_visible": true,
+    "spacing_vs_smoothing_cleanup_visible": true,
+    "track_evidence_report": "review/track_evidence_report.html",
+    "track_robustness_report": "track_robustness_report.html"
+  },
+  "validation": {
+    "all_overlay_python_files_compiled": true,
+    "full_upstream_test_suite_run": false,
+    "pure_helper_smoke_tests_passed": true
+  }
+}

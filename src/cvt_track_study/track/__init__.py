@@ -4,6 +4,7 @@ from .geo import Centreline, LocalFrame
 from .model import TrackBuildResult
 from .router_v10 import build_project_track
 from .robustness import RobustnessCase, build_robustness_cases, run_track_robustness_project
+from .robustness_family import run_route_family_track_robustness_project
 
 __all__ = [
     "Centreline",
@@ -13,4 +14,5 @@ __all__ = [
     "build_project_track",
     "build_robustness_cases",
     "run_track_robustness_project",
+    "run_route_family_track_robustness_project",
 ]

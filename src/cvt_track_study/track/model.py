@@ -33,6 +33,16 @@ class TrackBuildResult:
     rejected_map_points: pd.DataFrame = field(default_factory=pd.DataFrame)
     route_variant_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
     route_variant_pairwise: pd.DataFrame = field(default_factory=pd.DataFrame)
+    route_variant_id: str = "route_001"
+    nominal_route_variant_id: str = "route_001"
+    shared_gate_evidence: pd.DataFrame = field(default_factory=pd.DataFrame)
+    event_route_applicability: pd.DataFrame = field(default_factory=pd.DataFrame)
+    course_cases: pd.DataFrame = field(default_factory=pd.DataFrame)
+    branch_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
+    event_route_sections: pd.DataFrame = field(default_factory=pd.DataFrame)
+    route_family_members: dict[str, "TrackBuildResult"] = field(
+        default_factory=dict, repr=False, compare=False
+    )
     output_directory: Path | None = None
 
     @property
@@ -42,3 +52,7 @@ class TrackBuildResult:
     @property
     def warning_count(self) -> int:
         return sum(item.severity.value == "warning" for item in self.diagnostics)
+
+    @property
+    def is_route_family(self) -> bool:
+        return len(self.route_family_members) > 1
