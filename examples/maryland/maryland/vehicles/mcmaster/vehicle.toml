@@ -6,8 +6,9 @@
 # Aerodynamic convention:
 #   The simulator consumes drag_area = Cd * frontal_area.
 #   Current decomposition retained for engineering traceability:
-#       drag coefficient Cd = 1.29
-#       frontal area A      = 1.419352 m^2
+#       drag coefficient Cd = 0.60
+#       frontal area A      = 1.11484 m^2
+#       CdA                 = 0.668904 m^2
 #
 # Surface friction itself belongs in track.toml. The tire quantities below
 # describe how this vehicle uses that available surface traction.
@@ -22,7 +23,7 @@ unit = "kg"
 
 [vehicle.mass.source]
 kind = "engineering_estimate"
-reference = "McMaster Baja race-ready vehicle mass currently declared for the Arizona study"
+reference = "McMaster Baja race-ready vehicle mass currently declared for the Maryland study"
 notes = "Use a race-ready four-corner-scale measurement when available."
 
 [vehicle.mass.uncertainty]
@@ -89,35 +90,35 @@ confidence_half_width = 0.1
 confidence_level = 0.98
 
 [vehicle.aero.drag_area]
-nominal = 1.83096408
+nominal = 0.668904
 unit = "m^2"
 
 [vehicle.aero.drag_area.source]
 kind = "engineering_estimate"
-reference = "CdA derived from Cd = 1.29 and frontal area = 1.419352 m^2"
+reference = "CdA derived from Cd = 0.60 and frontal area = 1.11484 m^2"
 notes = "The current simulator consumes CdA directly rather than Cd and frontal area separately."
 
 [vehicle.aero.drag_area.uncertainty]
 distribution = "triangular"
 role = "structural"
-lower = 1.75
-mode = 1.83096408
-upper = 1.95
+lower = 0.45
+mode = 0.668904
+upper = 0.95
 
 [vehicle.aero.air_density]
-nominal = 1.05
+nominal = 1.18
 unit = "kg/m^3"
 
 [vehicle.aero.air_density.source]
 kind = "engineering_estimate"
-reference = "Representative warm Arizona endurance air-density estimate"
+reference = "Representative hot, humid Maryland endurance air-density estimate"
 notes = "Can later be calculated from measured temperature, pressure, humidity, and elevation."
 
 [vehicle.aero.air_density.uncertainty]
 distribution = "uniform"
 role = "structural"
-lower = 0.95
-upper = 1.15
+lower = 1.05
+upper = 1.225
 
 [vehicle.rolling_resistance_coefficient]
 nominal = 0.025

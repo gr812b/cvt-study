@@ -1,0 +1,21 @@
+[profile]
+id = "team.vehicle.baja_defaults_v1"
+scope = "vehicle"
+version = 1
+description = "Example team-level estimates shared by this project's vehicles."
+extends = ["builtin.vehicle.baja_generic_v1"]
+
+[config.drivetrain.efficiency]
+nominal = 0.80
+unit = "1"
+
+[config.drivetrain.efficiency.source]
+kind = "engineering_estimate"
+reference = "replace with team dyno, component, or prior-season estimate"
+
+[config.drivetrain.efficiency.uncertainty]
+distribution = "triangular"
+role = "structural"
+lower = 0.75
+mode = 0.80
+upper = 0.86

@@ -1,0 +1,1722 @@
+# Multi-source empirical endurance traffic model (Arizona frequency calibration).
+#
+# This file is resolved into studies/baseline.toml at project-load time. The
+# uncertainty tables below use the same UncertainQuantity schema as vehicle,
+# driver, track, and obstacle parameters. Each [[observations]] entry is one
+# measured traffic encounter; event duration and speed fraction are bootstrapped
+# together so their empirical relationship is preserved. Competitor last-lap data
+# below provides the empirical four-hour field-survival curve used for frequency.
+#
+# timestamp may be m:ss or h:mm:ss. speed_fraction is the fraction of unobstructed
+# speed retained during the encounter (0 = stop, 1 = no speed reduction).
+
+race_duration_s = 14400.0
+fit_bin_s = 900.0
+minimum_reference_speed_mps = 2.0
+
+[race_time_fraction]
+nominal = 0.5
+unit = "1"
+
+[race_time_fraction.source]
+kind = "derived"
+reference = "Representative endurance lap sampled uniformly across the 4 h race"
+notes = "0 is race start and 1 is race end."
+
+[race_time_fraction.uncertainty]
+distribution = "uniform"
+role = "measured_track"
+lower = 0.0
+upper = 1.0
+reason = "Traffic exposure depends strongly on when the representative lap occurs."
+
+[rate_scale]
+nominal = 1.0
+unit = "1"
+
+[rate_scale.source]
+kind = "calibrated"
+reference = "Arizona 2025 CWRU + ETS independent observer-stream bootstrap"
+notes = "Applied multiplicatively to the fitted encounter intensity; observer exposure is handled independently by race_id/observer_id."
+
+[rate_scale.uncertainty]
+distribution = "empirical"
+role = "measured_track"
+samples = [0.6206, 0.7047, 0.7588, 0.7954, 0.8306, 0.8647, 0.8898, 0.9104, 0.9331, 0.9497, 0.9762, 1.0049, 1.0255, 1.0515, 1.0766, 1.1100, 1.1405, 1.1722, 1.2306, 1.3108, 1.4488]
+reason = "Bootstrap of independent Arizona CWRU and ETS event streams plus competitor survival; captures finite event counts and observer-to-observer rate variation."
+
+
+[field_exponent]
+nominal = 6.515
+unit = "1"
+
+[field_exponent.source]
+kind = "calibrated"
+reference = "Arizona 2025 independent observer exposure versus empirical competitor survival"
+notes = "Poisson profile-likelihood fit of lambda(t)=lambda0*S(t)^alpha using separate CWRU/ETS observer exposures and the Arizona Kaplan-Meier competitor survival curve."
+
+[field_exponent.uncertainty]
+distribution = "empirical"
+role = "measured_track"
+samples = [1.7098, 2.6643, 3.3000, 3.6833, 4.2078, 4.5224, 4.9769, 5.3614, 5.7719, 6.1000, 6.4300, 6.7695, 7.1800, 7.6300, 8.1000, 8.7376, 9.4786, 10.3834, 11.3312, 13.0214, 15.0000]
+reason = "Bootstrap of the two independent Arizona observer streams and 59 competitor last-lap records, including Poisson event-count uncertainty and uncertainty between the final completed lap and actual retirement point."
+
+[duration_scale]
+nominal = 1.0
+unit = "1"
+
+[duration_scale.source]
+kind = "engineering_estimate"
+reference = "Pooled Maryland + Arizona traffic-duration observations"
+notes = "Multiplies bootstrapped measured event durations."
+
+[duration_scale.uncertainty]
+distribution = "triangular"
+role = "measured_track"
+lower = 0.85
+mode = 1.0
+upper = 1.15
+reason = "Measured events are a finite sample of possible traffic durations."
+
+[severity_scale]
+nominal = 1.0
+unit = "1"
+
+[severity_scale.source]
+kind = "engineering_estimate"
+reference = "Pooled Maryland + Arizona traffic speed-reduction observations"
+notes = "Scales the reduction 1-speed_fraction, not the retained speed itself."
+
+[severity_scale.uncertainty]
+distribution = "triangular"
+role = "measured_track"
+lower = 0.85
+mode = 1.0
+upper = 1.15
+reason = "Video-estimated traffic speed fractions have finite-sample and judgement uncertainty."
+
+[field_population]
+race_id = "arizona_2025"
+method = "kaplan_meier_active_duration"
+dropout_offset_fraction = 0.5
+source_archive = "Lap Time Data-20260809T100506Z-1-001.zip"
+unique_car_count_in_archive = 68
+car_count_with_completed_laps = 59
+excluded_no_completed_lap_count = 9
+notes = "Active duration is measured from estimated first-lap start to final recorded lap crossing. Cars crossing at/after the estimated four-hour mark are right-censored. Non-finishers use a nominal retirement time halfway through one additional lap because the final completed lap precedes the actual dropout point."
+
+[[field_population.cars]]
+car_id = "16"
+team_name = "Northwestern MotorCats"
+observed_active_time_s = 13915.000
+last_lap_duration_s = 529.140
+censored = false
+
+[[field_population.cars]]
+car_id = "17"
+team_name = "Bison Racing"
+observed_active_time_s = 3483.000
+last_lap_duration_s = 1445.560
+censored = false
+
+[[field_population.cars]]
+car_id = "18"
+team_name = "Los Angeles - Rugged Eagle Motorsport"
+observed_active_time_s = 4593.000
+last_lap_duration_s = 311.230
+censored = false
+
+[[field_population.cars]]
+car_id = "19"
+team_name = "Central Texas - Texan Baja"
+observed_active_time_s = 7120.000
+last_lap_duration_s = 452.900
+censored = false
+
+[[field_population.cars]]
+car_id = "20"
+team_name = "Bleed Blue Racing"
+observed_active_time_s = 9230.000
+last_lap_duration_s = 372.860
+censored = false
+
+[[field_population.cars]]
+car_id = "22"
+team_name = "Boulder - CU Boulder Baja"
+observed_active_time_s = 5512.000
+last_lap_duration_s = 368.756
+censored = true
+
+[[field_population.cars]]
+car_id = "24"
+team_name = "Pomona - Bronco Racing"
+observed_active_time_s = 331.000
+last_lap_duration_s = 330.033
+censored = false
+
+[[field_population.cars]]
+car_id = "25"
+team_name = "Baja Wildcat Racing"
+observed_active_time_s = 11094.000
+last_lap_duration_s = 367.840
+censored = true
+
+[[field_population.cars]]
+car_id = "28"
+team_name = "Dirty Miners"
+observed_active_time_s = 2672.000
+last_lap_duration_s = 680.580
+censored = false
+
+[[field_population.cars]]
+car_id = "29"
+team_name = "Baylor Baja"
+observed_active_time_s = 842.000
+last_lap_duration_s = 417.100
+censored = true
+
+[[field_population.cars]]
+car_id = "30"
+team_name = "Queretaro - Exergia Racing Team"
+observed_active_time_s = 14718.000
+last_lap_duration_s = 306.430
+censored = true
+
+[[field_population.cars]]
+car_id = "31"
+team_name = "Baja UdeS"
+observed_active_time_s = 14837.000
+last_lap_duration_s = 426.187
+censored = true
+
+[[field_population.cars]]
+car_id = "33"
+team_name = "Beaver Racing"
+observed_active_time_s = 13837.000
+last_lap_duration_s = 315.247
+censored = true
+
+[[field_population.cars]]
+car_id = "35"
+team_name = "Letourneau Renegade Racing"
+observed_active_time_s = 7168.000
+last_lap_duration_s = 434.213
+censored = false
+
+[[field_population.cars]]
+car_id = "37"
+team_name = "Wildcat racing"
+observed_active_time_s = 5515.000
+last_lap_duration_s = 296.864
+censored = false
+
+[[field_population.cars]]
+car_id = "41"
+team_name = "Torero Racing"
+observed_active_time_s = 14758.000
+last_lap_duration_s = 351.207
+censored = true
+
+[[field_population.cars]]
+car_id = "42"
+team_name = "Oregon Tech Racing"
+observed_active_time_s = 14665.000
+last_lap_duration_s = 307.766
+censored = true
+
+[[field_population.cars]]
+car_id = "43"
+team_name = "Campus Guadalajara - Mad Rams"
+observed_active_time_s = 14235.000
+last_lap_duration_s = 323.580
+censored = false
+
+[[field_population.cars]]
+car_id = "44"
+team_name = "SUU Baja Racing"
+observed_active_time_s = 14689.000
+last_lap_duration_s = 394.660
+censored = true
+
+[[field_population.cars]]
+car_id = "45"
+team_name = "Falcon Racing"
+observed_active_time_s = 5887.000
+last_lap_duration_s = 529.787
+censored = true
+
+[[field_population.cars]]
+car_id = "46"
+team_name = "Grace Baja"
+observed_active_time_s = 14909.000
+last_lap_duration_s = 320.900
+censored = true
+
+[[field_population.cars]]
+car_id = "47"
+team_name = "Wildcat Offroad"
+observed_active_time_s = 14175.000
+last_lap_duration_s = 294.490
+censored = false
+
+[[field_population.cars]]
+car_id = "50"
+team_name = "Los Angeles - Bruin Racing Baja"
+observed_active_time_s = 4283.000
+last_lap_duration_s = 286.624
+censored = false
+
+[[field_population.cars]]
+car_id = "52"
+team_name = "Baja Spartan Racing"
+observed_active_time_s = 14897.000
+last_lap_duration_s = 1376.357
+censored = true
+
+[[field_population.cars]]
+car_id = "53"
+team_name = "Union College BAJA Racing"
+observed_active_time_s = 13135.000
+last_lap_duration_s = 912.287
+censored = false
+
+[[field_population.cars]]
+car_id = "54"
+team_name = "Irvine - Anteater Baja Racing"
+observed_active_time_s = 3303.000
+last_lap_duration_s = 342.460
+censored = false
+
+[[field_population.cars]]
+car_id = "56"
+team_name = "BCIT Racing"
+observed_active_time_s = 12819.000
+last_lap_duration_s = 657.367
+censored = false
+
+[[field_population.cars]]
+car_id = "57"
+team_name = "Lumberjack Motorsports Baja"
+observed_active_time_s = 13665.000
+last_lap_duration_s = 322.390
+censored = false
+
+[[field_population.cars]]
+car_id = "58"
+team_name = "Cyclone Off-Road Racing"
+observed_active_time_s = 14116.000
+last_lap_duration_s = 331.077
+censored = false
+
+[[field_population.cars]]
+car_id = "61"
+team_name = "Long Beach - Elbee Racing"
+observed_active_time_s = 516.000
+last_lap_duration_s = 515.233
+censored = true
+
+[[field_population.cars]]
+car_id = "63"
+team_name = "Team Swoop"
+observed_active_time_s = 1547.000
+last_lap_duration_s = 820.793
+censored = false
+
+[[field_population.cars]]
+car_id = "64"
+team_name = "CMB Racing"
+observed_active_time_s = 1876.000
+last_lap_duration_s = 660.710
+censored = false
+
+[[field_population.cars]]
+car_id = "65"
+team_name = "Felinos Racing"
+observed_active_time_s = 12173.000
+last_lap_duration_s = 1632.246
+censored = false
+
+[[field_population.cars]]
+car_id = "67"
+team_name = "Zips Baja"
+observed_active_time_s = 14800.000
+last_lap_duration_s = 412.973
+censored = true
+
+[[field_population.cars]]
+car_id = "68"
+team_name = "USU Mini Baja"
+observed_active_time_s = 14872.000
+last_lap_duration_s = 305.150
+censored = true
+
+[[field_population.cars]]
+car_id = "70"
+team_name = "UR Baja SAE Yellowjacket Racing"
+observed_active_time_s = 14953.000
+last_lap_duration_s = 316.274
+censored = true
+
+[[field_population.cars]]
+car_id = "74"
+team_name = "Tuscaloosa - Bama Racing"
+observed_active_time_s = 14810.000
+last_lap_duration_s = 461.714
+censored = true
+
+[[field_population.cars]]
+car_id = "75"
+team_name = "Knights Racing"
+observed_active_time_s = 14761.000
+last_lap_duration_s = 355.580
+censored = true
+
+[[field_population.cars]]
+car_id = "76"
+team_name = "CWRU Motorsports"
+observed_active_time_s = 14362.000
+last_lap_duration_s = 266.973
+censored = false
+
+[[field_population.cars]]
+car_id = "77"
+team_name = "UCalgary Baja"
+observed_active_time_s = 5691.000
+last_lap_duration_s = 330.947
+censored = false
+
+[[field_population.cars]]
+car_id = "78"
+team_name = "Baja ÉTS"
+observed_active_time_s = 14900.000
+last_lap_duration_s = 258.170
+censored = true
+
+[[field_population.cars]]
+car_id = "81"
+team_name = "Alérion Baja Ulaval"
+observed_active_time_s = 942.000
+last_lap_duration_s = 289.323
+censored = false
+
+[[field_population.cars]]
+car_id = "82"
+team_name = ""
+observed_active_time_s = 14668.000
+last_lap_duration_s = 265.727
+censored = true
+
+[[field_population.cars]]
+car_id = "83"
+team_name = "Mountaineers"
+observed_active_time_s = 493.000
+last_lap_duration_s = 492.800
+censored = false
+
+[[field_population.cars]]
+car_id = "84"
+team_name = "Kansas City - Roo Racing"
+observed_active_time_s = 1870.000
+last_lap_duration_s = 408.680
+censored = false
+
+[[field_population.cars]]
+car_id = "85"
+team_name = ""
+observed_active_time_s = 14656.000
+last_lap_duration_s = 273.727
+censored = true
+
+[[field_population.cars]]
+car_id = "86"
+team_name = "Cornell Baja Racing"
+observed_active_time_s = 14788.000
+last_lap_duration_s = 277.680
+censored = true
+
+[[field_population.cars]]
+car_id = "87"
+team_name = "Baja Buckeyes"
+observed_active_time_s = 13994.000
+last_lap_duration_s = 285.730
+censored = false
+
+[[field_population.cars]]
+car_id = "88"
+team_name = "Las Vegas - Rebel Racing"
+observed_active_time_s = 14853.000
+last_lap_duration_s = 318.770
+censored = true
+
+[[field_population.cars]]
+car_id = "89"
+team_name = "Blue Jay Racing"
+observed_active_time_s = 14656.000
+last_lap_duration_s = 257.560
+censored = true
+
+[[field_population.cars]]
+car_id = "90"
+team_name = "W Lafayette - Purdue Baja Racing"
+observed_active_time_s = 7588.000
+last_lap_duration_s = 266.363
+censored = false
+
+[[field_population.cars]]
+car_id = "92"
+team_name = "RIOT RACING"
+observed_active_time_s = 14478.000
+last_lap_duration_s = 246.206
+censored = true
+
+[[field_population.cars]]
+car_id = "93"
+team_name = "Ann Arbor - Michigan Baja Racing"
+observed_active_time_s = 14431.000
+last_lap_duration_s = 252.410
+censored = false
+
+[[field_population.cars]]
+car_id = "94"
+team_name = "Urbana Champaign - Off-Road Illini"
+observed_active_time_s = 1121.000
+last_lap_duration_s = 449.410
+censored = false
+
+[[field_population.cars]]
+car_id = "95"
+team_name = "Cal Poly Racing"
+observed_active_time_s = 14954.000
+last_lap_duration_s = 444.260
+censored = true
+
+[[field_population.cars]]
+car_id = "97"
+team_name = "Aztec Baja Racing"
+observed_active_time_s = 14888.000
+last_lap_duration_s = 281.260
+censored = true
+
+[[field_population.cars]]
+car_id = "102"
+team_name = "Torero Racing Club"
+observed_active_time_s = 10462.000
+last_lap_duration_s = 3436.180
+censored = false
+
+[[field_population.cars]]
+car_id = "104"
+team_name = "GT Off Road"
+observed_active_time_s = 14803.000
+last_lap_duration_s = 306.090
+censored = true
+
+[[field_population.cars]]
+car_id = "106"
+team_name = "Penguin Baja Racing"
+observed_active_time_s = 14940.000
+last_lap_duration_s = 409.186
+censored = true
+
+# Independent video/observer exposure streams. Frequency fitting uses event
+# counts over declared observer-hours. Only streams matching field_population.race_id
+# calibrate lambda(t); every observation remains available for event severity/duration.
+
+[[observation_streams]]
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+exposure_start_s = 0.0
+exposure_end_s = 3600.0
+frequency_fit_enabled = false
+notes = "Retained for duration/severity only; no Maryland field-survival dataset is declared here."
+
+[[observation_streams]]
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+exposure_start_s = 0.0
+exposure_end_s = 900.0
+frequency_fit_enabled = true
+notes = "15-minute reviewed observation interval; final recorded event is at 14:04."
+
+[[observation_streams]]
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+exposure_start_s = 0.0
+exposure_end_s = 4500.0
+frequency_fit_enabled = true
+notes = "75-minute reviewed observation interval; final recorded event is at 1:14:39."
+
+[[observations]]
+order = 1
+timestamp = "1:50"
+event_type = "slowdown"
+duration_s = 10.0
+speed_fraction = 0.8
+confidence = "High"
+car_id = "42"
+notes = "slower car"
+reference_latitude = 32.47485
+reference_longitude = -111.294616
+location_mark = "end of feature"
+location_method = "video matched to map"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 1
+
+[[observations]]
+order = 2
+timestamp = "2:17"
+event_type = "yellow_flag"
+duration_s = 28.0
+speed_fraction = 0.0
+confidence = "High"
+car_id = "19"
+notes = "rollover 2 cars ahead, speed is 2 since it was in an area with obstacles"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 2
+
+[[observations]]
+order = 3
+timestamp = "5:30"
+event_type = "yellow_flag"
+duration_s = 30.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "82"
+notes = "car in front couldn't get up hill, speed estimate is averaged, speed is 3 because it was going up an incline"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 3
+
+[[observations]]
+order = 4
+timestamp = "6:08"
+event_type = "yellow_flag"
+duration_s = 60.0
+speed_fraction = 0.0
+confidence = "High"
+car_id = "Unknown"
+notes = "car is too far away to tell"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 4
+
+[[observations]]
+order = 5
+timestamp = "7:55"
+event_type = "yellow_flag"
+duration_s = 5.0
+speed_fraction = 0.6
+confidence = "Medium"
+car_id = "78"
+notes = "car in front stuck on log obstacle, had to go around"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 5
+
+[[observations]]
+order = 6
+timestamp = "8:50"
+event_type = "yellow_flag"
+duration_s = 80.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "109"
+notes = "looks like big traffic jam from 102 not making it up the hill"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 6
+
+[[observations]]
+order = 7
+timestamp = "12:00"
+event_type = "yellow_flag"
+duration_s = 15.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "146"
+notes = "car stuck on hill, detour route taken"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 7
+
+[[observations]]
+order = 8
+timestamp = "12:25"
+event_type = "slowdown"
+duration_s = 30.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "57"
+notes = "slow car in front"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 8
+
+[[observations]]
+order = 9
+timestamp = "14:15"
+event_type = "yellow_flag"
+duration_s = 20.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "82"
+notes = "car couldn't make it up hill"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 9
+
+[[observations]]
+order = 10
+timestamp = "19:10"
+event_type = "slowdown"
+duration_s = 5.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "142"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 10
+
+[[observations]]
+order = 11
+timestamp = "20:34"
+event_type = "slowdown"
+duration_s = 11.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "63"
+notes = "slower car in front"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 11
+
+[[observations]]
+order = 12
+timestamp = "21:20"
+event_type = "yellow_flag"
+duration_s = 60.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "104"
+notes = "car stuck on hill causing traffic jam at narrow turn"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 12
+
+[[observations]]
+order = 13
+timestamp = "24:05"
+event_type = "slowdown"
+duration_s = 13.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "55"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 13
+
+[[observations]]
+order = 14
+timestamp = "25:40"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "107"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 14
+
+[[observations]]
+order = 15
+timestamp = "27:48"
+event_type = "slowdown"
+duration_s = 16.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "68/90"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 15
+
+[[observations]]
+order = 16
+timestamp = "28:48"
+event_type = "slowdown"
+duration_s = 7.0
+speed_fraction = 0.8
+confidence = "High"
+car_id = "94"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 16
+
+[[observations]]
+order = 17
+timestamp = "31:37"
+event_type = "slowdown"
+duration_s = 39.0
+speed_fraction = 0.8
+confidence = "Medium"
+car_id = "93"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 17
+
+[[observations]]
+order = 18
+timestamp = "34:34"
+event_type = "slowdown"
+duration_s = 10.0
+speed_fraction = 0.8
+confidence = "High"
+car_id = "103"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 18
+
+[[observations]]
+order = 19
+timestamp = "40:15"
+event_type = "slowdown"
+duration_s = 35.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "Unknown"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 19
+
+[[observations]]
+order = 20
+timestamp = "41:05"
+event_type = "slowdown"
+duration_s = 60.0
+speed_fraction = 0.9
+confidence = "Medium"
+car_id = "39"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 20
+
+[[observations]]
+order = 21
+timestamp = "43:28"
+event_type = "slowdown"
+duration_s = 30.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "138"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 21
+
+[[observations]]
+order = 22
+timestamp = "49:35"
+event_type = "slowdown"
+duration_s = 20.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "49"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 22
+
+[[observations]]
+order = 23
+timestamp = "50:40"
+event_type = "slowdown"
+duration_s = 20.0
+speed_fraction = 0.8
+confidence = "High"
+car_id = "114"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 23
+
+[[observations]]
+order = 24
+timestamp = "52:16"
+event_type = "slowdown"
+duration_s = 15.0
+speed_fraction = 0.7
+confidence = "Medium"
+car_id = "17"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 24
+
+[[observations]]
+order = 25
+timestamp = "58:05"
+event_type = "slowdown"
+duration_s = 5.0
+speed_fraction = 0.9
+confidence = "High"
+car_id = "53"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 25
+
+[[observations]]
+order = 26
+timestamp = "59:18"
+event_type = "yellow_flag"
+duration_s = 16.0
+speed_fraction = 0.6
+confidence = "Medium"
+car_id = "Unknown"
+race_id = "maryland_2025"
+observer_id = "maryland_observer_1"
+source_dataset = "Maryland 2025 Traffic Data"
+source_order = 26
+
+[[observations]]
+order = 27
+timestamp = "0:18"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.8
+confidence = "High"
+car_id = "81"
+notes = "Cut off by car 81 on curve"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 1
+reference_latitude = 32.474850
+reference_longitude = -111.294616
+location_mark = "end of feature"
+location_method = "video matched to map"
+
+[[observations]]
+order = 28
+timestamp = "0:28"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.75
+confidence = "High"
+car_id = "81"
+notes = "car 81 is slower than CWRU over jump"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 2
+
+[[observations]]
+order = 29
+timestamp = "1:45"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.75
+confidence = "Medium"
+car_id = "89 or 59 & 82"
+notes = "Stuck behind  both cars right after whoops on a curve"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 3
+
+[[observations]]
+order = 30
+timestamp = "1:55"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.8
+confidence = "Medium"
+car_id = "82, 89"
+notes = "right blocked by 89, can't overtake 82 which is in front. Clearly didn't send it into pit bc there's cars in front"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 4
+
+[[observations]]
+order = 31
+timestamp = "2:29"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.75
+confidence = "High"
+car_id = "89"
+notes = "89 in front took the last dip slower, caused CWRU to brake"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 5
+
+[[observations]]
+order = 32
+timestamp = "2:45"
+event_type = "slowdown"
+duration_s = 1.0
+speed_fraction = 0.9
+confidence = "High"
+car_id = "89"
+notes = "Couldn't get a good line bc of 89, slowed down to get behind"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 6
+
+[[observations]]
+order = 33
+timestamp = "3:18"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "89, one more car in front can't see"
+notes = "89 slowed over whoops, forced CWRU to hard brake and lose most momentum coming into whoops"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 7
+
+[[observations]]
+order = 34
+timestamp = "3:39"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "95 on left, 89 on right"
+notes = "95 and 89 make a wall over bumps, CWRU brakes to maneuver car between them to overtake"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 8
+
+[[observations]]
+order = 35
+timestamp = "3:52"
+event_type = "slowdown"
+duration_s = 1.0
+speed_fraction = 0.8
+confidence = "Medium"
+car_id = "90"
+notes = "Purdue brakes right before obstacle. I think CWRU also would've braked but not as hard"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 9
+
+[[observations]]
+order = 36
+timestamp = "4:06"
+event_type = "slowdown"
+duration_s = 1.0
+speed_fraction = 0.75
+confidence = "Medium"
+car_id = "90"
+notes = "Purdue takes inner corner line, CWRU brakes"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 10
+
+[[observations]]
+order = 37
+timestamp = "6:12"
+event_type = "yellow_flag"
+duration_s = 2.0
+speed_fraction = 0.1
+confidence = "High"
+car_id = "78, 93"
+notes = "full stop over whoops, I think 93 is stuck"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 11
+
+[[observations]]
+order = 38
+timestamp = "6:27"
+event_type = "yellow_flag"
+duration_s = 3.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "I think UNLV, they have a roof that looks like that"
+notes = "UNLV basically pulled off track but its so dusty you can't see shit and yellow flag is waved anyways"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 12
+
+[[observations]]
+order = 39
+timestamp = "6:55"
+event_type = "slowdown"
+duration_s = 18.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "89"
+notes = "Cut off by 89 on outer curve, Case & 89 are side by side and slower for a while"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 13
+
+[[observations]]
+order = 40
+timestamp = "8:37"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.75
+confidence = "Medium"
+car_id = "93"
+notes = "Couldn't overtake fully before obstacle was complete, track narrowed & had to brake"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 14
+
+[[observations]]
+order = 41
+timestamp = "10:13"
+event_type = "yellow_flag"
+duration_s = 8.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "cant see but some car flipped"
+notes = "car flipped on main track, diverted over"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 15
+
+[[observations]]
+order = 42
+timestamp = "10:40"
+event_type = "slowdown"
+duration_s = 7.0
+speed_fraction = 0.7
+confidence = "Medium"
+car_id = "87, 16"
+notes = "Taking curve on outside & a little slower because of 87 and 16 right in front of 87"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 16
+
+[[observations]]
+order = 43
+timestamp = "10:47"
+event_type = "slowdown"
+duration_s = 6.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "87, 16"
+notes = "Boxed in between 87 on right and 16 in front, can't overtake and must brake"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 17
+
+[[observations]]
+order = 44
+timestamp = "11:03"
+event_type = "yellow_flag"
+duration_s = 3.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "Unknown"
+notes = "yellow flag waved but literally for no reason ??? stupid ahh carnage"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 18
+
+[[observations]]
+order = 45
+timestamp = "11:25"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.75
+confidence = "Medium"
+car_id = "75"
+notes = "On inner curve, has to change racing line bc of slow car in front"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 19
+
+[[observations]]
+order = 46
+timestamp = "13:22"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.65
+confidence = "High"
+car_id = "82"
+notes = "Had to hard brake bc 82 took 1st of 2 hills super slow"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 20
+
+[[observations]]
+order = 47
+timestamp = "14:04"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "78"
+notes = "78 turns a bit into CWRU's course to prevent overtaking"
+race_id = "arizona_2025"
+observer_id = "CWRU"
+source_dataset = "CWRU AZ 2025 Traffic Data Entry"
+source_order = 21
+
+[[observations]]
+order = 48
+timestamp = "7:25"
+event_type = "slowdown"
+duration_s = 26.0
+speed_fraction = 0
+confidence = "High"
+car_id = "Unknown"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 1
+source_event_type = "full stop"
+reference_latitude = 32.474850
+reference_longitude = -111.294616
+location_mark = "end of feature"
+location_method = "video matched to map"
+
+[[observations]]
+order = 49
+timestamp = "8:40"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.7
+confidence = "Medium"
+car_id = "93"
+notes = "car ahead takes whoops slow"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 2
+
+[[observations]]
+order = 50
+timestamp = "8:48"
+event_type = "yellow_flag"
+duration_s = 15.0
+speed_fraction = 0
+confidence = "Medium"
+car_id = "Unknown"
+notes = "yellow called not sure what for"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 3
+source_event_type = "full stop"
+
+[[observations]]
+order = 51
+timestamp = "9:07"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "61"
+notes = "car on right takes whoop slow, and too close, bump tires and lose outside line"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 4
+
+[[observations]]
+order = 52
+timestamp = "9:42"
+event_type = "yellow_flag"
+duration_s = 16.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "Unknown"
+notes = "yellow called for hill section, all cars slowed"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 5
+
+[[observations]]
+order = 53
+timestamp = "10:17"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "93"
+notes = "car ahead takes whoops slow"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 6
+
+[[observations]]
+order = 54
+timestamp = "10:58"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.4
+confidence = "Low"
+car_id = "19"
+notes = "slow car moves inside and get stuck behind"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 7
+
+[[observations]]
+order = 55
+timestamp = "12:37"
+event_type = "slowdown"
+duration_s = 5.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "37"
+notes = "slow car moves from outsde to inside turn and get stuck behind"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 8
+
+[[observations]]
+order = 56
+timestamp = "13:04"
+event_type = "slowdown"
+duration_s = 10.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "37,67"
+notes = "stuck behind slower car, and cant over take due to another car on the left"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 9
+
+[[observations]]
+order = 57
+timestamp = "13:56"
+event_type = "slowdown"
+duration_s = 4.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "93"
+notes = "stuck behind slow car, bumps track hazard tires and back half of the car comes into the outside turn"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 10
+
+[[observations]]
+order = 58
+timestamp = "17:21"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0
+confidence = "High"
+car_id = "Unknown"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 11
+source_event_type = "full stop"
+
+[[observations]]
+order = 59
+timestamp = "18:22"
+event_type = "yellow_flag"
+duration_s = 7.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "Unknown"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 12
+
+[[observations]]
+order = 60
+timestamp = "18:39"
+event_type = "slowdown"
+duration_s = 4.0
+speed_fraction = 0.3
+confidence = "Medium"
+car_id = "39"
+notes = "car moves from left to right and almost touch tires, driver slows down to prevent collision but also preventing overtake"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 13
+
+[[observations]]
+order = 61
+timestamp = "18:45"
+event_type = "slowdown"
+duration_s = 2.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "18"
+notes = "car takes turn slowly, stuck behind"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 14
+
+[[observations]]
+order = 62
+timestamp = "19:35"
+event_type = "slowdown"
+duration_s = 7.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "79"
+notes = "stuck behind slower preventing overtake"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 15
+
+[[observations]]
+order = 63
+timestamp = "23:08"
+event_type = "yellow_flag"
+duration_s = 7.0
+speed_fraction = 0.2
+confidence = "Low"
+car_id = "20"
+notes = "car stalled at hillbottom"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 16
+
+[[observations]]
+order = 64
+timestamp = "29:39"
+event_type = "yellow_flag"
+duration_s = 6.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "63"
+notes = "car struggles through whoop, going at angle through the straight"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 17
+
+[[observations]]
+order = 65
+timestamp = "25:21"
+event_type = "yellow_flag"
+duration_s = 7.0
+speed_fraction = 0.2
+confidence = "Medium"
+car_id = "Unknown"
+notes = "car flipped in hill bottom, diverted around"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 18
+
+[[observations]]
+order = 66
+timestamp = "27:16"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.7
+confidence = "High"
+car_id = "92"
+notes = "car blocks only path through safe from hazard"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 19
+
+[[observations]]
+order = 67
+timestamp = "31:21"
+event_type = "slowdown"
+duration_s = 8.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "19"
+notes = "stuck behind slow car"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 20
+
+[[observations]]
+order = 68
+timestamp = "31:42"
+event_type = "slowdown"
+duration_s = 9.0
+speed_fraction = 0.5
+confidence = "High"
+car_id = "Unknown"
+notes = "stuck behind slow car"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 21
+
+[[observations]]
+order = 69
+timestamp = "33:22"
+event_type = "slowdown"
+duration_s = 12.0
+speed_fraction = 0.6
+confidence = "High"
+car_id = "54"
+notes = "slow car blocks overtake"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 22
+
+[[observations]]
+order = 70
+timestamp = "35:28"
+event_type = "yellow_flag"
+duration_s = 4.0
+speed_fraction = 0.3
+confidence = "Medium"
+car_id = "68"
+notes = "car gets stuck in whoop for a moment"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 23
+
+[[observations]]
+order = 71
+timestamp = "38:52"
+event_type = "slowdown"
+duration_s = 18.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "79"
+notes = "slow car comes inside to block overtake"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 24
+
+[[observations]]
+order = 72
+timestamp = "40:28"
+event_type = "yellow_flag"
+duration_s = 14.0
+speed_fraction = 0.6
+confidence = "Medium"
+car_id = "Unknown"
+notes = "volunteer diverts cars to left side of track"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 25
+
+[[observations]]
+order = 73
+timestamp = "50:09"
+event_type = "yellow_flag"
+duration_s = 6.0
+speed_fraction = 0.3
+confidence = "Medium"
+car_id = "Unknown"
+notes = "volunteer diverts cars to right side of track"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 26
+
+[[observations]]
+order = 74
+timestamp = "50:44"
+event_type = "slowdown"
+duration_s = 17.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "56"
+notes = "slow car blocks inside turn"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 27
+
+[[observations]]
+order = 75
+timestamp = "51:28"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.4
+confidence = "Low"
+car_id = "75"
+notes = "car takes pipe hazard slow"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 28
+
+[[observations]]
+order = 76
+timestamp = "58:12"
+event_type = "slowdown"
+duration_s = 4.0
+speed_fraction = 0.2
+confidence = "Low"
+car_id = "Unknown"
+notes = "slowdown to avoid contact car to the left"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 29
+
+[[observations]]
+order = 77
+timestamp = "59:40"
+event_type = "slowdown"
+duration_s = 12.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "Unknown"
+notes = "stuck behind two slower cars trying to overtake each other"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 30
+
+[[observations]]
+order = 78
+timestamp = "1:01:33"
+event_type = "slowdown"
+duration_s = 13.0
+speed_fraction = 0.3
+confidence = "Medium"
+car_id = "104"
+notes = "car blocks overtake by coming inside"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 31
+
+[[observations]]
+order = 79
+timestamp = "1:05:39"
+event_type = "yellow_flag"
+duration_s = 2.0
+speed_fraction = 0.3
+confidence = "Low"
+car_id = "Unknown"
+notes = "volunteer keeps cars to the right"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 32
+
+[[observations]]
+order = 80
+timestamp = "1:06:35"
+event_type = "slowdown"
+duration_s = 11.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "70"
+notes = "stuck behind car taking hazards slowly"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 33
+
+[[observations]]
+order = 81
+timestamp = "1:07:26"
+event_type = "slowdown"
+duration_s = 4.0
+speed_fraction = 0.4
+confidence = "Medium"
+car_id = "84"
+notes = "stuck behind slow car sitting between two lanes"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 34
+
+[[observations]]
+order = 82
+timestamp = "1:13:24"
+event_type = "slowdown"
+duration_s = 4.0
+speed_fraction = 0.3
+confidence = "Medium"
+car_id = "89"
+notes = "car takes whoops slow"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 35
+
+[[observations]]
+order = 83
+timestamp = "1:14:00"
+event_type = "yellow_flag"
+duration_s = 6.0
+speed_fraction = 0.5
+confidence = "Medium"
+car_id = "Unknown"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 36
+
+[[observations]]
+order = 84
+timestamp = "1:14:39"
+event_type = "slowdown"
+duration_s = 3.0
+speed_fraction = 0.2
+confidence = "Medium"
+car_id = "89"
+notes = "car crosses lanes"
+race_id = "arizona_2025"
+observer_id = "ETS"
+source_dataset = "Arizona 2025 ÉTS Traffic Data"
+source_order = 37

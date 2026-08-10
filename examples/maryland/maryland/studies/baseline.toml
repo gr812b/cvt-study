@@ -2,7 +2,7 @@
 name = "baseline"
 type = "baseline"
 vehicle_id = "mcmaster"
-random_seed = 20260715
+random_seed = 20260730
 
 [sampling]
 mode = "nominal"
@@ -13,7 +13,7 @@ unit = "m/s^2"
 
 [driver.maximum_braking_deceleration.source]
 kind = "engineering_estimate"
-reference = "Phase 5 numerical driver-envelope estimate"
+reference = "Reduced-order Baja driver-envelope estimate"
 
 [driver.maximum_braking_deceleration.uncertainty]
 distribution = "uniform"
@@ -27,7 +27,7 @@ unit = "N"
 
 [driver.maximum_brake_force.source]
 kind = "engineering_estimate"
-reference = "Phase 5 numerical driver-envelope estimate"
+reference = "Reduced-order Baja brake-force estimate"
 
 [driver.maximum_brake_force.uncertainty]
 distribution = "uniform"
@@ -41,14 +41,14 @@ unit = "m/s"
 
 [driver.braking_trigger_margin.source]
 kind = "engineering_estimate"
-reference = "Phase 5 numerical braking-envelope trigger margin"
+reference = "Numerical braking-envelope trigger margin"
 
 [driver.braking_trigger_margin.uncertainty]
 distribution = "fixed"
-reason = "Numerical anti-chatter margin verified by gate-compliance checks."
+reason = "Numerical anti-chatter margin."
 
 [simulation]
-maximum_time_s = 240.0
+maximum_time_s = 600.0
 integration_step_s = 0.001
 report_step_s = 0.02
 
@@ -65,7 +65,7 @@ reference = "Baseline launch initial condition"
 
 [initial_conditions.vehicle_speed.uncertainty]
 distribution = "fixed"
-reason = "The baseline study begins from rest by definition."
+reason = "The baseline begins from rest by definition."
 
 [initial_conditions.wheel_speed]
 nominal = 0.0
@@ -77,12 +77,8 @@ reference = "Baseline launch initial condition"
 
 [initial_conditions.wheel_speed.uncertainty]
 distribution = "fixed"
-reason = "The baseline study begins with the driven wheel at rest by definition."
+reason = "The baseline begins with the driven wheel at rest by definition."
 
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01
 maximum_abs_powertrain_balance_relative_error = 0.01
-
-[traffic]
-enabled = true
-config_file = "track/traffic.toml"

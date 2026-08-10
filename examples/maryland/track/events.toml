@@ -1,0 +1,1047 @@
+# Maryland endurance physical-event configuration.
+#
+# Source policy:
+#   * The Maryland CVT Data Entry workbook controls wherever it disagrees with
+#     the timestamped video notes, per the user's instruction on 2026-07-30.
+#   * Timestamped notes are used only to add events absent from the workbook.
+#   * Coordinates and physical dimensions remain evidence declarations, not
+#     assertions that the reduced-order obstacle model exactly reproduces geometry.
+# TODO: the 3:14 circuit-entry note has no coordinate and is intentionally omitted; see CONFIG_TODO.md.
+
+[[events]]
+id = "start_finish"
+name = "Start / finish"
+sequence = 1
+kind = "point"
+analysis_role = "lap_gate"
+response_group_id = "start_finish"
+gate_candidate = false
+notes = "Workbook Start 1 coordinate. Provisional lap gate; repeated-crossing validation remains a TODO."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40368056
+longitude_deg = -76.84270833
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements; location method: video matched to map"
+
+[events.extent]
+before_anchor_m = 2.0
+after_anchor_m = 2.0
+before_anchor_uncertainty_m = 2.0
+after_anchor_uncertainty_m = 2.0
+source = "small lap-gate reference extent; not a physical obstacle"
+
+[[events]]
+id = "uphill_2"
+name = "Uphill 2"
+sequence = 2
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_02"
+gate_candidate = true
+notes = "Workbook event 2. 30 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40352500
+longitude_deg = -76.84305833
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40352500
+longitude_deg = -76.84305833
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40348889
+longitude_deg = -76.84319167
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_3"
+name = "Uphill 3"
+sequence = 3
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_03"
+gate_candidate = true
+notes = "Workbook event 3. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40348889
+longitude_deg = -76.84319167
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40348889
+longitude_deg = -76.84319167
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40338056
+longitude_deg = -76.84334444
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_4"
+name = "Downhill 4"
+sequence = 4
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_04"
+gate_candidate = true
+notes = "Workbook event 4. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40338056
+longitude_deg = -76.84334444
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40338056
+longitude_deg = -76.84334444
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40327778
+longitude_deg = -76.84346667
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_5"
+name = "Uphill 5"
+sequence = 5
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_05"
+gate_candidate = true
+notes = "Workbook event 5. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40313333
+longitude_deg = -76.84359167
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40313333
+longitude_deg = -76.84359167
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40283333
+longitude_deg = -76.84376667
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "bumps_6"
+name = "Bumps 6"
+sequence = 6
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_06"
+gate_candidate = true
+notes = "Workbook event 6. 3 bumps, 1 meter high each, 8m apart, 5m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 38.40313333
+longitude_deg = -76.84359167
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40313333
+longitude_deg = -76.84359167
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40283333
+longitude_deg = -76.84376667
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "bump_7"
+name = "Bump 7"
+sequence = 7
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_07"
+gate_candidate = true
+notes = "Workbook event 7. 1 bump, 1.5 meters high, 1.5m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.40272778
+longitude_deg = -76.84372500
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "downhill_8"
+name = "Downhill 8"
+sequence = 8
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_08"
+gate_candidate = true
+notes = "Workbook event 8. 30 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40263056
+longitude_deg = -76.84327500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40263056
+longitude_deg = -76.84327500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40329722
+longitude_deg = -76.84293056
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_9"
+name = "Turn 9"
+sequence = 9
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_09"
+gate_candidate = true
+notes = "Workbook event 9. 180 deg, right, 9m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.403347
+longitude_deg = -76.842906
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40329722
+longitude_deg = -76.84293056
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40324722
+longitude_deg = -76.84272222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_10"
+name = "Uphill 10"
+sequence = 10
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_10"
+gate_candidate = true
+notes = "Workbook event 10. 30 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40300556
+longitude_deg = -76.84285833
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40300556
+longitude_deg = -76.84285833
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40295556
+longitude_deg = -76.84287500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "bump_11"
+name = "Bump 11"
+sequence = 11
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_11"
+gate_candidate = true
+notes = "Workbook event 11. 1 bump, .5 meters high, 3m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.40290833
+longitude_deg = -76.84290833
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "uphill_12"
+name = "Uphill 12"
+sequence = 12
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_12"
+gate_candidate = true
+notes = "Workbook event 12. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40286111
+longitude_deg = -76.84292222
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40286111
+longitude_deg = -76.84292222
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40282778
+longitude_deg = -76.84293056
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_13"
+name = "Downhill 13"
+sequence = 13
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_13"
+gate_candidate = true
+notes = "Workbook event 13. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40268611
+longitude_deg = -76.84297500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40268611
+longitude_deg = -76.84297500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40256667
+longitude_deg = -76.84301667
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "log_14"
+name = "Log 14"
+sequence = 14
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_14"
+gate_candidate = true
+notes = "Workbook event 14. .15m tall, .15m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.40249167
+longitude_deg = -76.84309167
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "downhill_15"
+name = "Downhill 15"
+sequence = 15
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_15"
+gate_candidate = true
+notes = "Workbook event 15. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40229167
+longitude_deg = -76.84336944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40229167
+longitude_deg = -76.84336944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40191944
+longitude_deg = -76.84363889
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "logs_16"
+name = "Logs 16"
+sequence = 16
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_16"
+gate_candidate = true
+notes = "Workbook event 16. 4 logs, 2m apart, .15m tall, .15m radius each. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 38.40185000
+longitude_deg = -76.84370833
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40185000
+longitude_deg = -76.84370833
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40177222
+longitude_deg = -76.84376389
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "bump_17"
+name = "Bump 17"
+sequence = 17
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_17"
+gate_candidate = true
+notes = "Workbook event 17. 1 bump, .6m high, .3m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.40151389
+longitude_deg = -76.84416944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "bumps_18"
+name = "Bumps 18"
+sequence = 18
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_18"
+gate_candidate = true
+notes = "Workbook event 18. 2 bumps, .3m tall, .15m radius Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.401250
+longitude_deg = -76.844333
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "bump_19"
+name = "Bump 19"
+sequence = 19
+kind = "point"
+analysis_role = "feature"
+response_group_id = "MD_WB_19"
+gate_candidate = true
+notes = "Workbook event 19. 1 bumps, .4m high, .2m radius. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.single_bump_v1"]
+
+[events.anchor]
+latitude_deg = 38.401017
+longitude_deg = -76.844397
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.extent]
+before_anchor_m = 4.0
+after_anchor_m = 4.0
+before_anchor_uncertainty_m = 4.0
+after_anchor_uncertainty_m = 4.0
+source = "provisional point obstacle extent"
+
+[[events]]
+id = "uphill_20"
+name = "Uphill 20"
+sequence = 20
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_20"
+gate_candidate = true
+notes = "Workbook event 20. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40119167
+longitude_deg = -76.84186944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40119167
+longitude_deg = -76.84186944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40139167
+longitude_deg = -76.84175000
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_21"
+name = "Turn 21"
+sequence = 21
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_21"
+gate_candidate = true
+notes = "Workbook event 21. 180 deg, right, 10m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40200000
+longitude_deg = -76.84246667
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40200000
+longitude_deg = -76.84246667
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40208056
+longitude_deg = -76.84253056
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_22"
+name = "Turn 22"
+sequence = 22
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_22"
+gate_candidate = true
+notes = "Workbook event 22. 45 deg, left, 10m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40200000
+longitude_deg = -76.84246667
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40200000
+longitude_deg = -76.84246667
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40219444
+longitude_deg = -76.84247222
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_23"
+name = "Downhill 23"
+sequence = 23
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_23"
+gate_candidate = true
+notes = "Workbook event 23. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40235556
+longitude_deg = -76.84245000
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40235556
+longitude_deg = -76.84245000
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40284722
+longitude_deg = -76.84207500
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_24"
+name = "Uphill 24"
+sequence = 24
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_24"
+gate_candidate = true
+notes = "Workbook event 24. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40299444
+longitude_deg = -76.84203056
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40299444
+longitude_deg = -76.84203056
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40329722
+longitude_deg = -76.84203333
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_25"
+name = "Downhill 25"
+sequence = 25
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_25"
+gate_candidate = true
+notes = "Workbook event 25. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40329722
+longitude_deg = -76.84203333
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40329722
+longitude_deg = -76.84203333
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40364722
+longitude_deg = -76.84208889
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_26"
+name = "Turn 26"
+sequence = 26
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_26"
+gate_candidate = true
+notes = "Workbook event 26. 180 deg, right, 15m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40364722
+longitude_deg = -76.84208889
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40364722
+longitude_deg = -76.84208889
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40374444
+longitude_deg = -76.84170278
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_27"
+name = "Uphill 27"
+sequence = 27
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_27"
+gate_candidate = true
+notes = "Workbook event 27. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40368889
+longitude_deg = -76.84166389
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40368889
+longitude_deg = -76.84166389
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40358056
+longitude_deg = -76.84160556
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_28"
+name = "Turn 28"
+sequence = 28
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_28"
+gate_candidate = true
+notes = "Workbook event 28. 180 deg, left, 15m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40345833
+longitude_deg = -76.84152222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40345833
+longitude_deg = -76.84152222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40345556
+longitude_deg = -76.84131944
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_29"
+name = "Downhill 29"
+sequence = 29
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_29"
+gate_candidate = true
+notes = "Workbook event 29. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40366667
+longitude_deg = -76.84135000
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40366667
+longitude_deg = -76.84135000
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40410278
+longitude_deg = -76.84147500
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "turn_30"
+name = "Turn 30"
+sequence = 30
+kind = "turn"
+analysis_role = "feature"
+response_group_id = "MD_WB_30"
+gate_candidate = true
+notes = "Workbook event 30. 90 deg, right, 20m radius. Workbook turn direction, angle, and radius control any disagreement."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40410278
+longitude_deg = -76.84147500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40410278
+longitude_deg = -76.84147500
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40419444
+longitude_deg = -76.84135278
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_31"
+name = "Uphill 31"
+sequence = 31
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_31"
+gate_candidate = true
+notes = "Workbook event 31. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40431667
+longitude_deg = -76.84063333
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40431667
+longitude_deg = -76.84063333
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40436111
+longitude_deg = -76.84045278
+horizontal_uncertainty_m = 12.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "bumps_32"
+name = "Bumps 32"
+sequence = 32
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_32"
+gate_candidate = true
+notes = "Workbook event 32. 6 bumps, .4m high, 2m radius, 8m apart. Packed-dirt context from workbook applies; listed dimensions are retained as evidence notes."
+obstacle_profiles = ["builtin.obstacle.rough_interval_v1"]
+
+[events.anchor]
+latitude_deg = 38.40440556
+longitude_deg = -76.84018056
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40440556
+longitude_deg = -76.84018056
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40485556
+longitude_deg = -76.84020556
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_33"
+name = "Downhill 33"
+sequence = 33
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_31"
+gate_candidate = true
+notes = "Workbook event 33. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40497778
+longitude_deg = -76.84062222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40497778
+longitude_deg = -76.84062222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40496111
+longitude_deg = -76.84093333
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_34"
+name = "Uphill 34"
+sequence = 34
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_34"
+gate_candidate = true
+notes = "Workbook event 34. 30 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40496667
+longitude_deg = -76.84103056
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40496667
+longitude_deg = -76.84103056
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40492778
+longitude_deg = -76.84128333
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_35"
+name = "Downhill 35"
+sequence = 35
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_35"
+gate_candidate = true
+notes = "Workbook event 35 (name typo normalized from Dowhill 33). 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40489167
+longitude_deg = -76.84150000
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40489167
+longitude_deg = -76.84150000
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40482500
+longitude_deg = -76.84166944
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "uphill_36"
+name = "Uphill 36"
+sequence = 36
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_36"
+gate_candidate = true
+notes = "Workbook event 36. 10 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40440833
+longitude_deg = -76.84197778
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40440833
+longitude_deg = -76.84197778
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40435556
+longitude_deg = -76.84202778
+horizontal_uncertainty_m = 8.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[[events]]
+id = "downhill_37"
+name = "Downhill 37"
+sequence = 37
+kind = "interval"
+analysis_role = "feature"
+response_group_id = "MD_WB_37"
+gate_candidate = true
+notes = "Workbook event 37. 20 deg. Workbook slope direction and angle retained where notes disagree; GPX grade force remains disabled."
+obstacle_profiles = ["builtin.obstacle.none_v1"]
+
+[events.anchor]
+latitude_deg = 38.40435556
+longitude_deg = -76.84202778
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.start]
+latitude_deg = 38.40435556
+longitude_deg = -76.84202778
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"
+
+[events.end]
+latitude_deg = 38.40429722
+longitude_deg = -76.84237222
+horizontal_uncertainty_m = 5.0
+source = "Maryland CVT Data Entry workbook; workbook controls disagreements"

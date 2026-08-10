@@ -1,0 +1,23 @@
+[study]
+name = "structural_sensitivity"
+type = "structural_sensitivity"
+vehicle_id = "mcmaster"
+random_seed = 20260730
+
+[base_case]
+study = "baseline"
+
+[sensitivity]
+method = "one_at_a_time"
+parameters = ["*"]
+exclude_parameters = []
+quantiles = [0.05, 0.20, 0.50, 0.80, 0.95]
+
+[reporting]
+bootstrap_resamples = 1000
+top_parameter_count = 15
+html_report = true
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01
