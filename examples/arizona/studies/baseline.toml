@@ -82,7 +82,3 @@ reason = "The baseline study begins with the driven wheel at rest by definition.
 [quality]
 maximum_abs_energy_balance_relative_error = 0.01
 maximum_abs_powertrain_balance_relative_error = 0.01
-
-[traffic]
-enabled = true
-config_file = "track/traffic.toml"

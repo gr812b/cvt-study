@@ -83,9 +83,3 @@ reason = "The baseline study begins with the driven wheel at rest by definition.
 maximum_abs_energy_balance_relative_error = 0.01
 maximum_abs_powertrain_balance_relative_error = 0.01
 
-# Empirical endurance traffic is maintained in its own TOML. ProjectLoader
-# resolves this file into the [traffic] tree before uncertainty registration, so
-# traffic quantities behave exactly like the other declared uncertain inputs.
-[traffic]
-enabled = true
-config_file = "track/traffic.toml"
