@@ -16,11 +16,10 @@ reference = "McMaster Baja lumped CVT and final-drive mechanical-efficiency esti
 notes = "Use measured input/output power data or a validated operating map when available."
 
 [drivetrain.efficiency.uncertainty]
-distribution = "triangular"
+distribution = "normal"
 role = "structural"
-lower = 0.935
-mode = 0.95
-upper = 0.965
+mode = 0.9506
+standard_deviation = 0.0077
 
 [drivetrain.final_drive_ratio]
 nominal = 7.925
