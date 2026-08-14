@@ -7,7 +7,7 @@
 # through the bounded/reference CVT and final drive to the driven wheel.
 
 [drivetrain.efficiency]
-nominal = 0.95
+nominal = 0.9506
 unit = "1"
 
 [drivetrain.efficiency.source]
