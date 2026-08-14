@@ -1,0 +1,10 @@
+# McMaster-only Maryland telemetry configuration.
+# ETS geometry and lap-time reconstruction are intentionally disabled for now.
+
+[[runs]]
+file = "fit/McMaster.fit"
+run_id = "mcmaster_maryland_endurance"
+vehicle_id = "vehicle_A"
+driver_id = "ariel"
+use_for_centreline = true
+use_for_gate_evidence = true
