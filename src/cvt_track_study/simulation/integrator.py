@@ -14,6 +14,11 @@ from numpy.typing import NDArray
 from .dynamics import evaluate_dynamics
 from .models import RAD_PER_SECOND_TO_RPM, SimulationSettings, StudyCase
 from .track import RuntimeTrack
+from .traffic import (
+    TrafficRealization,
+    TrafficReferenceProfile,
+    traffic_limit_state,
+)
 
 FloatArray = NDArray[np.float64]
 
@@ -29,6 +34,7 @@ class SimulationTrace:
     integrals: Mapping[str, float]
     feature_entry_speeds_mps: Mapping[str, float]
     feature_obstacle_energy_j: Mapping[str, float]
+    traffic_realization: Mapping[str, Any] | None = None
 
     @property
     def final_time_s(self) -> float:
@@ -102,7 +108,12 @@ def implicit_tire_slip_step(
 
 
 def run_simulation(
-    *, case: StudyCase, track: RuntimeTrack, settings: SimulationSettings
+    *,
+    case: StudyCase,
+    track: RuntimeTrack,
+    settings: SimulationSettings,
+    traffic: TrafficRealization | None = None,
+    traffic_reference: TrafficReferenceProfile | None = None,
 ) -> SimulationTrace:
     step = settings.integration_step_s
     time_s = 0.0
@@ -123,6 +134,7 @@ def run_simulation(
         "aerodynamic_loss_energy_j": 0.0,
         "obstacle_loss_energy_j": 0.0,
         "grade_work_j": 0.0,
+        "traffic_active_time_s": 0.0,
     }
     feature_entry_speeds: dict[str, float] = {}
     feature_obstacle_energy = {feature.identifier: 0.0 for feature in track.features}
@@ -136,6 +148,12 @@ def run_simulation(
                 and feature.interval.local_distance(distance, track.length_m) is not None
             ):
                 feature_entry_speeds[feature.identifier] = speed
+        traffic_ceiling, _traffic_retained = traffic_limit_state(
+            traffic=traffic,
+            reference=traffic_reference,
+            lap_time_s=time_s,
+            distance_m=distance,
+        )
         dynamics = evaluate_dynamics(
             distance_m=distance,
             vehicle_speed_mps=speed,
@@ -143,6 +161,9 @@ def run_simulation(
             case=case,
             track=track,
             feature_entry_speeds_mps=feature_entry_speeds,
+            external_speed_ceiling_mps=(
+                None if not np.isfinite(traffic_ceiling) else traffic_ceiling
+            ),
         )
         road_resistance = (
             dynamics.grade_force_n
@@ -209,6 +230,8 @@ def run_simulation(
         )
 
         actual_step = new_time - time_s
+        if np.isfinite(traffic_ceiling):
+            integrals["traffic_active_time_s"] += actual_step
         average_speed = 0.5 * (speed + new_speed)
         average_wheel_speed = 0.5 * (wheel_speed + new_wheel_speed)
         drive_work = (
@@ -296,6 +319,8 @@ def run_simulation(
         integrals=integrals,
         feature_entry_speeds_mps=feature_entry_speeds,
         feature_obstacle_energy_j=feature_obstacle_energy,
+        traffic=traffic,
+        traffic_reference=traffic_reference,
     )
 
 
@@ -340,6 +365,8 @@ def _report_trace(
     integrals: Mapping[str, float],
     feature_entry_speeds_mps: Mapping[str, float],
     feature_obstacle_energy_j: Mapping[str, float],
+    traffic: TrafficRealization | None,
+    traffic_reference: TrafficReferenceProfile | None,
 ) -> SimulationTrace:
     keys = (
         "time_s", "distance_m", "vehicle_speed_mps", "vehicle_speed_kmh",
@@ -357,16 +384,26 @@ def _report_trace(
         "grade_force_n", "rolling_force_n", "aerodynamic_force_n", "obstacle_force_n",
         "lateral_force_n", "normal_load_n", "vehicle_kinetic_energy_j",
         "wheel_kinetic_energy_j", "total_kinetic_energy_j",
+        "traffic_speed_ceiling_mps", "traffic_retained_fraction", "race_time_s",
     )
     numeric: dict[str, list[float]] = {key: [] for key in keys}
     text: dict[str, list[str]] = {
         "cvt_mode": [], "active_feature_ids": [], "active_feature_names": []
     }
     for t, s, v, omega in zip(times, distances, speeds, wheel_speeds):
+        traffic_ceiling, traffic_retained = traffic_limit_state(
+            traffic=traffic,
+            reference=traffic_reference,
+            lap_time_s=float(t),
+            distance_m=float(s),
+        )
         d = evaluate_dynamics(
             distance_m=float(s), vehicle_speed_mps=float(v), wheel_speed_rad_s=float(omega),
             case=case, track=track,
             feature_entry_speeds_mps=feature_entry_speeds_mps,
+            external_speed_ceiling_mps=(
+                None if not np.isfinite(traffic_ceiling) else traffic_ceiling
+            ),
         )
         target = d.driver.target_speed_mps
         vehicle_ke = 0.5 * case.vehicle.mass_kg * v**2
@@ -409,6 +446,13 @@ def _report_trace(
             "lateral_force_n": d.lateral_force_n, "normal_load_n": d.normal_load_n,
             "vehicle_kinetic_energy_j": vehicle_ke, "wheel_kinetic_energy_j": wheel_ke,
             "total_kinetic_energy_j": vehicle_ke + wheel_ke,
+            "traffic_speed_ceiling_mps": (
+                np.nan if not np.isfinite(traffic_ceiling) else traffic_ceiling
+            ),
+            "traffic_retained_fraction": traffic_retained,
+            "race_time_s": (
+                float(t) if traffic is None else traffic.lap_start_race_time_s + float(t)
+            ),
         }
         for key in keys:
             numeric[key].append(float(values[key]))
@@ -427,4 +471,5 @@ def _report_trace(
         feature_obstacle_energy_j={
             key: float(value) for key, value in feature_obstacle_energy_j.items()
         },
+        traffic_realization=(None if traffic is None else traffic.serializable()),
     )

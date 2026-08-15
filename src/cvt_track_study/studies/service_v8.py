@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -30,6 +30,11 @@ from cvt_track_study.simulation.metrics import (
     summarize_trace,
 )
 from cvt_track_study.simulation.service import SimulationError, resolve_simulation_cases
+from cvt_track_study.simulation.traffic import (
+    TrafficReferenceProfile,
+    traffic_model_from_project,
+    traffic_realization_from_mapping,
+)
 from cvt_track_study.track import build_project_track
 from cvt_track_study.uncertainty import (
     SamplingPlan,
@@ -114,6 +119,11 @@ def run_study_project(
         track_raw=resolution.data["track"],
         bundle=bundle,
     )
+    traffic_model = (
+        traffic_model_from_project(resolution.paths.root)
+        if study_type in {"full_uncertainty", "design_sweep"}
+        else None
+    )
     fingerprint = canonical_fingerprint(
         {
             "schema": "framework-study-v0.8",
@@ -124,6 +134,7 @@ def run_study_project(
             "track": resolution.data["track"],
             "bundle_content_fingerprint": bundle.data.get("content_fingerprint_sha256"),
             "replicates_override": replicates_override,
+            "traffic_model": (None if traffic_model is None else traffic_model.contract()),
         }
     )
     output = (
@@ -165,6 +176,7 @@ def run_study_project(
         workers=workers,
         progress=progress,
         study_fingerprint=fingerprint,
+        traffic_model=traffic_model,
         evidence_assessment=assess_evidence(
             diagnostics=resolution.diagnostics,
             bundle=bundle,
@@ -214,6 +226,7 @@ def _execute(
     workers: int,
     progress: bool,
     study_fingerprint: str,
+    traffic_model: Any | None,
     evidence_assessment: Mapping[str, Any],
 ) -> StudyExecution:
     design_points, sampling_mode, replicates = study_plan(
@@ -237,6 +250,17 @@ def _execute(
         if study_type != "structural_sensitivity"
         else (ScenarioDraw(0, seed, "nominal"),)
     )
+    if traffic_model is not None:
+        horizon_s = float(base_study.get("simulation", {}).get("maximum_time_s", 300.0))
+        scenarios = tuple(
+            replace(
+                scenario,
+                traffic_realization=traffic_model.draw_realization(
+                    scenario_seed=scenario.seed, horizon_s=horizon_s
+                ).serializable(),
+            )
+            for scenario in scenarios
+        )
     reporter = ProgressReporter(total=len(scenarios), label="scenarios", enabled=progress)
 
     def execute_or_resume(scenario: ScenarioDraw) -> dict[str, Any]:
@@ -326,6 +350,7 @@ def _execute(
             "one scenario-level infinite reference shared by every design candidate"
         ),
         "paired_scenarios": True,
+        "traffic_model": ({"enabled": False} if traffic_model is None else {"enabled": True, **traffic_model.contract()}),
         "sampled_input_paths": list(sampler.sampled_paths),
         "sampled_input_count": len(sampler.sampled_paths),
         "declared_stochastic_input_paths_by_role": {
@@ -371,8 +396,18 @@ def _execute_scenario(
     cache: SimulationCache,
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
-    references: dict[tuple[int, str], tuple[dict[str, Any], str]] = {}
+    # With traffic active, the traffic-free infinite-CVT trace is required to
+    # define the shared absolute traffic speed profile. The traffic-aware infinite
+    # reference is then paired with every bounded/design case. We intentionally do
+    # not run an additional traffic-free bounded case for every scenario: it is not
+    # required by the comparison and would add avoidable study runtime.
+    references: dict[
+        tuple[int, str],
+        tuple[dict[str, Any], dict[str, Any], str, TrafficReferenceProfile],
+    ] = {}
     bounded_runs = reference_runs = reference_reuses = persistent_hits = 0
+    traffic = traffic_realization_from_mapping(scenario.traffic_realization)
+
     for design in design_points:
         design_values = (
             {design.path: float(design.value_si)}
@@ -399,31 +434,61 @@ def _execute_scenario(
             raise SimulationError(
                 f"Scenario {scenario.replicate}, design {design.identifier!r} could not form a valid physical case: {exc}"
             ) from exc
-        bounded_record, cached = _run_case_summary_cached(
-            bounded_case, settings, runtime_track, cache
-        )
-        bounded_runs += int(not cached)
-        persistent_hits += int(cached)
+
         key = reference_cache_key(
             scenario.replicate,
             design,
             share_across_designs=study_type == "design_sweep",
         )
         if key in references:
-            reference_record, reference_fingerprint = references[key]
+            reference_free_record, reference_record, reference_fingerprint, traffic_reference = references[key]
             reference_reuses += 1
         else:
-            reference_record, cached = _run_case_summary_cached(
+            reference_free_record, cached = _run_case_summary_cached(
                 reference_case, settings, runtime_track, cache
             )
             reference_runs += int(not cached)
             persistent_hits += int(cached)
+            traffic_reference = TrafficReferenceProfile.from_mapping(
+                reference_free_record["traffic_reference_profile"]
+            )
+            if traffic is None:
+                reference_record = reference_free_record
+            else:
+                reference_record, cached = _run_case_summary_cached(
+                    reference_case,
+                    settings,
+                    runtime_track,
+                    cache,
+                    traffic=traffic,
+                    traffic_reference=traffic_reference,
+                )
+                reference_runs += int(not cached)
+                persistent_hits += int(cached)
             reference_fingerprint = phase6_service._reference_fingerprint(
                 scenario, design, reference_case, runtime_track
             )
-            references[key] = (reference_record, reference_fingerprint)
+            references[key] = (
+                reference_free_record,
+                reference_record,
+                reference_fingerprint,
+                traffic_reference,
+            )
+
+        bounded_record, cached = _run_case_summary_cached(
+            bounded_case,
+            settings,
+            runtime_track,
+            cache,
+            traffic=traffic,
+            traffic_reference=(traffic_reference if traffic is not None else None),
+        )
+        bounded_runs += int(not cached)
+        persistent_hits += int(cached)
+
         bounded_summary = bounded_record["summary"]
         reference_summary = reference_record["summary"]
+        reference_free_summary = reference_free_record["summary"]
         comparison = compare_summaries(bounded_summary, reference_summary)
         row: dict[str, Any] = {
             "replicate": scenario.replicate,
@@ -452,6 +517,10 @@ def _execute_scenario(
             "reference_max_gate_excess_kmh": reference_record["maximum_gate_excess_kmh"],
             "bounded_gates_compliant_0p5_kmh": bounded_record["gates_compliant_0p5_kmh"],
             "reference_gates_compliant_0p5_kmh": reference_record["gates_compliant_0p5_kmh"],
+            "reference_no_traffic_lap_time_s": float(reference_free_summary["lap_time_s"]),
+            "reference_traffic_penalty_s": float(
+                reference_summary["lap_time_s"] - reference_free_summary["lap_time_s"]
+            ),
         }
         row.update({metric: float(comparison[metric]) for metric in METRICS})
         _add_summary_fields(row, "bounded", bounded_summary)
@@ -491,6 +560,10 @@ _SUMMARY_FIELDS = (
     "time_maximum_ratio_s",
     "time_variable_ratio_s",
     "time_minimum_ratio_s",
+    "traffic_active_time_s",
+    "traffic_event_count",
+    "traffic_lap_start_race_time_s",
+    "traffic_minimum_retained_fraction",
 )
 
 
@@ -506,20 +579,40 @@ def _add_summary_fields(row: dict[str, Any], prefix: str, summary: Mapping[str, 
 
 
 def _run_case_summary_cached(
-    case: Any, settings: Any, track: Any, cache: SimulationCache
+    case: Any,
+    settings: Any,
+    track: Any,
+    cache: SimulationCache,
+    *,
+    traffic: Any | None = None,
+    traffic_reference: TrafficReferenceProfile | None = None,
 ) -> tuple[dict[str, Any], bool]:
+    traffic_contract = None if traffic is None else traffic.serializable()
+    reference_fingerprint = (
+        None
+        if traffic_reference is None
+        else canonical_fingerprint(traffic_reference.serializable())
+    )
     key = SimulationCache.key(
         {
-            "schema": "simulation-summary-v1",
+            "schema": "simulation-summary-v2-traffic",
             "case": asdict(case),
             "settings": asdict(settings),
             "track": _track_cache_contract(track),
+            "traffic": traffic_contract,
+            "traffic_reference_fingerprint": reference_fingerprint,
         }
     )
     cached = cache.get(key)
     if cached is not None:
         return cached, True
-    trace = run_simulation(case=case, track=track, settings=settings)
+    trace = run_simulation(
+        case=case,
+        track=track,
+        settings=settings,
+        traffic=traffic,
+        traffic_reference=traffic_reference,
+    )
     summary = summarize_trace(
         trace,
         target_engine_rpm=case.engine.target_rpm,
@@ -535,6 +628,10 @@ def _run_case_summary_cached(
             bool(item["compliant_within_0p5_kmh"]) for item in gate_rows
         ),
     }
+    if traffic is None:
+        record["traffic_reference_profile"] = TrafficReferenceProfile.from_trace(
+            trace, spacing_m=1.0
+        ).serializable()
     cache.put(key, record)
     return record, False
 

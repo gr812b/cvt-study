@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -34,6 +34,7 @@ from cvt_track_study.runtime.provenance import (
 )
 from cvt_track_study.runtime.results import write_results_index
 from cvt_track_study.simulation.service import SimulationError
+from cvt_track_study.simulation.traffic import traffic_model_from_project
 from cvt_track_study.track import build_project_track
 from cvt_track_study.track.robustness import run_track_robustness_project
 from cvt_track_study.uncertainty import (
@@ -136,6 +137,7 @@ def run_joint_ensemble_project(
         track_raw=resolution.data["track"],
         bundle=nominal_bundle,
     )
+    traffic_model = traffic_model_from_project(resolution.paths.root)
     design_points, sampling_mode, replicates = study_plan(
         study_type, raw, registry, replicates_override
     )
@@ -164,6 +166,25 @@ def run_joint_ensemble_project(
         replicates=replicates,
         sampling_layout=sampling_layout,
     )
+    if traffic_model is not None:
+        horizon_s = float(base_study.get("simulation", {}).get("maximum_time_s", 300.0))
+        traffic_by_draw: dict[int, Mapping[str, object]] = {}
+        enriched: list[ScheduledScenario] = []
+        for item in selected:
+            payload = traffic_by_draw.get(item.base_draw_id)
+            if payload is None:
+                payload = traffic_model.draw_realization(
+                    scenario_seed=item.scenario.seed, horizon_s=horizon_s
+                ).serializable()
+                traffic_by_draw[item.base_draw_id] = payload
+            enriched.append(
+                ScheduledScenario(
+                    variant=item.variant,
+                    scenario=replace(item.scenario, traffic_realization=payload),
+                    base_draw_id=item.base_draw_id,
+                )
+            )
+        selected = tuple(enriched)
 
     fingerprint = canonical_fingerprint(
         {
@@ -184,6 +205,7 @@ def run_joint_ensemble_project(
             "replicates_override": replicates_override,
             "sampling_layout": sampling_layout,
             "base_draw_count": schedule_metadata["base_draw_count"],
+            "traffic_model": (None if traffic_model is None else traffic_model.contract()),
         }
     )
     default_output = (
@@ -324,6 +346,7 @@ def run_joint_ensemble_project(
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
         "paired_scenarios": True,
+        "traffic_model": ({"enabled": False} if traffic_model is None else {"enabled": True, **traffic_model.contract()}),
         "reference_cache_policy": (
             "one scenario-level infinite reference shared by every design candidate"
         ),

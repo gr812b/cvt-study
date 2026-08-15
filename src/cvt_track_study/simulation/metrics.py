@@ -82,6 +82,12 @@ def summarize_trace(
         )
     )
     scale = max(abs(transmitted) + initial_ke + abs(energies["net_grade_work_kj"] * 1000.0), 1.0)
+    traffic_payload = trace.traffic_realization or {}
+    traffic_events = traffic_payload.get("events", ()) if isinstance(traffic_payload, dict) else ()
+    traffic_min_retained = min(
+        (float(item.get("retained_speed_fraction", 1.0)) for item in traffic_events if isinstance(item, dict)),
+        default=1.0,
+    )
     summary: dict[str, Any] = {
         "case": trace.case_name,
         "track": trace.track_name,
@@ -101,6 +107,10 @@ def summarize_trace(
         "positive_demand_time_minimum_ratio_s": _time(positive_demand & minimum_ratio, t),
         "time_braking_s": _time(braking, t),
         "time_traction_limited_s": _time(n["tire_utilization"] >= 0.95, t),
+        "traffic_active_time_s": float(integrated.get("traffic_active_time_s", 0.0)),
+        "traffic_event_count": float(len(traffic_events)),
+        "traffic_lap_start_race_time_s": float(traffic_payload.get("lap_start_race_time_s", -1.0)) if isinstance(traffic_payload, dict) else -1.0,
+        "traffic_minimum_retained_fraction": float(traffic_min_retained),
         "maximum_abs_tire_slip_speed_mps": float(np.max(np.abs(n["tire_slip_speed_mps"]))),
         "initial_total_kinetic_energy_kj": initial_ke / 1000.0,
         "final_total_kinetic_energy_kj": final_ke / 1000.0,

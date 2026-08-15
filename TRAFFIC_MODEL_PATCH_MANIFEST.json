@@ -1,0 +1,158 @@
+{
+  "behavior": {
+    "baseline_traffic_free": true,
+    "bounded_and_infinite_share_exact_traffic_world": true,
+    "confidence_labels_audit_only": true,
+    "direct_design_studies_traffic_enabled": true,
+    "full_uncertainty_traffic_enabled": true,
+    "joint_empirical_maryland_event_marks": true,
+    "no_invented_spatial_hotspot_model": true,
+    "route_cases_share_exact_traffic_world_by_base_draw": true,
+    "scenario_reduction_includes_traffic_diversity_features": true,
+    "traffic_ceiling_uses_traffic_free_infinite_reference_speed_profile": true,
+    "uncertainty_informed_design_replays_exact_saved_world": true
+  },
+  "calibration": {
+    "bootstrap_draw_count": 512,
+    "bootstrap_quantiles": {
+      "average_rate_per_hour_4h": [
+        5.773457987059856,
+        8.800802897640057,
+        16.453015760620566,
+        25.99997211268255,
+        29.84675310437792
+      ],
+      "average_rate_per_hour_4h_mean": 16.80254112793621,
+      "correlation": 0.4037979166653231,
+      "field_exponent": [
+        6.159093069439738e-06,
+        0.001968933955135666,
+        2.777364215771902,
+        6.5252282511479756,
+        9.450003470065672
+      ],
+      "initial_rate_per_hour": [
+        18.827112378912833,
+        23.000007862152742,
+        31.422708838240872,
+        41.90271510972534,
+        48.61207023999539
+      ],
+      "levels": [
+        0.025,
+        0.1,
+        0.5,
+        0.9,
+        0.975
+      ]
+    },
+    "field_record_count": 59,
+    "maryland_average_rate_per_hour_4h": 15.913575046063881,
+    "maryland_initial_rate_per_hour": 32.41303783004912,
+    "shared_field_exponent": 2.8350427021460742,
+    "source_event_count": 58,
+    "source_model_aic": {
+      "clock_exponential": 633.9372328537011,
+      "field_survival": 634.0951108747361,
+      "homogeneous": 633.0983301456871
+    },
+    "source_observer_exposure_h": 1.5,
+    "source_stream_initial_rates_per_hour": {
+      "CWRU": 86.55824402722239,
+      "ETS": 38.84451124464704
+    },
+    "source_time_rescaling_ks_pvalue": 0.4353842138196783,
+    "target_event_count": 26,
+    "target_observer_exposure_h": 1.0,
+    "target_time_rescaling_ks_pvalue": 0.26305754773211765
+  },
+  "calibration_fingerprint": "e59d3f1808e506a63b4356c0d9a1f29d4552cfb3ad12c5bfc78a476789311dc1",
+  "evidence_sha256": {
+    "projects/maryland/track/traffic/arizona_2025_field_survival_derived.csv": "6945e909f3a214da577f2893d6b9318d9cc682b43980c5b91c67958d0c124e6e",
+    "projects/maryland/track/traffic/cwru_az_2025_cleaned.csv": "db099143c71e09bea6434b7eb04019404d6a7df19bc182cbc90b063f1cc5684c",
+    "projects/maryland/track/traffic/ets_az_2025_cleaned.csv": "9c5e0d4936ebbbec7cc69a64cc46240147ad8b2c825f10c34bdc00d67223bd2b",
+    "projects/maryland/track/traffic/maryland_2025_traffic_observations.csv": "8ed49e33610d39f89860b21ee1908481c5f09e52293bef73d0ba9e55ea76e798"
+  },
+  "files": [
+    "TRAFFIC_MODEL_DROP_OVER_ROOT.md",
+    "TRAFFIC_MODEL_VALIDATION.md",
+    "apply_traffic_model.ps1",
+    "projects/maryland/track/traffic.toml",
+    "projects/maryland/track/traffic/DATA_PROVENANCE.md",
+    "projects/maryland/track/traffic/arizona_2025_field_survival_derived.csv",
+    "projects/maryland/track/traffic/cwru_az_2025_cleaned.csv",
+    "projects/maryland/track/traffic/ets_az_2025_cleaned.csv",
+    "projects/maryland/track/traffic/maryland_2025_traffic_observations.csv",
+    "src/cvt_track_study/reports/traffic.py",
+    "src/cvt_track_study/simulation/traffic.py",
+    "tests/test_traffic_model.py",
+    "tools/apply_traffic_model.py"
+  ],
+  "model": "target_scaled_field_survival_power_nhpp_empirical_marks_v3",
+  "patch_name": "Maryland empirical endurance traffic model",
+  "patch_revision": 1,
+  "predictive_validation_3000_replicates": [
+    {
+      "metric": "Total event count",
+      "observed": 26.0,
+      "observed_percentile": 0.5906666666666667,
+      "predictive_mean": 25.273333333333333,
+      "predictive_p05": 14.0,
+      "predictive_p50": 25.0,
+      "predictive_p95": 38.04999999999973
+    },
+    {
+      "metric": "Fraction of observer time in annotated traffic",
+      "observed": 0.1786111111111111,
+      "observed_percentile": 0.674,
+      "predictive_mean": 0.15737603891546734,
+      "predictive_p05": 0.07937267766167451,
+      "predictive_p50": 0.15474686245824065,
+      "predictive_p95": 0.241800166149997
+    },
+    {
+      "metric": "Mean event duration (s)",
+      "observed": 24.73076923076923,
+      "observed_percentile": 0.5253333333333333,
+      "predictive_mean": 24.691797785029543,
+      "predictive_p05": 18.155844907407406,
+      "predictive_p50": 24.478221415607983,
+      "predictive_p95": 31.366287878787865
+    },
+    {
+      "metric": "Mean retained speed fraction",
+      "observed": 0.5846153846153845,
+      "observed_percentile": 0.491,
+      "predictive_mean": 0.5849132500749223,
+      "predictive_p05": 0.5,
+      "predictive_p50": 0.5859126984126984,
+      "predictive_p95": 0.6611200716845879
+    },
+    {
+      "metric": "Yellow-flag event fraction",
+      "observed": 0.34615384615384615,
+      "observed_percentile": 0.5083333333333333,
+      "predictive_mean": 0.34722015016739716,
+      "predictive_p05": 0.19221611721611725,
+      "predictive_p50": 0.34615384615384615,
+      "predictive_p95": 0.5
+    },
+    {
+      "metric": "Stop-like restriction fraction (retained speed = 0)",
+      "observed": 0.07692307692307693,
+      "observed_percentile": 0.5523333333333333,
+      "predictive_mean": 0.0770869691629611,
+      "predictive_p05": 0.0,
+      "predictive_p50": 0.07142857142857142,
+      "predictive_p95": 0.17404092071611182
+    }
+  ],
+  "target": "latest production main with route-family v11; compatible with optional performance overlay",
+  "traffic_schema_version": 3,
+  "verification": {
+    "compileall": "passed for overlay src/tests/tools",
+    "complete_upstream_test_suite_run_here": false,
+    "installer": "transactional narrow transformer; full integration-shape test supplied for execution after applying to the repository",
+    "overlay_model_report_tests": "7 passed, 1 integration-shape test deselected because the complete repository is not mounted here"
+  }
+}

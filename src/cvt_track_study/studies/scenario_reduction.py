@@ -759,6 +759,45 @@ def _feature_frame(
             for alternative in sorted(alternatives):
                 features[f"choice:{path}={alternative}"] = float(selected == alternative)
 
+        # Traffic is a stochastic source-world input even though it is generated
+        # from an empirical point process rather than the ordinary quantity
+        # registry. Include compact descriptors in the diversity calculation.
+        # The exact traffic realization is still replayed; these are selection
+        # features only.
+        traffic = scenario.get("traffic_realization")
+        if isinstance(traffic, Mapping):
+            for field in (
+                "lap_start_race_time_s",
+                "initial_rate_per_hour",
+                "field_exponent",
+            ):
+                number = _number(traffic.get(field))
+                if math.isfinite(number):
+                    features[f"traffic:{field}"] = number
+            raw_events = traffic.get("events", ())
+            if isinstance(raw_events, Sequence) and not isinstance(raw_events, (str, bytes)):
+                event_count = 0
+                total_duration = 0.0
+                minimum_retained = 1.0
+                restriction_burden = 0.0
+                for raw_event in raw_events:
+                    if not isinstance(raw_event, Mapping):
+                        continue
+                    duration = _number(raw_event.get("duration_s"))
+                    retained = _number(raw_event.get("retained_speed_fraction"))
+                    if not (math.isfinite(duration) and math.isfinite(retained)):
+                        continue
+                    duration = max(0.0, duration)
+                    retained = min(1.0, max(0.0, retained))
+                    event_count += 1
+                    total_duration += duration
+                    minimum_retained = min(minimum_retained, retained)
+                    restriction_burden += duration * (1.0 - retained)
+                features["traffic:event_count"] = float(event_count)
+                features["traffic:total_annotated_duration_s"] = total_duration
+                features["traffic:minimum_retained_fraction"] = minimum_retained
+                features["traffic:restriction_burden_s"] = restriction_burden
+
         efficiency = _number(quantities.get("drivetrain.efficiency"))
         power_scale = _number(quantities.get("drivetrain.engine.power_scale"))
         if math.isfinite(efficiency) and math.isfinite(power_scale):

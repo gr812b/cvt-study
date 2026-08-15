@@ -53,11 +53,14 @@ def driver_command(
     vehicle_speed_mps: float,
     driver: DriverModel,
     braking_deceleration_mps2: float,
+    external_speed_ceiling_mps: float | None = None,
 ) -> DriverCommand:
     target = track.safe_speed_ceiling_mps(
         distance_m,
         braking_deceleration_mps2=braking_deceleration_mps2,
     )
+    if external_speed_ceiling_mps is not None and isfinite(float(external_speed_ceiling_mps)):
+        target = min(target, max(0.0, float(external_speed_ceiling_mps)))
     if not isfinite(target):
         return DriverCommand(throttle=1.0, brake_force_n=0.0, target_speed_mps=target)
     # The kinematic envelope is the speed from which the declared effective
@@ -82,6 +85,7 @@ def evaluate_dynamics(
     case: StudyCase,
     track: RuntimeTrack,
     feature_entry_speeds_mps: Mapping[str, float] | None = None,
+    external_speed_ceiling_mps: float | None = None,
 ) -> DynamicsSample:
     vehicle_speed = max(0.0, float(vehicle_speed_mps))
     wheel_speed = max(0.0, float(wheel_speed_rad_s))
@@ -111,6 +115,7 @@ def evaluate_dynamics(
         vehicle_speed_mps=vehicle_speed,
         driver=case.driver,
         braking_deceleration_mps2=max(effective_braking_deceleration, 1.0e-9),
+        external_speed_ceiling_mps=external_speed_ceiling_mps,
     )
     powertrain = evaluate_powertrain(
         wheel_speed_rad_s=wheel_speed,

@@ -372,6 +372,8 @@ def run_uncertainty_informed_design_project(
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
         "paired_scenarios": True,
+        "traffic_model": source.manifest.get("traffic_model", {"enabled": False}),
+        "traffic_replay_policy": "exact_source_traffic_world_replay",
         "reference_cache_policy": (
             "one scenario-level infinite reference shared by every design candidate"
         ),
@@ -490,6 +492,8 @@ def _scenario_from_source(
         str(path): float(value)
         for path, value in dict(record.get("gate_target_speeds_mps", {})).items()
     }
+    traffic_raw = record.get("traffic_realization")
+    traffic_payload = dict(traffic_raw) if isinstance(traffic_raw, Mapping) else None
     return ScenarioDraw(
         replicate=new_replicate,
         seed=int(record.get("seed", 0)),
@@ -503,4 +507,5 @@ def _scenario_from_source(
             for value in record.get("independently_sampled_gate_ids", ())
         ),
         sampling_design="replayed_from_completed_full_uncertainty_result",
+        traffic_realization=traffic_payload,
     )

@@ -17,6 +17,7 @@ from .runtime.cache import SimulationCache
 from .runtime.doctor import run_doctor
 from .runtime.migration import migrate_prototype_events
 from .runtime.results import discover_results, write_results_index
+from .reports.traffic import write_traffic_calibration_project
 from .simulation import SimulationError, run_baseline_project
 from .studies import run_study_project
 from .track import build_project_track
@@ -78,6 +79,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     build_track_parser.add_argument("project", type=Path)
     build_track_parser.add_argument("--output", type=Path)
+
+    traffic_parser = subparsers.add_parser(
+        "calibrate-traffic",
+        help="Calibrate and audit the empirical endurance-traffic model without running vehicle simulation.",
+    )
+    traffic_parser.add_argument("project", type=Path)
+    traffic_parser.add_argument("--output", type=Path)
 
     review_parser = subparsers.add_parser(
         "review",
@@ -200,6 +208,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Ingested {result.metadata.run_id}: {len(result.points)} valid point(s), {len(result.segments)} segment(s).")
             print(f"Ingestion artifacts: {output}")
             return 1 if any(result.error_count for result in results) else 0
+        if args.command == "calibrate-traffic":
+            report = write_traffic_calibration_project(
+                args.project, output_directory=args.output
+            )
+            print(f"Traffic calibration report: {report}")
+            return 0
         if args.command == "run" and args.run_command in {"nominal", "baseline"}:
             print("Resolving project and nominal track bundle...")
             output = run_baseline_project(

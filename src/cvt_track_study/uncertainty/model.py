@@ -29,6 +29,7 @@ class ScenarioDraw:
     gate_sample_identity: GateSampleIdentity | None = None
     independently_sampled_gate_ids: tuple[str, ...] = ()
     sampling_design: str = "latin_hypercube_rank_correlated"
+    traffic_realization: Mapping[str, object] | None = None
 
     def serializable(self) -> dict[str, object]:
         identity = None
@@ -54,5 +55,8 @@ class ScenarioDraw:
             "gate_sample_identity": identity,
             "independently_sampled_gate_ids": list(
                 self.independently_sampled_gate_ids
+            ),
+            "traffic_realization": (
+                None if self.traffic_realization is None else dict(self.traffic_realization)
             ),
         }

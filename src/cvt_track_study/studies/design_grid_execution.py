@@ -15,6 +15,10 @@ from cvt_track_study.bundle import TrackBundle
 from cvt_track_study.runtime import SimulationCache
 from cvt_track_study.simulation.metrics import compare_summaries
 from cvt_track_study.simulation.service import SimulationError, resolve_simulation_cases
+from cvt_track_study.simulation.traffic import (
+    TrafficReferenceProfile,
+    traffic_realization_from_mapping,
+)
 from cvt_track_study.uncertainty import ScenarioDraw
 
 from . import service as phase6_service
@@ -46,8 +50,12 @@ def execute_design_grid_scenario(
 
     points = tuple(design_points)
     rows: list[dict[str, Any]] = []
-    references: dict[tuple[int, str], tuple[dict[str, Any], str]] = {}
+    references: dict[
+        tuple[int, str],
+        tuple[dict[str, Any], dict[str, Any], str, TrafficReferenceProfile],
+    ] = {}
     bounded_runs = reference_runs = reference_reuses = persistent_hits = 0
+    traffic = traffic_realization_from_mapping(scenario.traffic_realization)
 
     all_design_paths = design_paths(points)
     share_reference = (
@@ -78,33 +86,60 @@ def execute_design_grid_scenario(
                 f"could not form a valid physical case: {exc}"
             ) from exc
 
-        bounded_record, cached = service_v8._run_case_summary_cached(
-            bounded_case, settings, runtime_track, cache
-        )
-        bounded_runs += int(not cached)
-        persistent_hits += int(cached)
-
         key = reference_cache_key(
             scenario.replicate,
             design,
             share_across_designs=share_reference,
         )
         if key in references:
-            reference_record, reference_fingerprint = references[key]
+            reference_free_record, reference_record, reference_fingerprint, traffic_reference = references[key]
             reference_reuses += 1
         else:
-            reference_record, cached = service_v8._run_case_summary_cached(
+            reference_free_record, cached = service_v8._run_case_summary_cached(
                 reference_case, settings, runtime_track, cache
             )
             reference_runs += int(not cached)
             persistent_hits += int(cached)
+            traffic_reference = TrafficReferenceProfile.from_mapping(
+                reference_free_record["traffic_reference_profile"]
+            )
+            if traffic is None:
+                reference_record = reference_free_record
+            else:
+                reference_record, cached = service_v8._run_case_summary_cached(
+                    reference_case,
+                    settings,
+                    runtime_track,
+                    cache,
+                    traffic=traffic,
+                    traffic_reference=traffic_reference,
+                )
+                reference_runs += int(not cached)
+                persistent_hits += int(cached)
             reference_fingerprint = phase6_service._reference_fingerprint(
                 scenario, design, reference_case, runtime_track
             )
-            references[key] = (reference_record, reference_fingerprint)
+            references[key] = (
+                reference_free_record,
+                reference_record,
+                reference_fingerprint,
+                traffic_reference,
+            )
+
+        bounded_record, cached = service_v8._run_case_summary_cached(
+            bounded_case,
+            settings,
+            runtime_track,
+            cache,
+            traffic=traffic,
+            traffic_reference=(traffic_reference if traffic is not None else None),
+        )
+        bounded_runs += int(not cached)
+        persistent_hits += int(cached)
 
         bounded_summary = bounded_record["summary"]
         reference_summary = reference_record["summary"]
+        reference_free_summary = reference_free_record["summary"]
         comparison = compare_summaries(bounded_summary, reference_summary)
         display_values = design_display_values(design)
         quantity_values_si = design_quantity_values_si(design)
@@ -174,11 +209,15 @@ def execute_design_grid_scenario(
             "reference_gates_compliant_0p5_kmh": reference_record[
                 "gates_compliant_0p5_kmh"
             ],
+            "reference_no_traffic_lap_time_s": float(reference_free_summary["lap_time_s"]),
+            "reference_traffic_penalty_s": float(
+                reference_summary["lap_time_s"] - reference_free_summary["lap_time_s"]
+            ),
         }
-        for index, (path, value) in enumerate(display_values.items()):
-            row[f"design_axis_{index}_path"] = path
+        for index, (axis_path, value) in enumerate(display_values.items()):
+            row[f"design_axis_{index}_path"] = axis_path
             row[f"design_axis_{index}_value"] = value
-            row[f"design::{path}"] = value
+            row[f"design::{axis_path}"] = value
         row.update({metric: float(comparison[metric]) for metric in METRICS})
         service_v8._add_summary_fields(row, "bounded", bounded_summary)
         service_v8._add_summary_fields(row, "reference", reference_summary)

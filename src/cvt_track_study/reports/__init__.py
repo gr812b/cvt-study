@@ -20,11 +20,13 @@ from .postprocess import (
     write_track_evidence_report,
 )
 from .uncertainty_mechanism import enhance_full_uncertainty_report
+from .traffic import augment_full_uncertainty_traffic_report
 
 
 def write_full_uncertainty_report(output: Path) -> Path:
     target = _write_full_uncertainty_report(output)
-    return enhance_full_uncertainty_report(Path(output), target)
+    target = enhance_full_uncertainty_report(Path(output), target)
+    return augment_full_uncertainty_traffic_report(Path(output)) or target
 
 
 def regenerate_framework_report(output: Path) -> Path:
@@ -36,6 +38,7 @@ def regenerate_framework_report(output: Path) -> Path:
         raw = json.loads(manifest.read_text(encoding="utf-8"))
         if str(raw.get("study_type", "")) == "full_uncertainty":
             target = enhance_full_uncertainty_report(Path(output), target)
+            target = augment_full_uncertainty_traffic_report(Path(output)) or target
     return target
 
 

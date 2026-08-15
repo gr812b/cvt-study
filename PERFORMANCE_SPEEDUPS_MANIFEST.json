@@ -1,0 +1,57 @@
+{
+  "compatibility_target": "current main plus route-family overlay v11",
+  "files": [
+    {
+      "bytes": 2619,
+      "path": "PERFORMANCE_SPEEDUPS.md",
+      "sha256": "0bd3f8f639e241352b0ef8bc6f714781def13914f2ba85bf4a62e0a4333abca5"
+    },
+    {
+      "bytes": 421,
+      "path": "apply_performance_speedups.ps1",
+      "sha256": "2a95804261679f151e99b4a71d36355539332f9df5adb859e5166a354edbdbf3"
+    },
+    {
+      "bytes": 1806,
+      "path": "src/cvt_track_study/runtime/process_pool.py",
+      "sha256": "e42fa911fec0cedd664a18e5bba1d4ae3bc7674b3249745ec2f2ca426e5bbfae"
+    },
+    {
+      "bytes": 1678,
+      "path": "tests/test_performance_speedups.py",
+      "sha256": "96910aced18a1ea5403318618f2adbf9e989c22119241d5112760c31453df689"
+    },
+    {
+      "bytes": 18844,
+      "path": "tools/apply_performance_speedups.py",
+      "sha256": "8979e379c46912425875e584ebafea3b3585a4bf50e348f84dd4732659e068ff"
+    }
+  ],
+  "format": "drop-over-repository-root-plus-one-time-transformer",
+  "name": "cvt-study-performance-speedups",
+  "source_review": {
+    "branch": "maxChanges",
+    "explicitly_excluded": [
+      "traffic model and traffic uncertainty",
+      "project configuration/parameter changes",
+      "generated simulation cache files",
+      "README replacement",
+      "integration step/tolerance/physics changes"
+    ],
+    "included_concepts": [
+      "process-based CPU parallelism for study scenarios",
+      "worker-local static study context",
+      "parent-owned checkpoints and cache accounting",
+      "prompt process-pool interruption",
+      "ordered feature-entry crossing detection"
+    ],
+    "source_commit": "74c4b3505bbdca79a96e28257009738e6c1c7cff"
+  },
+  "validation": {
+    "full_repository_test_suite_run": false,
+    "overlay_python_compile": true,
+    "process_pool_smoke_test": true,
+    "synthetic_current-shape_transform": true,
+    "transformed_synthetic_compile": true
+  }
+}
