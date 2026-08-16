@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--no-export", action="store_true")
     validate_parser.add_argument("--strict", action="store_true")
 
-    ingest_parser = subparsers.add_parser("ingest", help="Parse GPX/FIT and export canonical telemetry.")
+    ingest_parser = subparsers.add_parser("ingest", help="Parse GPX/FIT/CSV and export canonical telemetry.")
     ingest_parser.add_argument("project", type=Path)
     ingest_parser.add_argument("--run", dest="run_ids", action="append", default=[])
     ingest_parser.add_argument("--output", type=Path)

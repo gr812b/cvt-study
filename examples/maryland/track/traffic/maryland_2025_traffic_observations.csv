@@ -1,0 +1,27 @@
+source_order,event_timestamp,event_type,duration_s,retained_speed_fraction,confidence
+1,1:50,slowdown,10,0.8,High
+2,2:17,yellow flag,28,0.0,High
+3,5:30,yellow flag,30,0.4,Medium
+4,6:08,yellow flag,60,0.0,High
+5,7:55,yellow flag,5,0.6,Medium
+6,8:50,yellow flag,80,0.3,Low
+7,12:00,yellow flag,15,0.5,Medium
+8,12:25,slowdown,30,0.7,High
+9,14:15,yellow flag,20,0.5,High
+10,19:10,slowdown,5,0.5,High
+11,20:34,slowdown,11,0.7,High
+12,21:20,yellow flag,60,0.4,Medium
+13,24:05,slowdown,13,0.6,High
+14,25:40,slowdown,3,0.6,High
+15,27:48,slowdown,16,0.7,High
+16,28:48,slowdown,7,0.8,High
+17,31:37,slowdown,39,0.8,Medium
+18,34:34,slowdown,10,0.8,High
+19,40:15,slowdown,35,0.3,Low
+20,41:05,slowdown,60,0.9,Medium
+21,43:28,slowdown,30,0.6,High
+22,49:35,slowdown,20,0.7,High
+23,50:40,slowdown,20,0.8,High
+24,52:16,slowdown,15,0.7,Medium
+25,58:05,slowdown,5,0.9,High
+26,59:18,yellow flag,16,0.6,Medium

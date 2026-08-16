@@ -37,6 +37,7 @@ class SamplingPlan:
     correlation_groups: tuple[CorrelationGroup, ...] = ()
     gate_sampling: str = "paired_lap"
     sampling_design: str = "latin_hypercube"
+    target_vehicle_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +68,9 @@ class ScenarioSampler:
             )
         self._selected = self._select_inputs()
         self._groups = self._validate_correlations()
-        self._gate_samples = _gate_samples(bundle)
+        self._gate_samples = _gate_samples(
+            bundle, target_vehicle_id=plan.target_vehicle_id
+        )
 
     @property
     def sampled_paths(self) -> tuple[str, ...]:
@@ -343,10 +346,20 @@ def correlation_groups_from_study(raw: Mapping[str, Any]) -> tuple[CorrelationGr
 
 def _gate_samples(
     bundle: TrackBundle,
+    *,
+    target_vehicle_id: str | None = None,
 ) -> dict[str, dict[tuple[str, int, str, str], _GateObservation]]:
     rows: dict[str, dict[tuple[str, int, str, str], _GateObservation]] = {}
     for gate in bundle.active_speed_gates:
-        samples = gate["target_speed_distribution"]["samples"]
+        samples = list(gate["target_speed_distribution"]["samples"])
+        if target_vehicle_id is not None:
+            matching = [
+                sample
+                for sample in samples
+                if str(sample.get("vehicle_id", "")) == str(target_vehicle_id)
+            ]
+            if matching:
+                samples = matching
         parsed: dict[tuple[str, int, str, str], _GateObservation] = {}
         for sample in samples:
             key = (

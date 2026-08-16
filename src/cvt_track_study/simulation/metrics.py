@@ -183,6 +183,8 @@ def gate_compliance_rows(
                 "gate_id": gate.identifier,
                 "response_group_id": gate.response_group_id,
                 "name": gate.name,
+                "gate_type": gate.gate_type,
+                "enforcement_class": gate.enforcement_class,
                 "position_s_m": gate.position_s_m,
                 "target_speed_mps": gate.target_speed_mps,
                 "simulated_speed_mps": simulated,

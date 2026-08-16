@@ -18,6 +18,12 @@ from cvt_track_study.gpx.cleanup import (
 from .geo import Centreline, LocalFrame
 from .laps import (
     _append_lap_quality_flag,
+    _circular_smooth,
+    _finite_column_stat,
+    _interp_with_nan,
+    _lap_segment,
+    _resample_lap_for_consensus,
+    _uniform_centreline,
     build_centreline,
     centreline_distance_summary,
     map_match_laps,
@@ -66,6 +72,18 @@ def build_iterative_consensus(
         raise ValueError(
             "No provisionally valid laps are enabled for "
             "centreline consensus."
+        )
+
+    active_rows = state[state["lap_id"].astype(int).isin(active)]
+    source_count = int(active_rows["vehicle_id"].astype(str).nunique())
+    if source_count >= 2:
+        diagnostics.info(
+            "CENTRELINE_SOURCE_BALANCED",
+            (
+                f"Centreline consensus balances {source_count} measured vehicle/source "
+                "consensuses equally. Repeated laps refine each source but do not give "
+                "one vehicle proportional voting power over the physical course."
+            ),
         )
 
     if len(active) < settings.consensus_minimum_laps:
@@ -389,41 +407,47 @@ def evaluate_leave_one_out(
     frame: LocalFrame,
     settings: ReconstructionSettings,
 ) -> pd.DataFrame:
+    """Evaluate each lap against a centreline built from all other laps.
+
+    The historical implementation called :func:`build_centreline` once per
+    held-out lap.  With N laps that re-aligned essentially the same N-1 lap
+    traces N times, turning leave-one-out screening into an O(N^2) geometry
+    alignment step.  The alignment target is the same ``full_centreline`` for
+    every held-out case, so each lap can be aligned and resampled once.  The
+    pointwise median with one row removed is then exactly the same construction
+    as the historical call.
+
+    This is a computational refactor only: the smoothing, lap-gate anchor,
+    uniform re-spacing, map matching, and screening metrics are unchanged.
+    """
     rows: list[dict[str, Any]] = []
     if len(active_lap_ids) < 2:
-        return pd.DataFrame(
-            columns=_metric_columns()
-        )
+        return pd.DataFrame(columns=_metric_columns())
+
+    prepared = _prepare_leave_one_out_centreline_inputs(
+        points,
+        laps,
+        active_lap_ids,
+        full_centreline,
+        settings,
+    )
 
     for lap_id in sorted(active_lap_ids):
-        other_ids = active_lap_ids - {lap_id}
-        if not other_ids:
-            continue
-        leave_one_out = build_centreline(
-            points,
-            laps,
-            frame,
-            settings,
-            lap_ids=other_ids,
-            alignment_centreline=full_centreline,
+        leave_one_out = _build_leave_one_out_centreline(
+            prepared,
+            held_out_lap_id=lap_id,
+            frame=frame,
+            settings=settings,
         )
         lap = laps[
-            laps["lap_id"].astype(int)
-            == int(lap_id)
+            laps["lap_id"].astype(int) == int(lap_id)
         ].iloc[0]
-        segment = points.loc[
-            int(lap["start_global_index"])
-            : int(lap["end_global_index"])
-        ].copy()
-        segment = segment.dropna(
-            subset=["x_m", "y_m"]
-        ).sort_index()
+        segment = _lap_segment(points, lap)
         mapped = map_segment_to_centreline(
             segment, leave_one_out
         )
         errors = pd.to_numeric(
-            mapped["map_error_m"],
-            errors="coerce",
+            mapped["map_error_m"], errors="coerce"
         ).to_numpy(float)
         finite = errors[np.isfinite(errors)]
         if not len(finite):
@@ -434,13 +458,11 @@ def evaluate_leave_one_out(
                 leave_one_out,
             )
         )
-        sustained_fraction = (
-            _uniform_sustained_fraction(
-                mapped,
-                leave_one_out,
-                settings.consensus_sustained_error_threshold_m,
-                settings.centreline_spacing_m,
-            )
+        sustained_fraction = _uniform_sustained_fraction(
+            mapped,
+            leave_one_out,
+            settings.consensus_sustained_error_threshold_m,
+            settings.centreline_spacing_m,
         )
         matched_s = pd.to_numeric(
             mapped["s_m"], errors="coerce"
@@ -461,13 +483,9 @@ def evaluate_leave_one_out(
                     sustained_fraction
                 ),
                 "loo_large_backward_match_count": int(
-                    np.sum(
-                        np.diff(matched_s) < -20.0
-                    )
+                    np.sum(np.diff(matched_s) < -20.0)
                 ),
-                "loo_p95_centreline_shift_m": (
-                    p95_shift
-                ),
+                "loo_p95_centreline_shift_m": p95_shift,
                 "loo_maximum_centreline_shift_m": (
                     maximum_shift
                 ),
@@ -477,6 +495,134 @@ def evaluate_leave_one_out(
         columns=_metric_columns()
     )
 
+
+def _prepare_leave_one_out_centreline_inputs(
+    points: pd.DataFrame,
+    laps: pd.DataFrame,
+    active_lap_ids: set[int],
+    full_centreline: Centreline,
+    settings: ReconstructionSettings,
+) -> dict[str, Any]:
+    """Align each active lap once to the common full-consensus centreline."""
+    selected = laps[
+        laps["lap_id"].astype(int).isin(active_lap_ids)
+    ]
+    records: list[tuple[int, dict[str, np.ndarray | float]]] = []
+    for _, lap in selected.iterrows():
+        record = _resample_lap_for_consensus(
+            _lap_segment(points, lap),
+            settings,
+            full_centreline,
+        )
+        if record is not None:
+            records.append((int(lap["lap_id"]), record))
+    if len(records) < 2:
+        raise ValueError(
+            "Leave-one-out consensus requires at least two usable lap traces."
+        )
+
+    target_length = full_centreline.length_m
+    node_count = max(
+        4,
+        int(math.ceil(target_length / settings.centreline_spacing_m)) + 1,
+    )
+    target_fraction = np.linspace(0.0, 1.0, node_count)
+
+    lap_ids: list[int] = []
+    x_rows: list[np.ndarray] = []
+    y_rows: list[np.ndarray] = []
+    elevation_rows: list[np.ndarray] = []
+    endpoint_x: list[float] = []
+    endpoint_y: list[float] = []
+    for lap_id, record in records:
+        source_fraction = np.asarray(record["fraction"], dtype=float)
+        x = np.asarray(record["x_m"], dtype=float)
+        y = np.asarray(record["y_m"], dtype=float)
+        elevation = np.asarray(record["elevation_m"], dtype=float)
+        lap_ids.append(lap_id)
+        x_rows.append(np.interp(target_fraction, source_fraction, x))
+        y_rows.append(np.interp(target_fraction, source_fraction, y))
+        elevation_rows.append(
+            _interp_with_nan(
+                target_fraction,
+                source_fraction,
+                elevation,
+            )
+        )
+        endpoint_x.append(float(record["endpoint_x_m"]))
+        endpoint_y.append(float(record["endpoint_y_m"]))
+
+    return {
+        "lap_ids": np.asarray(lap_ids, dtype=int),
+        "x_rows": np.vstack(x_rows),
+        "y_rows": np.vstack(y_rows),
+        "elevation_rows": np.vstack(elevation_rows),
+        "endpoint_x": np.asarray(endpoint_x, dtype=float),
+        "endpoint_y": np.asarray(endpoint_y, dtype=float),
+    }
+
+
+def _build_leave_one_out_centreline(
+    prepared: Mapping[str, Any],
+    *,
+    held_out_lap_id: int,
+    frame: LocalFrame,
+    settings: ReconstructionSettings,
+) -> Centreline:
+    """Reproduce ``build_centreline(..., lap_ids=others)`` from cached rows."""
+    lap_ids = np.asarray(prepared["lap_ids"], dtype=int)
+    keep = lap_ids != int(held_out_lap_id)
+    if not np.any(keep):
+        raise ValueError(
+            "Leave-one-out consensus cannot remove its only usable lap."
+        )
+
+    x_rows = np.asarray(prepared["x_rows"], dtype=float)
+    y_rows = np.asarray(prepared["y_rows"], dtype=float)
+    elevation_rows = np.asarray(
+        prepared["elevation_rows"], dtype=float
+    )
+    endpoint_x = np.asarray(prepared["endpoint_x"], dtype=float)
+    endpoint_y = np.asarray(prepared["endpoint_y"], dtype=float)
+
+    consensus_x = np.array(
+        np.median(x_rows[keep], axis=0), dtype=float, copy=True
+    )
+    consensus_y = np.array(
+        np.median(y_rows[keep], axis=0), dtype=float, copy=True
+    )
+    consensus_elevation = np.array(
+        _finite_column_stat(elevation_rows[keep], "median"),
+        dtype=float,
+        copy=True,
+    )
+    consensus_x = _circular_smooth(
+        consensus_x,
+        settings.consensus_smoothing_window_nodes,
+    )
+    consensus_y = _circular_smooth(
+        consensus_y,
+        settings.consensus_smoothing_window_nodes,
+    )
+
+    gate_x = float(np.median(endpoint_x[keep]))
+    gate_y = float(np.median(endpoint_y[keep]))
+    consensus_x[0] = consensus_x[-1] = gate_x
+    consensus_y[0] = consensus_y[-1] = gate_y
+    if np.isfinite(consensus_elevation[[0, -1]]).any():
+        gate_elevation = float(
+            np.nanmedian(consensus_elevation[[0, -1]])
+        )
+        consensus_elevation[0] = gate_elevation
+        consensus_elevation[-1] = gate_elevation
+
+    return _uniform_centreline(
+        consensus_x,
+        consensus_y,
+        consensus_elevation,
+        frame,
+        settings.centreline_spacing_m,
+    )
 
 def _select_outliers(
     metrics: pd.DataFrame,

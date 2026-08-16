@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from cvt_track_study import __version__
 from cvt_track_study.track.model import TrackBuildResult
 from cvt_track_study.track.settings import ReconstructionSettings
@@ -41,11 +43,16 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
     speed_gates = _simulatable_speed_gates(speed_gate_contracts(result, length))
     simulation_contract = {
         "track_length_m": length,
+        "global_speed_guardrail_mps": settings.maximum_reasonable_speed_mps,
+        "global_speed_guardrail_semantics": (
+            "very permissive non-fitted fallback ceiling; reused from the declared "
+            "maximum reasonable telemetry speed so no simulated world is globally uncapped"
+        ),
         "grade_force_enabled": False,
         "grade_screen": grade_screen,
         "capabilities": {
             "speed_gates_ready": bool(
-                (result.gate_review["recommendation"] == "accepted").any()
+                speed_gates or np.isfinite(settings.maximum_reasonable_speed_mps)
             ),
             "obstacle_models_ready": obstacle_models_ready,
             "uncertainty_roles_ready": obstacle_models_ready,
@@ -106,7 +113,7 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 "records": records(result.laps),
             },
             "gate_confidence_method": {
-                "method_version": "1.3.0-route-family-shared-contract",
+                "method_version": "1.4.0-source-balanced-hierarchical-gates",
                 "component_scale": "0_to_100",
                 "overall_scale": "0_to_100",
                 "weights": dict(settings.weights),
@@ -150,8 +157,11 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
                 "propagation_status": "route_cases_ready_geometry_uncertainty_still_stored",
             },
             "gate_speed": {
-                "representation": "empirical eligible-lap entry-speed samples",
-                "propagation_status": "ready_for_paired_sampling",
+                "representation": (
+                    "target-vehicle empirical hard/response samples plus deterministic "
+                    "conservative guardrails and a global fallback ceiling"
+                ),
+                "propagation_status": "ready_for_target_vehicle_paired_sampling",
             },
             "obstacle_models": {
                 "representation": (
@@ -176,11 +186,12 @@ def build_track_bundle(result: TrackBuildResult) -> dict[str, Any]:
 def _simulatable_speed_gates(
     gates: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Keep only gates with an actual empirical target distribution.
+    """Keep evidence-backed gates and deterministic conservative guardrails.
 
-    Zero-sample review rows remain available under ``evidence``. They are not
-    simulator gates because no numeric speed target can be defined without
-    inventing data.
+    Review-only rows with no samples remain evidence, not simulator constraints. A
+    conservative guardrail is different: it is explicitly a policy ceiling rather
+    than a fitted observation, so it remains simulatable even if a future sparse
+    reconstruction has no empirical identity to attach to it.
     """
 
     output: list[dict[str, Any]] = []
@@ -191,7 +202,14 @@ def _simulatable_speed_gates(
             if isinstance(distribution, dict)
             else []
         )
-        if samples:
+        deterministic_guardrail = (
+            str(gate.get("enforcement_class", "")) == "conservative_guardrail"
+            and bool(gate.get("active_by_default", False))
+            and isinstance(distribution, dict)
+            and isinstance(distribution.get("summary"), dict)
+            and distribution["summary"].get("median_mps") is not None
+        )
+        if samples or deterministic_guardrail:
             output.append(gate)
     return output
 

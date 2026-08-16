@@ -397,6 +397,14 @@ def build_centreline(
             alignment_centreline,
         )
         if record is not None:
+            record = dict(record)
+            # Balance physical-course inference by measured vehicle/source rather
+            # than by raw lap count. Repeated laps make each source consensus more
+            # precise; they do not give one vehicle 32 votes against another's 14.
+            source_id = str(lap.get("vehicle_id", "")).strip() or str(
+                lap.get("run_id", "unknown_source")
+            )
+            record["consensus_source_id"] = source_id
             lap_records.append(record)
 
     if not lap_records:
@@ -406,13 +414,8 @@ def build_centreline(
         )
 
     if alignment_centreline is None:
-        target_length = float(
-            np.median(
-                [
-                    float(record["length_m"])
-                    for record in lap_records
-                ]
-            )
+        target_length = _source_balanced_scalar_median(
+            lap_records, "length_m"
         )
     else:
         target_length = alignment_centreline.length_m
@@ -462,19 +465,20 @@ def build_centreline(
         endpoint_x.append(float(record["endpoint_x_m"]))
         endpoint_y.append(float(record["endpoint_y_m"]))
 
+    source_ids = [str(record["consensus_source_id"]) for record in lap_records]
     consensus_x = np.array(
-        np.median(np.vstack(x_rows), axis=0),
+        _source_balanced_matrix_median(x_rows, source_ids),
         dtype=float,
         copy=True,
     )
     consensus_y = np.array(
-        np.median(np.vstack(y_rows), axis=0),
+        _source_balanced_matrix_median(y_rows, source_ids),
         dtype=float,
         copy=True,
     )
     consensus_elevation = np.array(
-        _finite_column_stat(
-            np.vstack(elevation_rows), "median"
+        _source_balanced_matrix_median(
+            elevation_rows, source_ids, finite=True
         ),
         dtype=float,
         copy=True,
@@ -489,10 +493,10 @@ def build_centreline(
         settings.consensus_smoothing_window_nodes,
     )
 
-    # Preserve the physical lap-gate anchor as the median of the
-    # contributing lap endpoints rather than letting smoothing move it.
-    gate_x = float(np.median(endpoint_x))
-    gate_y = float(np.median(endpoint_y))
+    # Preserve the physical lap-gate anchor, source-balanced for the same
+    # reason as the centreline itself.
+    gate_x = _source_balanced_values_median(endpoint_x, source_ids)
+    gate_y = _source_balanced_values_median(endpoint_y, source_ids)
     consensus_x[0] = consensus_x[-1] = gate_x
     consensus_y[0] = consensus_y[-1] = gate_y
     if np.isfinite(consensus_elevation[[0, -1]]).any():
@@ -511,6 +515,60 @@ def build_centreline(
         frame,
         settings.centreline_spacing_m,
     )
+
+
+def _source_balanced_scalar_median(
+    records: list[dict[str, np.ndarray | float | str]], key: str
+) -> float:
+    grouped: dict[str, list[float]] = {}
+    for record in records:
+        grouped.setdefault(str(record["consensus_source_id"]), []).append(
+            float(record[key])
+        )
+    source_medians = [float(np.median(values)) for values in grouped.values()]
+    return float(np.median(source_medians))
+
+
+def _source_balanced_values_median(
+    values: list[float], source_ids: list[str]
+) -> float:
+    grouped: dict[str, list[float]] = {}
+    for value, source_id in zip(values, source_ids):
+        grouped.setdefault(source_id, []).append(float(value))
+    source_medians = [float(np.median(rows)) for rows in grouped.values()]
+    return float(np.median(source_medians))
+
+
+def _source_balanced_matrix_median(
+    rows: list[np.ndarray],
+    source_ids: list[str],
+    *,
+    finite: bool = False,
+) -> np.ndarray:
+    """Pointwise median within each source, then equally across sources.
+
+    This is deliberately not a raw-lap weighted statistic. With two vehicles,
+    thirty laps from one vehicle cannot drag the inferred physical course away
+    from fourteen laps from another; extra laps instead reduce uncertainty in
+    that vehicle's own source consensus.
+    """
+
+    grouped: dict[str, list[np.ndarray]] = {}
+    for row, source_id in zip(rows, source_ids):
+        grouped.setdefault(source_id, []).append(np.asarray(row, dtype=float))
+    source_rows: list[np.ndarray] = []
+    for group_rows in grouped.values():
+        matrix = np.vstack(group_rows)
+        if finite:
+            source_rows.append(
+                np.asarray(_finite_column_stat(matrix, "median"), dtype=float)
+            )
+        else:
+            source_rows.append(np.median(matrix, axis=0))
+    matrix = np.vstack(source_rows)
+    if finite:
+        return np.asarray(_finite_column_stat(matrix, "median"), dtype=float)
+    return np.median(matrix, axis=0)
 
 
 def map_match_laps(

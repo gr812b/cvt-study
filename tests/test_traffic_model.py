@@ -113,45 +113,53 @@ def test_patched_pipeline_exposes_traffic_contracts() -> None:
     assert 'traffic:restriction_burden_s' in inspect.getsource(_feature_frame)
 
 
-def test_maryland_calibration_regression() -> None:
+def test_maryland_has_no_traffic_model_without_direct_evidence() -> None:
     from cvt_track_study.simulation.traffic import traffic_model_from_project
 
-    project = Path(__file__).resolve().parents[1] / "projects" / "maryland"
+    project = Path(__file__).resolve().parent / "projects" / "maryland"
+    assert traffic_model_from_project(project) is None
+    assert not (project / "track" / "traffic.toml").exists()
+    assert not (project / "track" / "traffic").exists()
+
+
+def test_arizona_calibration_is_project_local_and_uses_same_race_field_survival() -> None:
+    from cvt_track_study.simulation.traffic import traffic_model_from_project
+
+    project = Path(__file__).resolve().parents[1] / "projects" / "arizona"
     model = traffic_model_from_project(project)
     assert model is not None
-    assert len(model.observations) == 26
+    assert model.arrival_model == "field_survival_stream_mixture_nhpp"
+    assert model.generation_rate_mode == "equal_observer_stream_mixture"
+    assert model.source_race_id == model.target_race_id == "arizona_2025"
+    assert len(model.observations) == 58
     assert len(model.source_observations) == 58
-    assert model.initial_rate_per_hour == pytest.approx(32.4130378300, rel=2e-6)
-    assert model.source_initial_rate_per_hour == pytest.approx(46.7968000417, rel=2e-6)
-    assert model.field_exponent == pytest.approx(2.83504270215, rel=2e-6)
+    assert len(model.field_records) == 59
+    assert model.initial_rate_per_hour == pytest.approx(62.1535861561, rel=2e-6)
+    assert model.field_exponent == pytest.approx(2.58495439523, rel=2e-6)
     source_rates = dict(model.source_stream_initial_rates_per_hour)
-    assert source_rates["CWRU"] == pytest.approx(86.5582440272, rel=2e-6)
-    assert source_rates["ETS"] == pytest.approx(38.8445112446, rel=2e-6)
+    assert source_rates["CWRU"] == pytest.approx(86.3343402320, rel=2e-6)
+    assert source_rates["ETS"] == pytest.approx(37.9728320802, rel=2e-6)
     assert model.contract()["bootstrap_quantiles"]["field_exponent"][0] < 1.0e-3
-    assert model.survival_fraction(3600.0) == pytest.approx(0.8428837888, rel=2e-6)
-    assert model.survival_fraction(14400.0) == pytest.approx(0.4493856841, rel=2e-6)
-    assert model.target_time_rescaling_ks_pvalue > 0.05
     assert model.time_rescaling_ks_pvalue > 0.05
+    assert model.target_time_rescaling_ks_pvalue > 0.05
 
 
-def test_source_full_stops_and_target_stop_like_marks_are_normalized() -> None:
+def test_arizona_full_stops_are_normalized() -> None:
     from cvt_track_study.simulation.traffic import traffic_model_from_project
 
-    project = Path(__file__).resolve().parents[1] / "projects" / "maryland"
-    model = traffic_model_from_project(project)
-    assert model is not None
-    source_full_stops = [
-        event for event in model.source_observations if event.event_type == "full stop"
-    ]
-    assert len(source_full_stops) == 3
-    assert all(event.retained_speed_fraction == 0.0 for event in source_full_stops)
-    assert sum(event.retained_speed_fraction == 0.0 for event in model.observations) == 2
+    project = Path(__file__).resolve().parents[1] / "projects" / "arizona"
+    arizona = traffic_model_from_project(project)
+    assert arizona is not None
+    full_stops = [event for event in arizona.observations if event.event_type == "full stop"]
+    assert len(full_stops) == 3
+    assert all(event.retained_speed_fraction == 0.0 for event in full_stops)
+
 
 
 def test_traffic_world_is_deterministic_for_scenario_seed() -> None:
     from cvt_track_study.simulation.traffic import traffic_model_from_project
 
-    project = Path(__file__).resolve().parents[1] / "projects" / "maryland"
+    project = Path(__file__).resolve().parents[1] / "projects" / "arizona"
     model = traffic_model_from_project(project)
     assert model is not None
     first = model.draw_realization(scenario_seed=12345, horizon_s=300.0).serializable()
@@ -170,14 +178,18 @@ def test_full_uncertainty_traffic_report_augmentation_is_idempotent(tmp_path: Pa
                 "study_type": "full_uncertainty",
                 "traffic_model": {
                     "enabled": True,
+                    "arrival_model": "homogeneous_poisson",
+                    "generation_rate_mode": "pooled_common_rate",
+                    "source_race_id": "maryland_2025",
+                    "target_race_id": "maryland_2025",
                     "target_event_count": 26,
                     "target_observer_exposure_h": 1.0,
-                    "source_event_count": 58,
-                    "source_observer_exposure_h": 1.5,
-                    "field_record_count": 59,
-                    "initial_rate_per_hour": 38.25,
-                    "field_exponent": 5.2,
-                    "average_rate_per_hour_4h": 11.82,
+                    "source_event_count": 26,
+                    "source_observer_exposure_h": 1.0,
+                    "field_record_count": 0,
+                    "initial_rate_per_hour": 26.0,
+                    "field_exponent": 0.0,
+                    "average_rate_per_hour_4h": 26.0,
                 },
             }
         ),

@@ -10,7 +10,7 @@ mistaken for calibrated probabilities.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import json
@@ -33,6 +33,7 @@ from cvt_track_study.runtime.provenance import (
     write_provenance,
 )
 from cvt_track_study.runtime.results import write_results_index
+from cvt_track_study.runtime.process_pool import interruptible_process_pool
 from cvt_track_study.simulation.service import SimulationError
 from cvt_track_study.simulation.traffic import traffic_model_from_project
 from cvt_track_study.track import build_project_track
@@ -152,6 +153,7 @@ def run_joint_ensemble_project(
         excluded_paths=(design_path,) if design_path else (),
         correlation_groups=correlation_groups_from_study(raw),
         gate_sampling=str(sampling.get("gate_sampling", "paired_lap")),
+        target_vehicle_id=vehicle_id,
     )
 
     samplers = {
@@ -231,6 +233,19 @@ def run_joint_ensemble_project(
         f"{len(design_points)} design point(s), {workers} worker(s)"
     )
 
+    def annotate_result(item: ScheduledScenario, result: dict[str, Any]) -> None:
+        variant = item.variant
+        for row in result["rows"]:
+            row["base_draw_id"] = item.base_draw_id
+            row["track_pair_id"] = f"draw-{item.base_draw_id:06d}"
+            row["track_case_id"] = variant.case_id
+            row["track_case_category"] = variant.category
+            row["track_bundle_fingerprint"] = variant.bundle.data.get(
+                "content_fingerprint_sha256"
+            )
+        result["track_case_id"] = variant.case_id
+        result["base_draw_id"] = item.base_draw_id
+
     def execute_or_resume(item: ScheduledScenario) -> dict[str, Any]:
         variant = item.variant
         scenario = item.scenario
@@ -250,20 +265,12 @@ def run_joint_ensemble_project(
             bundle=variant.bundle,
             cache=cache,
         )
-        for row in result["rows"]:
-            row["base_draw_id"] = item.base_draw_id
-            row["track_pair_id"] = f"draw-{item.base_draw_id:06d}"
-            row["track_case_id"] = variant.case_id
-            row["track_case_category"] = variant.category
-            row["track_bundle_fingerprint"] = variant.bundle.data.get(
-                "content_fingerprint_sha256"
-            )
-        result["track_case_id"] = variant.case_id
-        result["base_draw_id"] = item.base_draw_id
+        annotate_result(item, result)
         workspace.write_checkpoint(scenario.replicate, {"result": result})
         return result
 
     results: list[dict[str, Any]] = []
+    parallel_backend = "serial"
     if workers == 1 or len(selected) == 1:
         for item in selected:
             result = execute_or_resume(item)
@@ -272,15 +279,61 @@ def run_joint_ensemble_project(
                 f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; track={result['track_case_id']}"
             )
     else:
-        with ThreadPoolExecutor(max_workers=min(workers, len(selected))) as executor:
-            futures = {executor.submit(execute_or_resume, item): item for item in selected}
-            for future in as_completed(futures):
-                item = futures[future]
-                result = future.result()
-                results.append(result)
-                reporter.advance(
-                    f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; track={result['track_case_id']}"
-                )
+        pending: list[ScheduledScenario] = []
+        for item in selected:
+            checkpoint = workspace.load_checkpoint(item.scenario.replicate)
+            if checkpoint is None:
+                pending.append(item)
+                continue
+            result = dict(checkpoint["result"])
+            result["resumed"] = True
+            results.append(result)
+            reporter.advance(
+                f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; "
+                f"track={result['track_case_id']} (resumed)"
+            )
+
+        if pending:
+            parallel_backend = "process"
+            bundles_by_case = {
+                item.variant.case_id: item.variant.bundle for item in selected
+            }
+            with interruptible_process_pool(
+                max_workers=min(workers, len(pending)),
+                initializer=service_v8._initialize_scenario_process,
+                initargs=(
+                    design_points,
+                    study_type,
+                    vehicle_id,
+                    vehicle_raw,
+                    base_study,
+                    resolution.data["track"],
+                    bundles_by_case,
+                    cache.root,
+                    cache.enabled,
+                ),
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        service_v8._execute_scenario_process_initialized,
+                        item.scenario,
+                        item.variant.case_id,
+                    ): item
+                    for item in pending
+                }
+                for future in as_completed(futures):
+                    item = futures[future]
+                    result = future.result()
+                    service_v8._merge_process_cache_counts(cache, result)
+                    annotate_result(item, result)
+                    workspace.write_checkpoint(
+                        item.scenario.replicate, {"result": result}
+                    )
+                    results.append(result)
+                    reporter.advance(
+                        f"scenario {item.scenario.replicate}; draw={item.base_draw_id}; "
+                        f"track={result['track_case_id']}"
+                    )
 
     order = {point.identifier: index for index, point in enumerate(design_points)}
     rows = [row for result in results for row in result["rows"]]
@@ -345,6 +398,7 @@ def run_joint_ensemble_project(
         "simulation_cache_enabled": cache.enabled,
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
+        "parallel_backend": parallel_backend,
         "paired_scenarios": True,
         "traffic_model": ({"enabled": False} if traffic_model is None else {"enabled": True, **traffic_model.contract()}),
         "reference_cache_policy": (

@@ -1,22 +1,15 @@
 """Empirical endurance-traffic calibration and reproducible traffic worlds.
 
-The model is intentionally small and auditable:
+Traffic evidence is project-local. Maryland can use a homogeneous Poisson arrival
+process when only a short same-event observer window is available; Arizona can use
+its own field-survival-scaled NHPP because same-race field attrition is available.
+In either case complete observed event marks are resampled jointly, preserving event
+type, duration and retained-speed severity without inventing a parametric mark law.
 
-* arrival times follow a non-homogeneous Poisson process (NHPP);
-* the encounter rate follows the empirical surviving-field fraction ``S(t)`` as
-  ``lambda(t) = lambda0 * S(t)**alpha``;
-* ``lambda0`` and ``alpha`` are fitted from unbinned event times with the actual
-  observer exposure windows, not from arbitrary time bins;
-* calibration uncertainty is carried as joint bootstrap draws of
-  ``(lambda0, alpha)`` so their correlation is preserved;
-* event type, duration and retained-speed fraction are resampled jointly from the
-  observed events. No invented parametric severity distribution or confidence-to-
-  sigma conversion is added.
-
-The model describes an exogenous traffic world.  The simulator maps each event's
+The model describes an exogenous traffic world. The simulator maps each event's
 retained-speed fraction onto a shared traffic-free reference speed profile, so the
-same traffic world imposes the same absolute speed ceiling on every drivetrain
-candidate in a paired comparison.
+same traffic realization imposes the same absolute external restriction on every
+drivetrain candidate in a paired comparison.
 """
 
 from __future__ import annotations
@@ -35,7 +28,7 @@ from scipy.optimize import minimize_scalar
 from scipy.stats import kstest
 
 
-TRAFFIC_SCHEMA_VERSION = 3
+TRAFFIC_SCHEMA_VERSION = 4
 
 
 class TrafficDataError(ValueError):
@@ -225,6 +218,8 @@ class TrafficReferenceProfile:
 class TrafficCalibration:
     config_path: str
     race_duration_s: float
+    arrival_model: str
+    generation_rate_mode: str
     # ``streams``/``observations`` are the target-race evidence used by generated
     # worlds. ``source_*`` identify the race that supplies the field-decay shape.
     streams: tuple[ObservationStream, ...]
@@ -355,7 +350,13 @@ class TrafficCalibration:
         )
         return {
             "schema_version": TRAFFIC_SCHEMA_VERSION,
-            "model": "target_scaled_field_survival_power_nhpp_empirical_marks_v3",
+            "model": (
+                "homogeneous_poisson_empirical_marks_v4"
+                if self.arrival_model == "homogeneous_poisson"
+                else "field_survival_stream_mixture_nhpp_empirical_marks_v4"
+            ),
+            "arrival_model": self.arrival_model,
+            "generation_rate_mode": self.generation_rate_mode,
             "config_path": self.config_path,
             "fingerprint": self.fingerprint,
             "race_duration_s": self.race_duration_s,
@@ -493,8 +494,15 @@ def calibrate_traffic(*, project_root: Path, config_path: Path, raw: Mapping[str
         raise TrafficDataError(
             f"traffic schema_version must be {TRAFFIC_SCHEMA_VERSION}; got {schema_version}"
         )
-    arrival_model = str(raw.get("arrival_model", "target_scaled_field_survival_power_nhpp")).strip()
-    if arrival_model != "target_scaled_field_survival_power_nhpp":
+    arrival_model = str(raw.get("arrival_model", "homogeneous_poisson")).strip()
+    supported_arrivals = {
+        "homogeneous_poisson",
+        "field_survival_stream_mixture_nhpp",
+        # Backward-compatible v3 name. It now uses the source-only exponent fit so
+        # source/target stream-rate differences cannot be counted twice.
+        "target_scaled_field_survival_power_nhpp",
+    }
+    if arrival_model not in supported_arrivals:
         raise TrafficDataError(f"unsupported traffic arrival_model {arrival_model!r}")
     mark_model = str(raw.get("mark_model", "target_joint_empirical_resampling")).strip()
     if mark_model != "target_joint_empirical_resampling":
@@ -513,6 +521,7 @@ def calibrate_traffic(*, project_root: Path, config_path: Path, raw: Mapping[str
         label="source",
     )
     target_rows = raw.get("target_observation_streams", ())
+    target_is_source = not bool(target_rows)
     if target_rows:
         target_streams, target_observations, target_hashes = _load_stream_group(
             project_root=project_root,
@@ -524,116 +533,222 @@ def calibrate_traffic(*, project_root: Path, config_path: Path, raw: Mapping[str
         target_observations = list(source_observations)
         target_hashes = {}
 
-    population_raw = raw.get("field_population")
-    if not isinstance(population_raw, Mapping):
-        raise TrafficDataError("traffic requires [traffic.field_population]")
-    population_file_text = str(population_raw.get("file", "")).strip()
-    population_file = _project_file(project_root, population_file_text)
-    field_records = _read_field_population(population_file)
-    if len(field_records) < 10:
-        raise TrafficDataError("traffic field population requires at least 10 records")
-    dropout_offset_fraction = float(population_raw.get("dropout_offset_fraction", 0.5))
-    if not isfinite(dropout_offset_fraction) or not 0.0 <= dropout_offset_fraction <= 1.0:
-        raise TrafficDataError("traffic.field_population.dropout_offset_fraction must lie in [0,1]")
-
-    km_t, km_s = _kaplan_meier(
-        field_records,
-        race_duration_s=race_duration,
-        dropout_offset_fraction=dropout_offset_fraction,
-    )
     source_windows = {
         stream.identifier: (stream.exposure_start_s, stream.exposure_end_s)
         for stream in source_streams
     }
+    target_windows = {
+        stream.identifier: (stream.exposure_start_s, stream.exposure_end_s)
+        for stream in target_streams
+    }
     source_times = np.asarray([event.time_s for event in source_observations], dtype=float)
+    target_times = np.asarray([event.time_s for event in target_observations], dtype=float)
     source_times_by_stream = {
         stream.identifier: np.asarray(
             [event.time_s for event in stream.observations], dtype=float
         )
         for stream in source_streams
     }
-    # CWRU and ETS are different traffic-exposure streams. Giving each source
-    # stream its own nuisance rate scale prevents a high-rate short stream from
-    # masquerading as evidence for stronger race-time decay. Only the within-stream
-    # timing pattern identifies the decay exponent.
-    _, _, source_comparison_ll = _fit_source_stream_scaled_field_nhpp(
-        event_times_by_stream=source_times_by_stream,
-        km_time_s=km_t,
-        km_survival=km_s,
-        exposure_windows=source_windows,
-    )
-    target_windows = {
-        stream.identifier: (stream.exposure_start_s, stream.exposure_end_s)
-        for stream in target_streams
-    }
-    target_times = np.asarray([event.time_s for event in target_observations], dtype=float)
-    source_rates_per_s, target_rate_per_s, exponent, source_ll, target_ll = (
-        _fit_shared_exponent_nhpp(
-            source_event_times_by_stream=source_times_by_stream,
-            target_event_times=target_times,
-            km_time_s=km_t,
-            km_survival=km_s,
-            source_exposure_windows=source_windows,
-            target_exposure_windows=target_windows,
-        )
-    )
-
     source_exposure = sum(stream.exposure_s for stream in source_streams)
-    homogeneous_rates_per_s = {
+    target_exposure = sum(stream.exposure_s for stream in target_streams)
+    if source_exposure <= 0.0 or target_exposure <= 0.0:
+        raise TrafficDataError("traffic observer exposure must be positive")
+
+    source_homogeneous_rates_per_s = {
         stream.identifier: len(stream.observations) / stream.exposure_s
         for stream in source_streams
     }
-    homogeneous_rate = len(source_times) / source_exposure
-    homogeneous_ll = sum(
-        len(stream.observations) * log(homogeneous_rates_per_s[stream.identifier])
-        - homogeneous_rates_per_s[stream.identifier] * stream.exposure_s
+    source_homogeneous_ll = sum(
+        len(stream.observations) * log(source_homogeneous_rates_per_s[stream.identifier])
+        - source_homogeneous_rates_per_s[stream.identifier] * stream.exposure_s
         for stream in source_streams
     )
     exp_rates_per_s, exp_decay, exp_ll = _fit_source_stream_scaled_exponential_nhpp(
         source_streams
     )
-    exp_rate = sum(
-        exp_rates_per_s[stream.identifier] * stream.exposure_s
-        for stream in source_streams
-    ) / source_exposure
-    source_rate_per_s = sum(
-        source_rates_per_s[stream.identifier] * stream.exposure_s
-        for stream in source_streams
-    ) / source_exposure
-    ks_stat, ks_pvalue = _time_rescaling_test(
-        streams=source_streams,
-        initial_rate_per_s=source_rates_per_s,
-        exponent=exponent,
-        km_time_s=km_t,
-        km_survival=km_s,
-    )
-    target_ks_stat, target_ks_pvalue = _time_rescaling_test(
-        streams=target_streams,
-        initial_rate_per_s=target_rate_per_s,
-        exponent=exponent,
-        km_time_s=km_t,
-        km_survival=km_s,
-    )
+    exp_rate = float(np.mean([value for value in exp_rates_per_s.values()]))
 
-    bootstrap = _bootstrap_calibration(
-        records=field_records,
-        source_streams=source_streams,
-        target_streams=target_streams,
-        source_initial_rates_per_s=source_rates_per_s,
-        target_initial_rate_per_s=target_rate_per_s,
-        field_exponent=exponent,
-        km_time_s=km_t,
-        km_survival=km_s,
-        race_duration_s=race_duration,
-        dropout_offset_fraction=dropout_offset_fraction,
-        replicates=bootstrap_replicates,
-        seed=bootstrap_seed,
-    )
+    if arrival_model == "homogeneous_poisson":
+        generation_rate_mode = str(
+            raw.get("generation_rate_mode", "pooled_common_rate")
+        ).strip()
+        if generation_rate_mode not in {"pooled_common_rate", "equal_observer_stream_mixture"}:
+            raise TrafficDataError(
+                "homogeneous traffic generation_rate_mode must be 'pooled_common_rate' "
+                "or 'equal_observer_stream_mixture'"
+            )
+        field_records: list[FieldPopulationRecord] = []
+        dropout_offset_fraction = 0.0
+        km_t = np.asarray([0.0, race_duration], dtype=float)
+        km_s = np.asarray([1.0, 1.0], dtype=float)
+        exponent = 0.0
+        source_rates_per_s = source_homogeneous_rates_per_s
+        source_rate_per_s = float(np.mean(list(source_rates_per_s.values())))
+        pooled_target_rate_per_s = len(target_times) / target_exposure
+        if generation_rate_mode == "equal_observer_stream_mixture":
+            target_rate_per_s = float(
+                np.mean([len(stream.observations) / stream.exposure_s for stream in target_streams])
+            )
+        else:
+            target_rate_per_s = float(pooled_target_rate_per_s)
+        source_ll = float(source_homogeneous_ll)
+        source_comparison_ll = float(source_homogeneous_ll)
+        target_ll = float(
+            len(target_times) * log(pooled_target_rate_per_s)
+            - pooled_target_rate_per_s * target_exposure
+        )
+        homogeneous_rate = float(target_rate_per_s)
+        homogeneous_ll = float(source_homogeneous_ll)
+        ks_rate = (
+            source_rates_per_s
+            if generation_rate_mode == "equal_observer_stream_mixture"
+            else target_rate_per_s
+        )
+        ks_stat, ks_pvalue = _time_rescaling_test(
+            streams=source_streams,
+            initial_rate_per_s=ks_rate,
+            exponent=0.0,
+            km_time_s=km_t,
+            km_survival=km_s,
+        )
+        target_ks_stat, target_ks_pvalue = _time_rescaling_test(
+            streams=target_streams,
+            initial_rate_per_s=(
+                source_rates_per_s
+                if target_is_source and generation_rate_mode == "equal_observer_stream_mixture"
+                else target_rate_per_s
+            ),
+            exponent=0.0,
+            km_time_s=km_t,
+            km_survival=km_s,
+        )
+        bootstrap = _bootstrap_homogeneous_calibration(
+            streams=target_streams,
+            pooled_rate_per_s=pooled_target_rate_per_s,
+            generation_rate_mode=generation_rate_mode,
+            replicates=bootstrap_replicates,
+            seed=bootstrap_seed,
+        )
+        population_file_text = ""
+    else:
+        generation_rate_mode = str(
+            raw.get("generation_rate_mode", "equal_observer_stream_mixture")
+        ).strip()
+        if generation_rate_mode not in {
+            "equal_observer_stream_mixture",
+            "pooled_common_rate",
+        }:
+            raise TrafficDataError(
+                "field-survival traffic generation_rate_mode must be "
+                "'equal_observer_stream_mixture' or 'pooled_common_rate'"
+            )
+        population_raw = raw.get("field_population")
+        if not isinstance(population_raw, Mapping):
+            raise TrafficDataError(
+                "field-survival traffic requires [traffic.field_population]"
+            )
+        population_file_text = str(population_raw.get("file", "")).strip()
+        population_file = _project_file(project_root, population_file_text)
+        field_records = list(_read_field_population(population_file))
+        if len(field_records) < 10:
+            raise TrafficDataError("traffic field population requires at least 10 records")
+        dropout_offset_fraction = float(
+            population_raw.get("dropout_offset_fraction", 0.5)
+        )
+        if not isfinite(dropout_offset_fraction) or not 0.0 <= dropout_offset_fraction <= 1.0:
+            raise TrafficDataError(
+                "traffic.field_population.dropout_offset_fraction must lie in [0,1]"
+            )
+        km_t, km_s = _kaplan_meier(
+            field_records,
+            race_duration_s=race_duration,
+            dropout_offset_fraction=dropout_offset_fraction,
+        )
+        source_rates_per_s, exponent, source_ll = _fit_source_stream_scaled_field_nhpp(
+            event_times_by_stream=source_times_by_stream,
+            km_time_s=km_t,
+            km_survival=km_s,
+            exposure_windows=source_windows,
+        )
+        source_comparison_ll = source_ll
+        source_rate_per_s = float(np.mean(list(source_rates_per_s.values())))
+        if target_is_source:
+            if generation_rate_mode == "equal_observer_stream_mixture":
+                target_rate_per_s = float(np.mean(list(source_rates_per_s.values())))
+            else:
+                target_rate_per_s, _ = _fit_rate_given_exponent(
+                    event_times=target_times,
+                    km_time_s=km_t,
+                    km_survival=km_s,
+                    exposure_windows=target_windows,
+                    exponent=exponent,
+                )
+            target_ll = source_ll
+        else:
+            target_rate_per_s, target_ll = _fit_rate_given_exponent(
+                event_times=target_times,
+                km_time_s=km_t,
+                km_survival=km_s,
+                exposure_windows=target_windows,
+                exponent=exponent,
+            )
+        homogeneous_rate = len(source_times) / source_exposure
+        homogeneous_ll = float(source_homogeneous_ll)
+        ks_stat, ks_pvalue = _time_rescaling_test(
+            streams=source_streams,
+            initial_rate_per_s=source_rates_per_s,
+            exponent=exponent,
+            km_time_s=km_t,
+            km_survival=km_s,
+        )
+        target_ks_stat, target_ks_pvalue = _time_rescaling_test(
+            streams=target_streams,
+            initial_rate_per_s=(
+                source_rates_per_s if target_is_source else target_rate_per_s
+            ),
+            exponent=exponent,
+            km_time_s=km_t,
+            km_survival=km_s,
+        )
+        if target_is_source:
+            bootstrap = _bootstrap_source_mixture_field_calibration(
+                records=field_records,
+                source_streams=source_streams,
+                source_initial_rates_per_s=source_rates_per_s,
+                field_exponent=exponent,
+                km_time_s=km_t,
+                km_survival=km_s,
+                race_duration_s=race_duration,
+                dropout_offset_fraction=dropout_offset_fraction,
+                generation_rate_mode=generation_rate_mode,
+                replicates=bootstrap_replicates,
+                seed=bootstrap_seed,
+            )
+        else:
+            bootstrap = _bootstrap_calibration(
+                records=field_records,
+                source_streams=source_streams,
+                target_streams=target_streams,
+                source_initial_rates_per_s=source_rates_per_s,
+                target_initial_rate_per_s=target_rate_per_s,
+                field_exponent=exponent,
+                km_time_s=km_t,
+                km_survival=km_s,
+                race_duration_s=race_duration,
+                dropout_offset_fraction=dropout_offset_fraction,
+                replicates=bootstrap_replicates,
+                seed=bootstrap_seed,
+            )
 
     source_hashes.update(target_hashes)
-    source_hashes[population_file_text] = _sha256(population_file)
+    if population_file_text:
+        source_hashes[population_file_text] = _sha256(
+            _project_file(project_root, population_file_text)
+        )
     contract_source = {
         "schema": TRAFFIC_SCHEMA_VERSION,
+        "arrival_model": arrival_model,
+        "generation_rate_mode": generation_rate_mode,
         "race_duration_s": race_duration,
         "source_race_id": source_race_id,
         "target_race_id": target_race_id,
@@ -652,12 +767,23 @@ def calibrate_traffic(*, project_root: Path, config_path: Path, raw: Mapping[str
         "bootstrap": [draw.serializable() for draw in bootstrap],
     }
     fingerprint = hashlib.sha256(
-        json.dumps(contract_source, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        json.dumps(
+            contract_source,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
     ).hexdigest()
 
     return TrafficCalibration(
         config_path=str(config_path.relative_to(project_root)),
         race_duration_s=race_duration,
+        arrival_model=(
+            "field_survival_stream_mixture_nhpp"
+            if arrival_model == "target_scaled_field_survival_power_nhpp"
+            else arrival_model
+        ),
+        generation_rate_mode=generation_rate_mode,
         streams=tuple(target_streams),
         source_streams=tuple(source_streams),
         field_records=tuple(field_records),
@@ -688,7 +814,6 @@ def calibrate_traffic(*, project_root: Path, config_path: Path, raw: Mapping[str
         target_race_id=target_race_id,
         fingerprint=fingerprint,
     )
-
 
 def _load_stream_group(
     *, project_root: Path, rows: Any, label: str
@@ -1180,6 +1305,137 @@ def _time_rescaling_test(
     return float(result.statistic), float(result.pvalue)
 
 
+def _bootstrap_homogeneous_calibration(
+    *,
+    streams: Sequence[ObservationStream],
+    pooled_rate_per_s: float,
+    generation_rate_mode: str,
+    replicates: int,
+    seed: int,
+) -> list[TrafficCalibrationDraw]:
+    if replicates <= 0:
+        return []
+    rng = np.random.default_rng(seed)
+    draws: list[TrafficCalibrationDraw] = []
+    if generation_rate_mode == "equal_observer_stream_mixture":
+        for _ in range(replicates):
+            stream = streams[int(rng.integers(0, len(streams)))]
+            expected_count = len(stream.observations)
+            count = int(rng.poisson(expected_count))
+            if count <= 0:
+                continue
+            draws.append(
+                TrafficCalibrationDraw(
+                    initial_rate_per_hour=3600.0 * count / stream.exposure_s,
+                    field_exponent=0.0,
+                )
+            )
+    else:
+        total_exposure = sum(stream.exposure_s for stream in streams)
+        expected_count = pooled_rate_per_s * total_exposure
+        for _ in range(replicates):
+            count = int(rng.poisson(expected_count))
+            if count <= 0:
+                continue
+            draws.append(
+                TrafficCalibrationDraw(
+                    initial_rate_per_hour=3600.0 * count / total_exposure,
+                    field_exponent=0.0,
+                )
+            )
+    if replicates and len(draws) < max(20, int(0.8 * replicates)):
+        raise TrafficDataError(
+            f"traffic bootstrap produced only {len(draws)}/{replicates} valid calibration draws"
+        )
+    return draws
+
+
+def _bootstrap_source_mixture_field_calibration(
+    *,
+    records: Sequence[FieldPopulationRecord],
+    source_streams: Sequence[ObservationStream],
+    source_initial_rates_per_s: Mapping[str, float],
+    field_exponent: float,
+    km_time_s: np.ndarray,
+    km_survival: np.ndarray,
+    race_duration_s: float,
+    dropout_offset_fraction: float,
+    generation_rate_mode: str,
+    replicates: int,
+    seed: int,
+) -> list[TrafficCalibrationDraw]:
+    if replicates <= 0:
+        return []
+    rng = np.random.default_rng(seed)
+    source_windows = {
+        stream.identifier: (stream.exposure_start_s, stream.exposure_end_s)
+        for stream in source_streams
+    }
+    record_array = np.asarray(records, dtype=object)
+    draws: list[TrafficCalibrationDraw] = []
+    for _ in range(replicates):
+        indices = rng.integers(0, len(records), size=len(records))
+        sampled_records = tuple(record_array[indices])
+        boot_t, boot_s = _kaplan_meier(
+            sampled_records,
+            race_duration_s=race_duration_s,
+            dropout_offset_fraction=dropout_offset_fraction,
+        )
+        simulated = {
+            stream.identifier: _simulate_observation_streams(
+                rng=rng,
+                streams=(stream,),
+                initial_rate_per_s=source_initial_rates_per_s[stream.identifier],
+                exponent=field_exponent,
+                km_time_s=km_time_s,
+                km_survival=km_survival,
+            )
+            for stream in source_streams
+        }
+        if sum(len(values) for values in simulated.values()) < 2:
+            continue
+        try:
+            boot_rates, boot_exponent, _ = _fit_source_stream_scaled_field_nhpp(
+                event_times_by_stream=simulated,
+                km_time_s=boot_t,
+                km_survival=boot_s,
+                exposure_windows=source_windows,
+            )
+        except TrafficDataError:
+            continue
+        available = [
+            stream.identifier for stream in source_streams if stream.identifier in boot_rates
+        ]
+        if not available:
+            continue
+        if generation_rate_mode == "equal_observer_stream_mixture":
+            selected = available[int(rng.integers(0, len(available)))]
+            initial_rate = boot_rates[selected]
+        else:
+            # Pooled observer-time rate conditional on the bootstrapped exponent.
+            all_times = np.concatenate(
+                [values for values in simulated.values() if len(values)]
+            )
+            initial_rate, _ = _fit_rate_given_exponent(
+                event_times=all_times,
+                km_time_s=boot_t,
+                km_survival=boot_s,
+                exposure_windows=source_windows,
+                exponent=boot_exponent,
+            )
+        draws.append(
+            TrafficCalibrationDraw(
+                initial_rate_per_hour=float(initial_rate * 3600.0),
+                field_exponent=float(boot_exponent),
+            )
+        )
+    if replicates and len(draws) < max(20, int(0.8 * replicates)):
+        raise TrafficDataError(
+            f"traffic bootstrap produced only {len(draws)}/{replicates} valid calibration draws"
+        )
+    return draws
+
+
 def _bootstrap_calibration(
     *,
     records: Sequence[FieldPopulationRecord],
@@ -1334,7 +1590,11 @@ def _bootstrap_quantiles(
         "levels": list(levels),
         "initial_rate_per_hour": [float(value) for value in np.quantile(rate, levels)],
         "field_exponent": [float(value) for value in np.quantile(exponent, levels)],
-        "correlation": float(np.corrcoef(rate, exponent)[0, 1]),
+        "correlation": (
+            0.0
+            if float(np.std(rate)) <= 1.0e-15 or float(np.std(exponent)) <= 1.0e-15
+            else float(np.corrcoef(rate, exponent)[0, 1])
+        ),
     }
     if (
         km_time_s is not None

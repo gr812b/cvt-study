@@ -1,7 +1,7 @@
 [study]
 name = "structural_sensitivity"
 type = "structural_sensitivity"
-vehicle_id = "vehicle_A"
+vehicle_id = "mcmaster"
 random_seed = 20260715
 
 [base_case]

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from bisect import bisect_left, bisect_right
+from dataclasses import dataclass, field
 from math import atan, degrees, isfinite, sqrt
 from typing import Any, Mapping
 
@@ -52,6 +53,7 @@ class RuntimeSpeedGate:
     target_speed_mps: float
     confidence_score: float
     gate_type: str = "entry_speed"
+    enforcement_class: str = "hard_absolute"
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +88,22 @@ class RuntimeTrack:
     surface_friction_coefficient: float
     features: tuple[RuntimeFeature, ...]
     speed_gates: tuple[RuntimeSpeedGate, ...]
+    global_speed_guardrail_mps: float
     gpx_grade_force_enabled: bool
+    _speed_gate_positions_sorted_m: tuple[float, ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _speed_gate_envelopes: tuple[
+        tuple[tuple[tuple[float, float], ...], tuple[float, ...]], ...
+    ] = field(init=False, repr=False, compare=False)
+    _centreline_s_array: np.ndarray = field(init=False, repr=False, compare=False)
+    _curvature_array: np.ndarray = field(init=False, repr=False, compare=False)
+    _elevation_s_array: np.ndarray = field(init=False, repr=False, compare=False)
+    _elevation_array: np.ndarray = field(init=False, repr=False, compare=False)
+    _feature_bin_width_m: float = field(init=False, repr=False, compare=False)
+    _feature_bins: tuple[tuple[RuntimeFeature, ...], ...] = field(
+        init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         if not self.closed_course:
@@ -100,6 +117,52 @@ class RuntimeTrack:
             raise SimulationInputError("Track runtime requires at least two centreline samples.")
         if self.surface_friction_coefficient <= 0.0:
             raise SimulationInputError("Surface friction coefficient must be positive.")
+        if (
+            not isfinite(self.global_speed_guardrail_mps)
+            or self.global_speed_guardrail_mps <= 0.0
+        ):
+            raise SimulationInputError(
+                "Global speed guardrail must be positive and finite."
+            )
+        ordered_gates = sorted(
+            self.speed_gates, key=lambda gate: float(gate.position_s_m)
+        )
+        positions = tuple(float(gate.position_s_m) for gate in ordered_gates)
+        target_squared = tuple(
+            float(gate.target_speed_mps) ** 2 for gate in ordered_gates
+        )
+        object.__setattr__(self, "_speed_gate_positions_sorted_m", positions)
+        object.__setattr__(
+            self,
+            "_speed_gate_envelopes",
+            _build_cyclic_speed_gate_envelopes(
+                positions, target_squared, self.length_m
+            ),
+        )
+        centreline_s = np.asarray(self.centreline_s_m, dtype=float)
+        curvature = np.asarray(self.centreline_curvature_1_per_m, dtype=float)
+        elevation_pairs = [
+            (float(s_m), float(elevation_m))
+            for s_m, elevation_m in zip(
+                self.centreline_s_m, self.reference_elevation_m
+            )
+            if elevation_m is not None
+        ]
+        if elevation_pairs:
+            elevation_s = np.asarray([item[0] for item in elevation_pairs], dtype=float)
+            elevation = np.asarray([item[1] for item in elevation_pairs], dtype=float)
+        else:
+            elevation_s = np.asarray([], dtype=float)
+            elevation = np.asarray([], dtype=float)
+        object.__setattr__(self, "_centreline_s_array", centreline_s)
+        object.__setattr__(self, "_curvature_array", curvature)
+        object.__setattr__(self, "_elevation_s_array", elevation_s)
+        object.__setattr__(self, "_elevation_array", elevation)
+        feature_bin_width, feature_bins = _build_feature_bins(
+            self.features, self.length_m
+        )
+        object.__setattr__(self, "_feature_bin_width_m", feature_bin_width)
+        object.__setattr__(self, "_feature_bins", feature_bins)
 
 
     def sample(
@@ -113,10 +176,16 @@ class RuntimeTrack:
     ) -> TrackSample:
         s = min(max(float(distance_m), 0.0), self.length_m)
         loop_s = 0.0 if s >= self.length_m else s
-        reference_elevation = _interpolate_optional(
-            loop_s, self.centreline_s_m, self.reference_elevation_m
+        reference_elevation = (
+            None
+            if self._elevation_s_array.size < 2
+            else float(
+                np.interp(loop_s, self._elevation_s_array, self._elevation_array)
+            )
         )
-        curvature = float(np.interp(loop_s, self.centreline_s_m, self.centreline_curvature_1_per_m))
+        curvature = float(
+            np.interp(loop_s, self._centreline_s_array, self._curvature_array)
+        )
         resistance = 0.0
         elevation_offset = 0.0
         slope = 0.0
@@ -126,7 +195,10 @@ class RuntimeTrack:
         active_names: list[str] = []
         feature_forces: list[tuple[str, float]] = []
         entry_speeds = feature_entry_speeds_mps or {}
-        for feature in self.features:
+        bin_index = min(
+            int(loop_s / self._feature_bin_width_m), len(self._feature_bins) - 1
+        )
+        for feature in self._feature_bins[bin_index]:
             local = feature.interval.local_distance(loop_s, self.length_m)
             if local is None:
                 continue
@@ -175,21 +247,131 @@ class RuntimeTrack:
             raise SimulationInputError("braking_deceleration_mps2 must be positive.")
         s = min(max(float(distance_m), 0.0), self.length_m)
         loop_s = 0.0 if s >= self.length_m else s
+        # The global guardrail is intentionally very permissive, but it makes the
+        # contract total: even a sparse or pathological reconstruction never leaves
+        # a simulated vehicle with an infinite speed target. Local hard gates,
+        # relative-response gates and candidate guardrails can only tighten it.
+        result = float(self.global_speed_guardrail_mps)
         if not self.speed_gates:
-            return float("inf")
-        result = float("inf")
-        for gate in self.speed_gates:
-            ahead = (gate.position_s_m - loop_s) % self.length_m
-            safe = sqrt(
-                max(
-                    gate.target_speed_mps**2
-                    + 2.0 * braking_deceleration_mps2 * ahead,
-                    0.0,
-                )
-            )
-            result = min(result, safe)
-        return result
+            return result
+        # For a fixed interval between consecutive gate positions, every cyclic
+        # braking constraint is linear in the effective braking deceleration:
+        #
+        #   v^2 <= q_i + 2 a ((p_i - s) mod L)
+        #        = (q_i + 2 a p_i*) - 2 a s.
+        #
+        # ``_speed_gate_envelopes`` stores the exact lower envelope of the lines
+        # q_i + 2 a p_i* for each interval.  Querying it avoids allocating and
+        # reducing a ~50-element NumPy array at every millisecond integration
+        # step while preserving the same gate-by-gate braking constraint.
+        interval_index = bisect_left(self._speed_gate_positions_sorted_m, loop_s)
+        lines, starts = self._speed_gate_envelopes[interval_index]
+        line_index = bisect_right(starts, braking_deceleration_mps2) - 1
+        slope, intercept = lines[max(line_index, 0)]
+        minimum_squared = (
+            slope * braking_deceleration_mps2
+            + intercept
+            - 2.0 * braking_deceleration_mps2 * loop_s
+        )
+        return min(result, sqrt(max(minimum_squared, 0.0)))
 
+
+
+def _build_feature_bins(
+    features: tuple[RuntimeFeature, ...],
+    track_length_m: float,
+    *,
+    bin_count: int = 256,
+) -> tuple[float, tuple[tuple[RuntimeFeature, ...], ...]]:
+    """Build conservative spatial candidate bins for exact feature lookup.
+
+    A feature is placed into every bin whose open spatial interval can intersect
+    it. ``sample`` still calls ``local_distance`` on candidates, so binning only
+    removes impossible features and cannot change obstacle activation semantics.
+    """
+
+    count = max(1, int(bin_count))
+    width = float(track_length_m) / count
+    bins: list[list[RuntimeFeature]] = [[] for _ in range(count)]
+    for feature in features:
+        interval = feature.interval
+        ranges = (
+            ((interval.start_s_m, interval.end_s_m),)
+            if not interval.wraps_start_finish
+            else (
+                (interval.start_s_m, track_length_m),
+                (0.0, interval.end_s_m),
+            )
+        )
+        touched: set[int] = set()
+        for start, end in ranges:
+            if end <= start:
+                continue
+            first = min(int(max(start, 0.0) / width), count - 1)
+            # The interval is end-exclusive. A tiny downward shift keeps a
+            # boundary exactly on a bin edge out of the following untouched bin.
+            end_inside = max(start, min(end, track_length_m) - 1.0e-12)
+            last = min(int(end_inside / width), count - 1)
+            touched.update(range(first, last + 1))
+        for index in touched:
+            bins[index].append(feature)
+    return width, tuple(tuple(items) for items in bins)
+
+
+def _build_cyclic_speed_gate_envelopes(
+    positions_m: tuple[float, ...],
+    target_squared_mps2: tuple[float, ...],
+    track_length_m: float,
+) -> tuple[tuple[tuple[tuple[float, float], ...], tuple[float, ...]], ...]:
+    """Precompute exact lower line envelopes for cyclic braking constraints.
+
+    Interval ``k`` corresponds to ``bisect_left(positions_m, s) == k``.  Gates
+    before ``k`` are one lap ahead; gates at/after ``k`` are on the current lap.
+    Each candidate is represented by ``m*a + b`` with ``m = 2*p*`` and
+    ``b = target_speed**2``.
+    """
+
+    count = len(positions_m)
+    if count == 0:
+        return tuple()
+    envelopes = []
+    for split in range(count + 1):
+        adjusted = [
+            (
+                2.0 * (position + (track_length_m if index < split else 0.0)),
+                target_squared_mps2[index],
+            )
+            for index, position in enumerate(positions_m)
+        ]
+        # Minimum-envelope construction is simplest with strictly descending
+        # slopes. Equal-position gates share a slope, so retain only the lowest
+        # intercept before building the hull.
+        by_slope: dict[float, float] = {}
+        for slope, intercept in adjusted:
+            previous = by_slope.get(slope)
+            if previous is None or intercept < previous:
+                by_slope[slope] = intercept
+        candidates = sorted(by_slope.items(), reverse=True)
+
+        hull: list[tuple[float, float]] = []
+        starts: list[float] = []
+        for slope, intercept in candidates:
+            start = float("-inf")
+            while hull:
+                previous_slope, previous_intercept = hull[-1]
+                start = (intercept - previous_intercept) / (
+                    previous_slope - slope
+                )
+                if start > starts[-1]:
+                    break
+                hull.pop()
+                starts.pop()
+            if not hull:
+                start = float("-inf")
+            hull.append((slope, intercept))
+            starts.append(start)
+        envelopes.append((tuple(hull), tuple(starts)))
+    return tuple(envelopes)
 
 
 def runtime_track_from_bundle(
@@ -198,6 +380,7 @@ def runtime_track_from_bundle(
     surface_friction_coefficient: float,
     gate_speed_statistic: str = "median",
     gate_target_speeds_mps: Mapping[str, float] | None = None,
+    target_vehicle_id: str | None = None,
     obstacle_model_types: Mapping[str, str] | None = None,
     obstacle_parameters_si: Mapping[str, Mapping[str, float]] | None = None,
 ) -> RuntimeTrack:
@@ -242,7 +425,17 @@ def runtime_track_from_bundle(
     for raw in simulation["speed_gates"]:
         if not bool(raw["active_by_default"]):
             continue
-        summary = raw["target_speed_distribution"]["summary"]
+        distribution = raw["target_speed_distribution"]
+        summary = distribution["summary"]
+        vehicle_summaries = distribution.get("vehicle_summaries", {})
+        if (
+            target_vehicle_id is not None
+            and isinstance(vehicle_summaries, Mapping)
+            and str(target_vehicle_id) in vehicle_summaries
+            and str(raw.get("enforcement_class", "hard_absolute"))
+            in {"hard_absolute", "relative_response"}
+        ):
+            summary = vehicle_summaries[str(target_vehicle_id)]
         gates.append(
             RuntimeSpeedGate(
                 identifier=str(raw["id"]),
@@ -254,6 +447,7 @@ def runtime_track_from_bundle(
                 ),
                 confidence_score=float(raw["confidence"]["overall_score"]),
                 gate_type=str(raw.get("gate_type", "entry_speed")),
+                enforcement_class=str(raw.get("enforcement_class", "hard_absolute")),
             )
         )
     capabilities = simulation["capabilities"]
@@ -276,6 +470,9 @@ def runtime_track_from_bundle(
         surface_friction_coefficient=surface_friction_coefficient,
         features=tuple(features),
         speed_gates=tuple(sorted(gates, key=lambda gate: gate.position_s_m)),
+        global_speed_guardrail_mps=float(
+            simulation.get("global_speed_guardrail_mps", 25.0)
+        ),
         gpx_grade_force_enabled=bool(simulation["grade_force_enabled"]),
     )
 

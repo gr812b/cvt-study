@@ -11,7 +11,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "DiagnosticBag": (".diagnostics", "DiagnosticBag"),
     "Severity": (".diagnostics", "Severity"),
     "ProjectError": (".project", "ProjectError"),
-    "ProjectLoader": (".project_v12", "ProjectLoader"),
+    "ProjectLoader": (".project_v13", "ProjectLoader"),
     "ProjectPaths": (".project", "ProjectPaths"),
     "ResolutionResult": (".project", "ResolutionResult"),
     "discover_project_file": (".project", "discover_project_file"),

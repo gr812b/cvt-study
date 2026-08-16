@@ -2297,7 +2297,16 @@ def _shared_gate_evidence(
                     sorted(set(compatible["target_route_variant_id"].astype(str)))
                 ),
                 "contributing_source_route_variant_ids": ";".join(
-                    sorted(set(unique_eligible["source_route_variant_id"].astype(str)) - {""})
+                    sorted(
+                        set(
+                            (
+                                unique_eligible["source_route_variant_id"]
+                                if "source_route_variant_id" in unique_eligible
+                                else unique_eligible["target_route_variant_id"]
+                            ).astype(str)
+                        )
+                        - {""}
+                    )
                 ),
                 "route_eligible_lap_counts_json": json.dumps(route_counts, sort_keys=True),
                 "evidence_scope": ";".join(scopes),

@@ -427,12 +427,59 @@ def _isolated_excursion_candidates(
     points: pd.DataFrame,
     settings: TelemetryCleanupSettings,
 ) -> list[dict[str, Any]]:
+    """Find tiny bracketed GPS excursions without per-row pandas access.
+
+    The prior implementation repeatedly constructed ``Series`` objects with
+    ``segment.iloc[...]`` inside the point-by-point scan.  On long telemetry
+    logs that dominated ingestion time.  Here the same test is evaluated on
+    NumPy arrays prepared once per segment; candidate order, thresholds, and
+    returned evidence are unchanged.
+    """
     candidates: list[dict[str, Any]] = []
     for _, indices in points.groupby(
         ["run_id", "track_index", "segment_index"], sort=False
     ).groups.items():
-        positions = list(indices)
-        segment = points.loc[positions].reset_index()
+        positions = np.asarray(list(indices), dtype=int)
+        segment = points.loc[positions]
+        original_indices = segment.index.to_numpy(dtype=int, copy=True)
+        latitude = np.radians(
+            pd.to_numeric(segment["latitude_deg"], errors="coerce")
+            .to_numpy(dtype=float, copy=True)
+        )
+        longitude = np.radians(
+            pd.to_numeric(segment["longitude_deg"], errors="coerce")
+            .to_numpy(dtype=float, copy=True)
+        )
+        timestamps = pd.to_datetime(
+            segment["timestamp_utc"], utc=True, errors="coerce"
+        )
+        timestamp_ns = timestamps.astype("int64").to_numpy(copy=True)
+        nat = np.iinfo(np.int64).min
+        timestamp_s = timestamp_ns.astype(float) / 1.0e9
+        timestamp_s[timestamp_ns == nat] = np.nan
+
+        def point_distance(left: int, right: int) -> float:
+            lat1 = float(latitude[left])
+            lat2 = float(latitude[right])
+            dlat = lat2 - lat1
+            dlon = float(longitude[right] - longitude[left])
+            value = (
+                math.sin(dlat / 2.0) ** 2
+                + math.cos(lat1)
+                * math.cos(lat2)
+                * math.sin(dlon / 2.0) ** 2
+            )
+            return 2.0 * EARTH_RADIUS_M * math.asin(
+                min(1.0, math.sqrt(value))
+            )
+
+        def elapsed_seconds(left: int, right: int) -> float:
+            left_time = float(timestamp_s[left])
+            right_time = float(timestamp_s[right])
+            if not np.isfinite(left_time) or not np.isfinite(right_time):
+                return math.nan
+            return right_time - left_time
+
         cursor = 1
         while cursor < len(segment) - 1:
             accepted: dict[str, Any] | None = None
@@ -440,13 +487,63 @@ def _isolated_excursion_candidates(
                 right = cursor + size
                 if right >= len(segment):
                     break
-                metrics = _excursion_metrics(segment, cursor, right, settings)
-                if metrics is not None:
+                left = cursor - 1
+                last = right - 1
+                left_leg = point_distance(left, cursor)
+                right_leg = point_distance(last, right)
+                bridge = point_distance(left, right)
+
+                dt_left = elapsed_seconds(left, cursor)
+                dt_right = elapsed_seconds(last, right)
+                dt_bridge = elapsed_seconds(left, right)
+                left_speed = _safe_speed(left_leg, dt_left)
+                right_speed = _safe_speed(right_leg, dt_right)
+                bridge_speed = _safe_speed(bridge, dt_bridge)
+
+                timed = all(
+                    np.isfinite(value)
+                    for value in (left_speed, right_speed, bridge_speed)
+                )
+                if timed:
+                    impossible = (
+                        settings.maximum_reasonable_speed_mps
+                        * settings.impossible_speed_multiplier
+                    )
+                    bridge_limit = (
+                        settings.maximum_reasonable_speed_mps
+                        * settings.maximum_bridge_speed_multiplier
+                    )
+                    suspicious = (
+                        left_leg >= settings.minimum_excursion_leg_m
+                        and right_leg >= settings.minimum_excursion_leg_m
+                        and left_speed > impossible
+                        and right_speed > impossible
+                    )
+                    plausible_bridge = (
+                        0 < dt_bridge <= settings.maximum_bridge_gap_s
+                        and bridge_speed <= bridge_limit
+                    )
+                else:
+                    untimed_leg = max(
+                        100.0, 3.0 * settings.minimum_excursion_leg_m
+                    )
+                    suspicious = (
+                        left_leg >= untimed_leg
+                        and right_leg >= untimed_leg
+                    )
+                    plausible_bridge = (
+                        bridge <= settings.minimum_excursion_leg_m
+                    )
+
+                if suspicious and plausible_bridge:
                     accepted = {
-                        **metrics,
-                        "indices": segment.loc[cursor:right - 1, "index"]
-                        .astype(int)
-                        .tolist(),
+                        "left_leg_distance_m": left_leg,
+                        "right_leg_distance_m": right_leg,
+                        "bridge_distance_m": bridge,
+                        "left_leg_speed_mps": left_speed,
+                        "right_leg_speed_mps": right_speed,
+                        "bridge_speed_mps": bridge_speed,
+                        "indices": original_indices[cursor:right].tolist(),
                         "candidate_group_size": size,
                     }
                     break
@@ -456,7 +553,6 @@ def _isolated_excursion_candidates(
                 candidates.append(accepted)
                 cursor += int(accepted["candidate_group_size"])
     return candidates
-
 
 def _excursion_metrics(
     segment: pd.DataFrame,

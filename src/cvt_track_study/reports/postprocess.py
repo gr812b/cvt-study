@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from .catalog import REPORTS
+from .design_paired import paired_design_contrasts
 from .html import (
     dataframe_table,
     figure,
@@ -404,6 +405,22 @@ def write_design_comparison_report(output: Path) -> Path:
         rows, ranking, output=output, manifest=manifest
     )
     _design_plots(rows, ranking, configured, plots)
+    paired_contrasts, isolated_contrasts, paired_world_deltas = paired_design_contrasts(
+        rows,
+        manifest,
+        bootstrap_resamples=int(manifest.get("bootstrap_resamples", 2000)),
+    )
+    if not paired_contrasts.empty:
+        paired_contrasts.to_csv(output / "paired_design_contrasts.csv", index=False)
+    if not isolated_contrasts.empty:
+        isolated_contrasts.to_csv(
+            output / "paired_design_isolated_axis_contrasts.csv", index=False
+        )
+    if not paired_world_deltas.empty:
+        paired_world_deltas.to_csv(
+            output / "paired_design_world_deltas.csv", index=False
+        )
+    paired_effect_plots = _paired_design_effect_plots(isolated_contrasts, plots)
 
     winner = ranking.iloc[0]["design_id"] if not ranking.empty else "unresolved"
     completion = float(ranking.iloc[0]["completion_fraction"]) if not ranking.empty else math.nan
@@ -430,6 +447,9 @@ def write_design_comparison_report(output: Path) -> Path:
         '<p class="subtitle">Paired win fraction and regret compare candidates within the same '
         'scenario. Non-completing candidates cannot win a scenario and are not rewarded by being '
         'absent from difficult cases.</p>'
+    )
+    body += _paired_design_effect_section(
+        paired_contrasts, isolated_contrasts, paired_effect_plots
     )
     body += "<h2>Absolute performance</h2>"
     body += _ordered_design_figure(
@@ -867,6 +887,136 @@ def _uncertainty_plots(rows: pd.DataFrame, attribution: pd.DataFrame, energy: pd
             if not data.empty:
                 figure_obj, axis=plt.subplots(figsize=(11,max(5.5,.42*len(data)))); axis.barh(data[path_col].astype(str),data["_importance"]); axis.set_xlabel("Relative screening importance"); axis.set_title("Top associations with bounded lap time"); axis.grid(True,axis="x",alpha=.25); figure_obj.tight_layout(); figure_obj.savefig(plots / "top_uncertainty_drivers.png",dpi=180); plt.close(figure_obj)
 
+
+
+def _paired_design_effect_section(
+    all_contrasts: pd.DataFrame,
+    isolated: pd.DataFrame,
+    plots: list[tuple[Path, str]],
+) -> str:
+    if all_contrasts.empty:
+        return ""
+
+    section = (
+        "<h2>Paired design-effect confidence</h2>"
+        '<div class="card note"><strong>World-by-world differencing.</strong> '
+        "For every candidate pair, lap time is subtracted inside the exact same "
+        "uncertainty world before any statistics are calculated. Positive time saved "
+        "or relative speedup means the <em>to</em> design is faster. This cancels the "
+        "shared difficulty of the world and isolates the design change. The 95% "
+        "intervals bootstrap paired worlds; the paired t-test tests zero mean time "
+        "difference, while the sign test asks whether one design is faster in more "
+        "than half of non-tied worlds. Because uncertainty-informed design uses a "
+        "representative reduced world set, these p-values are consistency diagnostics "
+        "for that uncertainty ensemble rather than experimental population p-values."
+        "</div>"
+    )
+
+    if isolated.empty:
+        section += (
+            '<p class="subtitle">No adjacent one-axis contrasts were identifiable. '
+            "All pairwise contrasts are still saved in "
+            "<code>paired_design_contrasts.csv</code>.</p>"
+        )
+        return section
+
+    display_columns = [
+        "changed_parameter",
+        "from_value",
+        "to_value",
+        "fixed_context_json",
+        "both_completed_world_count",
+        "pairable_world_fraction",
+        "time_saved_mean_s",
+        "time_saved_ci_low_s",
+        "time_saved_ci_high_s",
+        "relative_speedup_mean_pct",
+        "relative_speedup_ci_low_pct",
+        "relative_speedup_ci_high_pct",
+        "to_faster_world_fraction",
+        "paired_t_p_value",
+        "sign_test_p_value",
+        "paired_t_q_value_fdr_isolated",
+        "effect_direction_95pct",
+    ]
+    available = [column for column in display_columns if column in isolated]
+    section += (
+        '<p class="subtitle"><strong>Isolated adjacent steps:</strong> only one swept '
+        "parameter changes and every other design parameter is held fixed. The FDR "
+        "q-value adjusts the paired t-test across these reported adjacent contrasts. "
+        "Full pairwise and per-world data are saved as CSV artifacts.</p>"
+    )
+    section += dataframe_table(isolated[available], max_rows=200)
+    for path, caption in plots:
+        section += figure(path, caption)
+    return section
+
+
+def _paired_design_effect_plots(
+    isolated: pd.DataFrame,
+    plots: Path,
+) -> list[tuple[Path, str]]:
+    if isolated.empty or "changed_parameter" not in isolated:
+        return []
+    generated: list[tuple[Path, str]] = []
+    for axis_index, (parameter, group) in enumerate(
+        isolated.groupby("changed_parameter", sort=False)
+    ):
+        data = group.copy()
+        mean = pd.to_numeric(data["relative_speedup_mean_pct"], errors="coerce")
+        low = pd.to_numeric(data["relative_speedup_ci_low_pct"], errors="coerce")
+        high = pd.to_numeric(data["relative_speedup_ci_high_pct"], errors="coerce")
+        valid = np.isfinite(mean.to_numpy(float)) & np.isfinite(low.to_numpy(float)) & np.isfinite(high.to_numpy(float))
+        data = data.loc[valid].copy()
+        if data.empty:
+            continue
+        mean = pd.to_numeric(data["relative_speedup_mean_pct"], errors="coerce").to_numpy(float)
+        low = pd.to_numeric(data["relative_speedup_ci_low_pct"], errors="coerce").to_numpy(float)
+        high = pd.to_numeric(data["relative_speedup_ci_high_pct"], errors="coerce").to_numpy(float)
+        labels = [
+            _paired_contrast_label(row)
+            for _, row in data.iterrows()
+        ]
+        y = np.arange(len(data))
+        fig, ax = plt.subplots(figsize=(11, max(5.5, 0.38 * len(data))))
+        ax.errorbar(
+            mean,
+            y,
+            xerr=np.vstack((mean - low, high - mean)),
+            fmt="o",
+            capsize=3,
+        )
+        ax.axvline(0.0, linewidth=1)
+        ax.set_yticks(y, labels)
+        ax.set_xlabel("Paired relative lap-time speedup [%] (positive = to design faster)")
+        ax.set_title(f"Isolated paired effect — {parameter}")
+        ax.grid(True, axis="x", alpha=0.25)
+        fig.tight_layout()
+        path = plots / f"design_paired_effect_axis_{axis_index}.png"
+        fig.savefig(path, dpi=180)
+        plt.close(fig)
+        generated.append(
+            (
+                path,
+                f"Paired mean relative speedup with 95% bootstrap intervals for adjacent changes in {parameter}; other design axes remain fixed.",
+            )
+        )
+    return generated
+
+
+def _paired_contrast_label(row: pd.Series) -> str:
+    transition = f"{row.get('from_value', '')} → {row.get('to_value', '')}"
+    raw_context = str(row.get("fixed_context_json", "{}"))
+    try:
+        context = json.loads(raw_context)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        context = {}
+    if not isinstance(context, Mapping) or not context:
+        return transition
+    suffix = ", ".join(
+        f"{str(path).split('.')[-1]}={value}" for path, value in context.items()
+    )
+    return f"{transition} | {suffix}"
 
 def _design_ranking(rows: pd.DataFrame) -> pd.DataFrame:
     if rows.empty or "design_id" not in rows:

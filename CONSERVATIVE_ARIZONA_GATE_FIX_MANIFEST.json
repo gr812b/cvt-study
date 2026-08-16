@@ -1,0 +1,25 @@
+{
+  "local_garmin_compatibility_shim_included": false,
+  "name": "Conservative Arizona gate hierarchy consolidated source overlay",
+  "project_files_modified": false,
+  "scope": [
+    "source-balanced centreline evidence",
+    "hard-absolute versus relative-response gate hierarchy",
+    "conservative local guardrails",
+    "finite global speed guardrail",
+    "target-vehicle-aware gate sampling",
+    "cross-vehicle robustness diagnostics",
+    "route-provenance fallback",
+    "track-robustness process workers",
+    "full-uncertainty/design process speedups",
+    "paired design-effect confidence reporting",
+    "exact fast speed-envelope and spatial-feature evaluation"
+  ],
+  "targeted_tests": [
+    "test_route_provenance_fallback.py",
+    "test_performance_speedups.py",
+    "test_design_paired_contrasts.py",
+    "test_conservative_gate_hierarchy.py"
+  ],
+  "version": 1
+}

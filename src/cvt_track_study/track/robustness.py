@@ -8,12 +8,14 @@ supplied telemetry is stable under defensible analysis choices.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from concurrent.futures import as_completed
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import html
 import json
 import math
+import multiprocessing as mp
 import os
 from pathlib import Path
 import shutil
@@ -33,6 +35,7 @@ from cvt_track_study.gpx.cleanup import apply_telemetry_cleanup
 from cvt_track_study.gpx.ingestion import TelemetryParseError, ingest_telemetry_run
 from cvt_track_study.gpx.model import GPXRunMetadata
 from cvt_track_study.runtime import ProgressReporter
+from cvt_track_study.runtime.process_pool import interruptible_process_pool
 from cvt_track_study.runtime.provenance import canonical_fingerprint
 
 from .model import TrackBuildResult
@@ -64,6 +67,7 @@ class CaseResult:
     diagnostics: tuple[Any, ...] = ()
     rejected_map_points: pd.DataFrame | None = None
     track_build: TrackBuildResult | None = None
+
 
 
 _DEFAULT_THRESHOLDS = {
@@ -168,21 +172,69 @@ def run_track_robustness_project(
         reporter.advance("nominal reconstruction")
         parsed_runs = _parse_runs(resolution, raw_runs)
         case_results: list[CaseResult] = []
-        # Track reconstruction currently contains internal shared objects that are
-        # safest to evaluate serially.  The workers value is retained in the manifest
-        # and CLI contract; parallel case execution can be enabled later after the
-        # reconstruction core is made explicitly re-entrant.
-        for case in cases:
-            result = _execute_case(
-                case=case,
-                resolution=resolution,
-                parsed_runs=parsed_runs,
-                track_config=track_config,
-                raw_events=raw_events,
+        parallel_backend = "serial"
+        effective_workers = 1
+        if workers == 1 or len(cases) <= 1:
+            for case in cases:
+                result = _execute_case(
+                    case=case,
+                    resolution=resolution,
+                    parsed_runs=parsed_runs,
+                    track_config=track_config,
+                    raw_events=raw_events,
+                )
+                case_results.append(result)
+                _write_case_artifacts(
+                    staging / "cases" / _safe_name(case.identifier), result
+                )
+                reporter.advance(
+                    case.label if result.success else f"{case.label} (failed)"
+                )
+        else:
+            # Each reconstruction mutates only case-local copies, so separate
+            # processes are both re-entrant and materially faster for this CPU-bound
+            # study. Parsed telemetry is initialized once per worker instead of being
+            # resent with every case; this keeps Windows spawn overhead bounded.
+            parallel_backend = "process"
+            effective_workers = min(workers, len(cases))
+            results_by_id: dict[str, CaseResult] = {}
+            # Keep the process entry point outside the ``track`` package.  A spawned
+            # Windows worker imports its target module from scratch; importing a
+            # target directly from ``track.robustness`` can encounter the package's
+            # report/simulation compatibility cycle before the CLI has bootstrapped.
+            from cvt_track_study.runtime.track_robustness_worker import (
+                execute_track_robustness_case,
+                initialize_track_robustness_worker,
             )
-            case_results.append(result)
-            _write_case_artifacts(staging / "cases" / _safe_name(case.identifier), result)
-            reporter.advance(case.label if result.success else f"{case.label} (failed)")
+            with interruptible_process_pool(
+                max_workers=effective_workers,
+                # Spawn is deliberate on every platform.  Forking after the nominal
+                # reconstruction has initialized NumPy/matplotlib native state can
+                # deadlock on POSIX, while Windows already requires spawn.
+                mp_context=mp.get_context("spawn"),
+                initializer=initialize_track_robustness_worker,
+                initargs=(
+                    resolution,
+                    tuple(parsed_runs),
+                    dict(track_config),
+                    tuple(raw_events),
+                ),
+            ) as executor:
+                futures = {
+                    executor.submit(execute_track_robustness_case, case): case
+                    for case in cases
+                }
+                for future in as_completed(futures):
+                    case = futures[future]
+                    result = future.result()
+                    results_by_id[case.identifier] = result
+                    _write_case_artifacts(
+                        staging / "cases" / _safe_name(case.identifier), result
+                    )
+                    reporter.advance(
+                        case.label if result.success else f"{case.label} (failed)"
+                    )
+            case_results = [results_by_id[case.identifier] for case in cases]
 
         tables = summarize_track_robustness(nominal, case_results, thresholds)
         ensemble_manifest = _write_track_ensemble_manifest(
@@ -193,6 +245,7 @@ def run_track_robustness_project(
             frame.to_csv(staging / f"{name}.csv", index=False)
         write_json(staging / "robustness_cases.json", [case_to_dict(case) for case in cases])
         _write_robustness_plots(staging, tables)
+        _write_cross_vehicle_gate_diagnostics(staging, nominal)
         _write_centreline_overlay(staging, nominal, case_results)
         _write_centreline_stability_corridor(staging, tables["robustness_case_summary"])
         _write_track_robustness_html(
@@ -219,7 +272,8 @@ def run_track_robustness_project(
             "successful_case_count": successful,
             "failed_case_count": len(cases) - successful,
             "requested_workers": workers,
-            "effective_workers": 1,
+            "effective_workers": effective_workers,
+            "parallel_backend": parallel_backend,
             "case_categories": sorted({case.category for case in cases}),
             "thresholds": thresholds,
             "command": list(command),
@@ -585,6 +639,10 @@ def summarize_track_robustness(
                     "accepted": bool(
                         case_row is not None
                         and case_row.get("recommendation") == "accepted"
+                    ),
+                    "hard_absolute_qualified": bool(
+                        case_row is not None
+                        and case_row.get("hard_absolute_gate_qualified", False)
                     ),
                     "overall_confidence_score": (
                         case_row.get("overall_confidence_score", math.nan)
@@ -1105,6 +1163,55 @@ def _aggregate_gate_stability(
                     if nominal_row is not None
                     else math.nan
                 ),
+                "nominal_enforcement_class": (
+                    str(nominal_row.get("enforcement_class", "none"))
+                    if nominal_row is not None
+                    else "none"
+                ),
+                "hard_absolute_qualified": bool(
+                    nominal_row.get("hard_absolute_gate_qualified", False)
+                ) if nominal_row is not None else False,
+                "relative_response_qualified": bool(
+                    nominal_row.get("sustained_gate_qualified", False)
+                ) if nominal_row is not None else False,
+                "guardrail_active_fallback": bool(
+                    nominal_row.get("guardrail_active_fallback", False)
+                ) if nominal_row is not None else False,
+                "guardrail_cap_mps": (
+                    float(nominal_row.get("guardrail_cap_mps", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "guardrail_cap_kmh": (
+                    float(nominal_row.get("guardrail_cap_mps", math.nan)) * 3.6
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "entry_pace_ratio_iqr": (
+                    float(nominal_row.get("entry_pace_ratio_iqr", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "vehicle_pace_ratio_spread": (
+                    float(nominal_row.get("vehicle_pace_ratio_spread", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "response_confidence_score": (
+                    float(nominal_row.get("sustained_confidence_score", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "response_ratio_median": (
+                    float(nominal_row.get("response_ratio_median", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
+                "response_ratio_cross_vehicle_spread": (
+                    float(nominal_row.get("response_ratio_cross_vehicle_spread", math.nan))
+                    if nominal_row is not None
+                    else math.nan
+                ),
                 "high_speed_weak_braking_review": cap_review,
                 "speed_interpretation": interpretation,
                 "nominal_reasons": (
@@ -1526,6 +1633,113 @@ def _write_robustness_plots(output: Path, tables: Mapping[str, pd.DataFrame]) ->
             plt.close(fig)
 
 
+
+def _write_cross_vehicle_gate_diagnostics(
+    output: Path,
+    nominal: TrackBuildResult,
+) -> None:
+    """Write source-balanced cross-vehicle gate diagnostics for the nominal track."""
+
+    passes = nominal.event_passes
+    if passes.empty or "vehicle_id" not in passes:
+        return
+    valid = passes[passes["eligible"].astype(bool)].copy()
+    vehicles = (
+        valid.groupby("vehicle_id").size().sort_values(ascending=False).index.astype(str).tolist()
+    )
+    if len(vehicles) < 2:
+        return
+    left, right = vehicles[:2]
+
+    def _paired_medians(value: pd.Series, frame: pd.DataFrame) -> pd.DataFrame:
+        work = frame.copy()
+        work["_value"] = pd.to_numeric(value, errors="coerce")
+        pivot = work.pivot_table(
+            index=["event_id", "event_name"],
+            columns="vehicle_id",
+            values="_value",
+            aggfunc="median",
+        )
+        if left not in pivot.columns or right not in pivot.columns:
+            return pd.DataFrame()
+        return pivot[[left, right]].dropna().reset_index()
+
+    raw = _paired_medians(valid["entry_speed_mps"], valid)
+    pace_denominator = pd.to_numeric(valid["lap_median_speed_mps"], errors="coerce")
+    pace_ratio = pd.to_numeric(valid["entry_speed_mps"], errors="coerce") / pace_denominator
+    pace_ratio = pace_ratio.where(pace_denominator > 0.5)
+    normalized = _paired_medians(pace_ratio, valid)
+    approach = pd.to_numeric(valid["approach_speed_mps"], errors="coerce")
+    response_ratio = pd.to_numeric(valid["event_min_speed_mps"], errors="coerce") / approach
+    response_ratio = response_ratio.where(approach > 0.5)
+    response = _paired_medians(response_ratio, valid)
+
+    evidence = nominal.gate_evidence.set_index("event_id") if not nominal.gate_evidence.empty else pd.DataFrame()
+
+    def _scatter(
+        frame: pd.DataFrame,
+        filename: str,
+        title: str,
+        axis_label: str,
+        *,
+        annotate_qualified: str | None = None,
+    ) -> None:
+        if frame.empty:
+            return
+        x = frame[left].to_numpy(float)
+        y = frame[right].to_numpy(float)
+        finite = np.isfinite(x) & np.isfinite(y)
+        if finite.sum() < 2:
+            return
+        x = x[finite]
+        y = y[finite]
+        shown = frame.loc[finite].reset_index(drop=True)
+        lo = float(min(np.min(x), np.min(y)))
+        hi = float(max(np.max(x), np.max(y)))
+        pad = max(0.05 * (hi - lo), 0.05)
+        fig, ax = plt.subplots(figsize=(7.8, 7.0))
+        ax.scatter(x, y, s=45, alpha=0.80)
+        ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], linestyle="--", linewidth=1.0, label="1:1")
+        correlation = float(np.corrcoef(x, y)[0, 1]) if len(x) >= 2 else math.nan
+        if len(x) >= 2 and np.std(x) > 0.0:
+            slope, intercept = np.polyfit(x, y, 1)
+            xx = np.linspace(lo - pad, hi + pad, 100)
+            ax.plot(xx, slope * xx + intercept, linewidth=1.3, label=f"fit; r={correlation:.3f}")
+        if annotate_qualified and not evidence.empty and annotate_qualified in evidence.columns:
+            for row in shown.itertuples(index=False):
+                event_id = str(row.event_id)
+                if event_id in evidence.index and bool(evidence.loc[event_id, annotate_qualified]):
+                    ax.annotate(event_id, (float(getattr(row, left)), float(getattr(row, right))), xytext=(4, 4), textcoords="offset points", fontsize=7)
+        ax.set_xlabel(f"{left}: {axis_label}")
+        ax.set_ylabel(f"{right}: {axis_label}")
+        ax.set_title(title)
+        ax.grid(True, alpha=0.25)
+        ax.legend(loc="best")
+        fig.tight_layout()
+        fig.savefig(output / filename, dpi=180)
+        plt.close(fig)
+
+    _scatter(
+        raw,
+        "cross_vehicle_entry_speed.png",
+        "Cross-vehicle absolute entry-speed pattern",
+        "median entry speed [m/s]",
+        annotate_qualified="hard_absolute_gate_qualified",
+    )
+    _scatter(
+        normalized,
+        "cross_vehicle_pace_normalized_entry.png",
+        "Cross-vehicle pace-normalized entry pattern",
+        "median entry / lap-median speed [-]",
+    )
+    _scatter(
+        response,
+        "cross_vehicle_response_ratio.png",
+        "Cross-vehicle within-feature response ratio",
+        "median minimum / approach speed [-]",
+        annotate_qualified="sustained_gate_qualified",
+    )
+
 def _write_track_robustness_html(
     output: Path,
     *,
@@ -1558,6 +1772,13 @@ def _write_track_robustness_html(
     counts = gates["frontier_classification"].value_counts().to_dict() if not gates.empty else {}
     high_speed_review = int(gates["high_speed_weak_braking_review"].astype(bool).sum()) if not gates.empty else 0
     target_stable = int(gates["target_speed_stable"].astype(bool).sum()) if not gates.empty else 0
+    hard_absolute_count = int(gates.get("hard_absolute_qualified", pd.Series(False, index=gates.index)).astype(bool).sum()) if not gates.empty else 0
+    relative_response_count = int(gates.get("relative_response_qualified", pd.Series(False, index=gates.index)).astype(bool).sum()) if not gates.empty else 0
+    guardrail_count = int(gates.get("guardrail_active_fallback", pd.Series(False, index=gates.index)).astype(bool).sum()) if not gates.empty else 0
+    candidate_coverage = hard_absolute_count + guardrail_count
+    candidate_count = int(
+        gates.get("gate_candidate", pd.Series(True, index=gates.index)).astype(bool).sum()
+    ) if not gates.empty else 0
     eligible_count = len(ensemble_manifest.get("eligible_cases", ()))
 
     nav = (
@@ -1587,7 +1808,15 @@ def _write_track_robustness_html(
                 f"{100.0 * primary_length:.2f}%" if np.isfinite(primary_length) else "n/a",
                 "good" if np.isfinite(primary_length) and primary_length <= thresholds["maximum_track_length_relative_shift"] else "warning",
             ),
-            ("Core gates", str(int(counts.get("core", 0))), "good"),
+            ("Hard absolute gates", str(hard_absolute_count), "good"),
+            ("Relative-response gates", str(relative_response_count), "good" if relative_response_count else "warning"),
+            ("Conservative guardrails", str(guardrail_count), "note"),
+            (
+                "Candidate speed-cap coverage",
+                f"{candidate_coverage}/{candidate_count}",
+                "good" if candidate_count and candidate_coverage == candidate_count else "warning",
+            ),
+            ("Core hard-gate frontier", str(int(counts.get("core", 0))), "good"),
             ("Conditional nominal gates", str(int(counts.get("conditional", 0))), "warning"),
             ("Near-miss candidates", str(int(counts.get("near_miss", 0))), "warning"),
             ("High-speed weak-braking reviews", str(high_speed_review), "warning" if high_speed_review else "good"),
@@ -1599,7 +1828,8 @@ def _write_track_robustness_html(
         '<div class="finding-grid">'
         '<div class="finding"><strong>Centreline</strong>The ordinary cleanup and reconstruction alternatives are summarized as a top-down p10-p90 corridor. Leave-one-run/vehicle/driver cases remain visible as stress tests but do not dominate the primary corridor.</div>'
         '<div class="finding"><strong>Event placement</strong>Movement is measured on the shared s coordinate because it determines where entry, response, obstacle, and recovery windows are sampled. Physical extent stability is reported separately.</div>'
-        '<div class="finding"><strong>Gate evidence</strong>Target-speed repeatability and gate qualification are intentionally separated. A stable speed observation can still be a conditional gate if its acceptance depends on cutoff or weighting choices.</div>'
+        '<div class="finding"><strong>Gate evidence</strong>Hard absolute caps, relative-response caps, and permissive guardrails are intentionally distinct. Relative-response qualification uses the worst measured vehicle rather than pooled lap counts, so Cornell cannot outvote McMaster.</div>'
+        '<div class="finding"><strong>Guardrail policy</strong>Every candidate without a hard absolute cap retains a high p95-plus-margin ceiling. This prevents unbounded simulated speeds while deliberately erring too high rather than fitting unsupported low speeds.</div>'
         '<div class="finding"><strong>No fake probabilities</strong>Acceptance fractions are frequencies across selected analysis policies. They are not probabilities that a gate is true or false.</div>'
         '</div>'
     )
@@ -1667,6 +1897,20 @@ def _write_track_robustness_html(
     body += figure(
         output / "gate_qualification_stability.png",
         "Acceptance frequency across only the cases that change gate thresholds, component weights, or measurement windows. This is a robustness frequency, not a calibrated probability.",
+    )
+    body += '<h3>Cross-vehicle feature agreement</h3>'
+    body += '<div class="section-intro"><strong>Why this matters.</strong>Absolute entry-speed agreement is intentionally a high bar for a hard cap. Pace-normalized and within-feature response agreement are evaluated separately so a faster vehicle can confirm that a physical feature is real without forcing both vehicles to share one absolute speed.</div>'
+    body += figure(
+        output / "cross_vehicle_entry_speed.png",
+        "Per-feature median entry speed for the two most represented measured vehicles. The identity line is the hard-absolute ideal; a strong offset pattern indicates shared feature ordering with different vehicle pace.",
+    )
+    body += figure(
+        output / "cross_vehicle_pace_normalized_entry.png",
+        "Per-feature median entry speed divided by each lap's median pace. Agreement after pace normalization supports a shared track-response pattern without pretending the absolute speeds are interchangeable.",
+    )
+    body += figure(
+        output / "cross_vehicle_response_ratio.png",
+        "Per-feature median minimum/approach speed ratio. Qualified relative-response gates require each measured vehicle independently to show repeatable slowdown and close ratio agreement.",
     )
     frontier_display = gates.copy()
     if not frontier_display.empty:

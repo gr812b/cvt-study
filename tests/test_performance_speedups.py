@@ -1,9 +1,7 @@
-"""Regression tests for the performance-only transplant."""
-
-from __future__ import annotations
-
 from dataclasses import dataclass
+import multiprocessing as mp
 
+from cvt_track_study.runtime.process_pool import interruptible_process_pool
 from cvt_track_study.simulation.integrator import _record_ordered_feature_entry_crossings
 
 
@@ -18,13 +16,17 @@ class _Feature:
     interval: _Interval
 
 
-def test_ordered_feature_crossings_interpolate_and_advance_once() -> None:
+def _square(value: int) -> int:
+    return value * value
+
+
+def test_ordered_feature_crossings_preserve_interpolated_entry_speed():
     features = (
         _Feature("a", _Interval(2.0)),
         _Feature("b", _Interval(5.0)),
         _Feature("c", _Interval(12.0)),
     )
-    recorded: dict[str, float] = {}
+    recorded = {}
     index = _record_ordered_feature_entry_crossings(
         features=features,
         start_index=0,
@@ -50,11 +52,7 @@ def test_ordered_feature_crossings_interpolate_and_advance_once() -> None:
     assert recorded["c"] == 15.0
 
 
-def test_parallel_runtime_is_process_based() -> None:
-    import cvt_track_study.studies.service_v8 as service
-    import cvt_track_study.studies.ensemble_v10 as ensemble
-
-    assert hasattr(service, "_initialize_scenario_process")
-    assert hasattr(service, "_execute_scenario_process_initialized")
-    assert "interruptible_process_pool" in service.__dict__
-    assert "interruptible_process_pool" in ensemble.__dict__
+def test_interruptible_process_pool_executes_picklable_work():
+    with interruptible_process_pool(max_workers=2, mp_context=mp.get_context("spawn")) as executor:
+        values = list(executor.map(_square, range(5)))
+    assert values == [0, 1, 4, 9, 16]

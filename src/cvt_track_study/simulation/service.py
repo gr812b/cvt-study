@@ -349,6 +349,7 @@ def resolve_simulation_cases(
             ),
             gate_speed_statistic=str(realization.get("gate_speed_statistic", "median")),
             gate_target_speeds_mps=gate_target_speeds_mps,
+            target_vehicle_id=vehicle_id,
             obstacle_model_types=_obstacle_model_types(choices),
             obstacle_parameters_si=_obstacle_parameters(quantities, choices, bundle),
         )

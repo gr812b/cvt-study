@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import json
@@ -23,6 +23,7 @@ from cvt_track_study.runtime.provenance import (
     write_provenance,
 )
 from cvt_track_study.runtime.results import write_results_index
+from cvt_track_study.runtime.process_pool import interruptible_process_pool
 from cvt_track_study.simulation.integrator import run_simulation
 from cvt_track_study.simulation.metrics import (
     compare_summaries,
@@ -55,6 +56,82 @@ from .analysis import (
 from .model import DesignPoint, StudyExecution
 from .planning import reference_cache_key, study_plan
 from .reporting_v8 import write_study_outputs
+
+
+_SCENARIO_PROCESS_CONTEXT: dict[str, Any] | None = None
+
+
+def _initialize_scenario_process(
+    design_points: tuple[DesignPoint, ...],
+    study_type: str,
+    vehicle_id: str,
+    vehicle_raw: Mapping[str, Any],
+    base_study: Mapping[str, Any],
+    track_raw: Mapping[str, Any],
+    bundles: Mapping[str, TrackBundle],
+    cache_root: Path,
+    cache_enabled: bool,
+) -> None:
+    """Initialize immutable study context once in each scenario worker.
+
+    Process workers avoid the GIL for the CPU-bound time-step loop.  Large static
+    inputs are sent once per worker rather than once per submitted scenario, which
+    keeps Windows spawn overhead small relative to the simulations themselves.
+    """
+
+    global _SCENARIO_PROCESS_CONTEXT
+    _SCENARIO_PROCESS_CONTEXT = {
+        "design_points": design_points,
+        "study_type": study_type,
+        "vehicle_id": vehicle_id,
+        "vehicle_raw": vehicle_raw,
+        "base_study": base_study,
+        "track_raw": track_raw,
+        "bundles": dict(bundles),
+        "cache": SimulationCache(Path(cache_root), enabled=cache_enabled),
+    }
+
+
+def _execute_scenario_process_initialized(
+    scenario: ScenarioDraw, bundle_key: str = "default"
+) -> dict[str, Any]:
+    """Execute one scenario from worker-local initialized context."""
+
+    context = _SCENARIO_PROCESS_CONTEXT
+    if context is None:
+        raise RuntimeError("Scenario process context was not initialized.")
+    cache: SimulationCache = context["cache"]
+    before = (cache.hits, cache.misses, cache.writes)
+    result = _execute_scenario(
+        scenario=scenario,
+        design_points=context["design_points"],
+        study_type=context["study_type"],
+        vehicle_id=context["vehicle_id"],
+        vehicle_raw=context["vehicle_raw"],
+        base_study=context["base_study"],
+        track_raw=context["track_raw"],
+        bundle=context["bundles"][bundle_key],
+        cache=cache,
+    )
+    result["_process_cache_counts"] = {
+        "hits": cache.hits - before[0],
+        "misses": cache.misses - before[1],
+        "writes": cache.writes - before[2],
+    }
+    return result
+
+
+def _merge_process_cache_counts(
+    cache: SimulationCache, result: dict[str, Any]
+) -> None:
+    """Merge worker-local cache counters into the parent-run manifest counters."""
+
+    counts = result.pop("_process_cache_counts", None)
+    if not isinstance(counts, Mapping):
+        return
+    cache.hits += int(counts.get("hits", 0))
+    cache.misses += int(counts.get("misses", 0))
+    cache.writes += int(counts.get("writes", 0))
 
 _SUPPORTED_TYPES = {
     "design_sweep",
@@ -243,6 +320,7 @@ def _execute(
         excluded_paths=(design_path,) if design_path else (),
         correlation_groups=correlation_groups_from_study(study_raw),
         gate_sampling=str(sampling.get("gate_sampling", "paired_lap")),
+        target_vehicle_id=vehicle_id,
     )
     sampler = ScenarioSampler(registry=registry, bundle=bundle, plan=plan)
     scenarios = (
@@ -284,20 +362,56 @@ def _execute(
         return result
 
     scenario_results: list[dict[str, Any]] = []
+    parallel_backend = "serial"
     if workers == 1 or len(scenarios) == 1:
         for scenario in scenarios:
             scenario_results.append(execute_or_resume(scenario))
             reporter.advance(f"replicate {scenario.replicate}")
     else:
-        with ThreadPoolExecutor(max_workers=min(workers, len(scenarios))) as executor:
-            futures = {
-                executor.submit(execute_or_resume, scenario): scenario
-                for scenario in scenarios
-            }
-            for future in as_completed(futures):
-                scenario = futures[future]
-                scenario_results.append(future.result())
-                reporter.advance(f"replicate {scenario.replicate}")
+        # Workspace/checkpoint I/O remains parent-only.  Worker processes receive
+        # only the scenario plus a tiny bundle key; static study data is loaded once
+        # by the process initializer.
+        pending: list[ScenarioDraw] = []
+        for scenario in scenarios:
+            checkpoint = workspace.load_checkpoint(scenario.replicate)
+            if checkpoint is None:
+                pending.append(scenario)
+                continue
+            result = dict(checkpoint["result"])
+            result["resumed"] = True
+            scenario_results.append(result)
+            reporter.advance(f"replicate {scenario.replicate} (resumed)")
+
+        if pending:
+            parallel_backend = "process"
+            with interruptible_process_pool(
+                max_workers=min(workers, len(pending)),
+                initializer=_initialize_scenario_process,
+                initargs=(
+                    design_points,
+                    study_type,
+                    vehicle_id,
+                    vehicle_raw,
+                    base_study,
+                    track_raw,
+                    {"default": bundle},
+                    cache.root,
+                    cache.enabled,
+                ),
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        _execute_scenario_process_initialized, scenario, "default"
+                    ): scenario
+                    for scenario in pending
+                }
+                for future in as_completed(futures):
+                    scenario = futures[future]
+                    result = future.result()
+                    _merge_process_cache_counts(cache, result)
+                    workspace.write_checkpoint(scenario.replicate, {"result": result})
+                    scenario_results.append(result)
+                    reporter.advance(f"replicate {scenario.replicate}")
 
     order = {point.identifier: index for index, point in enumerate(design_points)}
     rows = [row for result in scenario_results for row in result["rows"]]
@@ -346,6 +460,7 @@ def _execute(
         "simulation_cache_enabled": cache.enabled,
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
+        "parallel_backend": parallel_backend,
         "reference_cache_policy": (
             "one scenario-level infinite reference shared by every design candidate"
         ),

@@ -344,7 +344,16 @@ def _validate_gates(raw: Any, group_ids: set[str], length: float, errors: list[s
         elif active and status != "accepted":
             errors.append(f"speed gate {identifier!r} may be active only when status is accepted")
         elif active and not samples:
-            errors.append(f"active speed gate {identifier!r} requires empirical samples")
+            deterministic_guardrail = (
+                str(row.get("enforcement_class", "")) == "conservative_guardrail"
+                and isinstance(summary, Mapping)
+                and isinstance(summary.get("median_mps"), (int, float))
+            )
+            if not deterministic_guardrail:
+                errors.append(
+                    f"active speed gate {identifier!r} requires empirical samples "
+                    "unless it is an explicitly deterministic conservative guardrail"
+                )
 
 
 def _validate_interval(raw: Any, length: float, label: str, errors: list[str]) -> None:

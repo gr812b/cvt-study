@@ -4,7 +4,7 @@
 [[runs]]
 file = "fit/McMaster.fit"
 run_id = "mcmaster_maryland_endurance"
-vehicle_id = "vehicle_A"
+vehicle_id = "mcmaster"
 driver_id = "ariel"
 use_for_centreline = true
 use_for_gate_evidence = true

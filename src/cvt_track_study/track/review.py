@@ -385,13 +385,18 @@ def write_review_summary(
         f"- Complete laps: **{len(laps)}**",
         f"- Valid evidence laps: **{int(laps['analysis_valid'].sum())}**",
         f"- Declared physical features: **{len(events)}**",
-        f"- Accepted speed gates: **{int(counts.get('accepted', 0))}**",
+        f"- Hard absolute speed gates: **{int(counts.get('accepted', 0))}**",
+        f"- Independently qualified relative-response gates: **{int(gate_review.get('sustained_gate_qualified', pd.Series(False, index=gate_review.index)).astype(bool).sum())}**",
+        f"- Conservative fallback guardrails: **{int(gate_review.get('guardrail_active_fallback', pd.Series(False, index=gate_review.index)).astype(bool).sum())}**",
         f"- Recommended review: **{int(counts.get('recommended_review', 0))}**",
         f"- Must fix: **{int(counts.get('must_fix', 0))}**",
         "",
         "Gate confidence is an evidence score, not a probability that a gate is true. "
-        "The component scores expose the supporting pass count, speed repeatability, "
-        "braking evidence, pace independence, coordinate quality, and cross-vehicle agreement.",
+        "Hard absolute gates require absolute-speed agreement. Relative-response gates are "
+        "qualified independently from source-balanced minimum/approach ratios, using the "
+        "worst measured vehicle for the repeatability checks. Every other candidate gets "
+        "only a deliberately permissive p95-plus-margin guardrail so unsupported locations "
+        "cannot become arbitrarily fast without being mistaken for fitted speed gates.",
         "",
     ]
     if len(must_fix):
@@ -460,6 +465,11 @@ def write_review_html(
         "entry_speed_median_mps",
         "entry_speed_p10_mps",
         "entry_speed_p90_mps",
+        "guardrail_cap_mps",
+        "enforcement_class",
+        "sustained_gate_qualified",
+        "response_ratio_median",
+        "response_ratio_cross_vehicle_spread",
         "coordinate_effective_error_m",
         "slowdown_signature",
         "cross_vehicle_status",

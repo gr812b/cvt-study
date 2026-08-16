@@ -1,0 +1,18 @@
+{
+  "artifact": "Arizona Cornell telemetry v5",
+  "cornell_role": [
+    "centreline",
+    "gate_evidence"
+  ],
+  "cornell_traffic_role": false,
+  "cornell_bytes_match_uploaded": true,
+  "toml_file_count_parsed": 15,
+  "normal_plus_mode_conflicts": [],
+  "declared_run_files_missing": [],
+  "corrected_efficiency_mode_fields_removed": 1,
+  "run_ids": [
+    "arizona_endurance_1",
+    "arizona_endurance_3",
+    "arizona_cornell_endurance"
+  ]
+}

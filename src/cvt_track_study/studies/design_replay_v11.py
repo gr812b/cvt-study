@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -23,6 +23,7 @@ from cvt_track_study.runtime.provenance import (
     write_provenance,
 )
 from cvt_track_study.runtime.results import write_results_index
+from cvt_track_study.runtime.process_pool import interruptible_process_pool
 from cvt_track_study.simulation.service import SimulationError
 from cvt_track_study.uncertainty import (
     GateSampleIdentity,
@@ -53,6 +54,62 @@ from .scenario_reduction import (
     resolve_source_result,
     write_reduction_artifacts,
 )
+
+
+_DESIGN_PROCESS_CONTEXT: dict[str, Any] | None = None
+
+
+def _initialize_design_process(
+    design_points: tuple[Any, ...],
+    vehicle_id: str,
+    vehicle_raw: Mapping[str, Any],
+    base_study: Mapping[str, Any],
+    track_raw: Mapping[str, Any],
+    bundles: Mapping[str, Any],
+    cache_root: Path,
+    cache_enabled: bool,
+) -> None:
+    """Initialize immutable design-grid context once per worker process."""
+
+    global _DESIGN_PROCESS_CONTEXT
+    _DESIGN_PROCESS_CONTEXT = {
+        "design_points": design_points,
+        "vehicle_id": vehicle_id,
+        "vehicle_raw": vehicle_raw,
+        "base_study": base_study,
+        "track_raw": track_raw,
+        "bundles": dict(bundles),
+        "cache": SimulationCache(Path(cache_root), enabled=cache_enabled),
+    }
+
+
+def _execute_design_process_initialized(
+    scenario: ScenarioDraw, bundle_key: str
+) -> dict[str, Any]:
+    """Execute one complete design grid in one paired uncertainty world."""
+
+    context = _DESIGN_PROCESS_CONTEXT
+    if context is None:
+        raise RuntimeError("Design process context was not initialized.")
+    cache: SimulationCache = context["cache"]
+    before = (cache.hits, cache.misses, cache.writes)
+    result = execute_design_grid_scenario(
+        scenario=scenario,
+        design_points=context["design_points"],
+        study_type="design_sweep",
+        vehicle_id=context["vehicle_id"],
+        vehicle_raw=context["vehicle_raw"],
+        base_study=context["base_study"],
+        track_raw=context["track_raw"],
+        bundle=context["bundles"][bundle_key],
+        cache=cache,
+    )
+    result["_process_cache_counts"] = {
+        "hits": cache.hits - before[0],
+        "misses": cache.misses - before[1],
+        "writes": cache.writes - before[2],
+    }
+    return result
 
 
 def run_uncertainty_informed_design_project(
@@ -235,15 +292,40 @@ def run_uncertainty_informed_design_project(
 
     source_metadata_by_replicate: dict[int, dict[str, Any]] = {}
 
-    def execute_or_resume(
+    def register_source_metadata(
         item: tuple[TrackVariant, ScenarioDraw, int, int]
-    ) -> dict[str, Any]:
+    ) -> None:
         variant, scenario, base_draw_id, source_replicate = item
         source_metadata_by_replicate[scenario.replicate] = {
             "base_draw_id": base_draw_id,
             "source_replicate": source_replicate,
             "track_case_id": variant.case_id,
         }
+
+    def annotate_result(
+        item: tuple[TrackVariant, ScenarioDraw, int, int],
+        result: dict[str, Any],
+    ) -> None:
+        variant, _scenario, base_draw_id, source_replicate = item
+        for row in result["rows"]:
+            row["base_draw_id"] = base_draw_id
+            row["track_pair_id"] = f"source-draw-{base_draw_id:06d}"
+            row["track_case_id"] = variant.case_id
+            row["track_case_category"] = variant.category
+            row["track_bundle_fingerprint"] = variant.bundle.data.get(
+                "content_fingerprint_sha256"
+            )
+            row["source_uncertainty_replicate"] = source_replicate
+            row["source_uncertainty_result"] = str(source.result_directory)
+        result["track_case_id"] = variant.case_id
+        result["base_draw_id"] = base_draw_id
+        result["source_uncertainty_replicate"] = source_replicate
+
+    def execute_or_resume(
+        item: tuple[TrackVariant, ScenarioDraw, int, int]
+    ) -> dict[str, Any]:
+        variant, scenario, _base_draw_id, _source_replicate = item
+        register_source_metadata(item)
         checkpoint = workspace.load_checkpoint(scenario.replicate)
         if checkpoint is not None:
             result = dict(checkpoint["result"])
@@ -260,23 +342,12 @@ def run_uncertainty_informed_design_project(
             bundle=variant.bundle,
             cache=cache,
         )
-        for row in result["rows"]:
-            row["base_draw_id"] = base_draw_id
-            row["track_pair_id"] = f"source-draw-{base_draw_id:06d}"
-            row["track_case_id"] = variant.case_id
-            row["track_case_category"] = variant.category
-            row["track_bundle_fingerprint"] = variant.bundle.data.get(
-                "content_fingerprint_sha256"
-            )
-            row["source_uncertainty_replicate"] = source_replicate
-            row["source_uncertainty_result"] = str(source.result_directory)
-        result["track_case_id"] = variant.case_id
-        result["base_draw_id"] = base_draw_id
-        result["source_uncertainty_replicate"] = source_replicate
+        annotate_result(item, result)
         workspace.write_checkpoint(scenario.replicate, {"result": result})
         return result
 
     results: list[dict[str, Any]] = []
+    parallel_backend = "serial"
     if workers == 1 or len(scheduled) == 1:
         for item in scheduled:
             result = execute_or_resume(item)
@@ -285,14 +356,60 @@ def run_uncertainty_informed_design_project(
                 f"source replicate {item[3]}; draw={item[2]}; track={item[0].case_id}"
             )
     else:
-        with ThreadPoolExecutor(max_workers=min(workers, len(scheduled))) as executor:
-            futures = {executor.submit(execute_or_resume, item): item for item in scheduled}
-            for future in as_completed(futures):
-                item = futures[future]
-                results.append(future.result())
-                reporter.advance(
-                    f"source replicate {item[3]}; draw={item[2]}; track={item[0].case_id}"
-                )
+        pending: list[tuple[TrackVariant, ScenarioDraw, int, int]] = []
+        for item in scheduled:
+            register_source_metadata(item)
+            scenario = item[1]
+            checkpoint = workspace.load_checkpoint(scenario.replicate)
+            if checkpoint is None:
+                pending.append(item)
+                continue
+            result = dict(checkpoint["result"])
+            result["resumed"] = True
+            results.append(result)
+            reporter.advance(
+                f"source replicate {item[3]}; draw={item[2]}; "
+                f"track={item[0].case_id} (resumed)"
+            )
+
+        if pending:
+            parallel_backend = "process"
+            bundles_by_case = {item[0].case_id: item[0].bundle for item in scheduled}
+            with interruptible_process_pool(
+                max_workers=min(workers, len(pending)),
+                initializer=_initialize_design_process,
+                initargs=(
+                    tuple(design_points),
+                    vehicle_id,
+                    vehicle_raw,
+                    base_study,
+                    resolution.data["track"],
+                    bundles_by_case,
+                    cache.root,
+                    cache.enabled,
+                ),
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        _execute_design_process_initialized,
+                        item[1],
+                        item[0].case_id,
+                    ): item
+                    for item in pending
+                }
+                for future in as_completed(futures):
+                    item = futures[future]
+                    result = future.result()
+                    service_v8._merge_process_cache_counts(cache, result)
+                    annotate_result(item, result)
+                    workspace.write_checkpoint(
+                        item[1].replicate, {"result": result}
+                    )
+                    results.append(result)
+                    reporter.advance(
+                        f"source replicate {item[3]}; draw={item[2]}; "
+                        f"track={item[0].case_id}"
+                    )
 
     order = {point.identifier: index for index, point in enumerate(design_points)}
     rows = [row for result in results for row in result["rows"]]
@@ -371,6 +488,7 @@ def run_uncertainty_informed_design_project(
         "simulation_cache_enabled": cache.enabled,
         "simulation_cache_status": cache.status(),
         "parallel_workers": workers,
+        "parallel_backend": parallel_backend,
         "paired_scenarios": True,
         "traffic_model": source.manifest.get("traffic_model", {"enabled": False}),
         "traffic_replay_policy": "exact_source_traffic_world_replay",

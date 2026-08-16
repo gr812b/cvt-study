@@ -1,7 +1,7 @@
 [study]
 name = "baseline"
 type = "baseline"
-vehicle_id = "vehicle_A"
+vehicle_id = "mcmaster"
 random_seed = 20260715
 
 [sampling]

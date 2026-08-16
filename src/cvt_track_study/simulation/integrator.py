@@ -136,18 +136,25 @@ def run_simulation(
         "grade_work_j": 0.0,
         "traffic_active_time_s": 0.0,
     }
-    feature_entry_speeds: dict[str, float] = {}
+    feature_entry_speeds: dict[str, float] = {
+        feature.identifier: speed
+        for feature in track.features
+        if feature.interval.local_distance(distance, track.length_m) is not None
+    }
     feature_obstacle_energy = {feature.identifier: 0.0 for feature in track.features}
+    ordered_feature_starts = tuple(
+        sorted(track.features, key=lambda feature: feature.interval.start_s_m)
+    )
+    next_feature_start_index = 0
+    while (
+        next_feature_start_index < len(ordered_feature_starts)
+        and ordered_feature_starts[next_feature_start_index].interval.start_s_m <= distance
+    ):
+        next_feature_start_index += 1
     completed = False
     reason = "maximum_time_reached"
 
     for _ in range(int(np.ceil(settings.maximum_time_s / step))):
-        for feature in track.features:
-            if (
-                feature.identifier not in feature_entry_speeds
-                and feature.interval.local_distance(distance, track.length_m) is not None
-            ):
-                feature_entry_speeds[feature.identifier] = speed
         traffic_ceiling, _traffic_retained = traffic_limit_state(
             traffic=traffic,
             reference=traffic_reference,
@@ -220,8 +227,9 @@ def run_simulation(
             completed = True
             reason = "track_complete"
 
-        _record_feature_entry_crossings(
-            features=track.features,
+        next_feature_start_index = _record_ordered_feature_entry_crossings(
+            features=ordered_feature_starts,
+            start_index=next_feature_start_index,
             recorded=feature_entry_speeds,
             start_distance_m=distance,
             end_distance_m=new_distance,
@@ -323,6 +331,43 @@ def run_simulation(
         traffic_reference=traffic_reference,
     )
 
+
+
+def _record_ordered_feature_entry_crossings(
+    *,
+    features: tuple[Any, ...],
+    start_index: int,
+    recorded: dict[str, float],
+    start_distance_m: float,
+    end_distance_m: float,
+    start_speed_mps: float,
+    end_speed_mps: float,
+) -> int:
+    """Capture newly crossed entries without scanning every feature every step.
+
+    Distance is monotone in this lap integrator, so once a sorted feature start is
+    behind the vehicle it never needs to be tested again.  Boundary speed uses the
+    same linear interpolation and non-negative clamp as the legacy all-feature scan.
+    """
+
+    span = end_distance_m - start_distance_m
+    if span <= 0.0:
+        return start_index
+    index = start_index
+    while index < len(features):
+        feature = features[index]
+        boundary = float(feature.interval.start_s_m)
+        if boundary > end_distance_m:
+            break
+        if boundary > start_distance_m and feature.identifier not in recorded:
+            fraction = (boundary - start_distance_m) / span
+            recorded[feature.identifier] = max(
+                0.0,
+                float(start_speed_mps)
+                + fraction * (float(end_speed_mps) - float(start_speed_mps)),
+            )
+        index += 1
+    return index
 
 def _record_feature_entry_crossings(
     *,

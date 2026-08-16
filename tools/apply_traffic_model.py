@@ -1171,6 +1171,159 @@ def patch_cli() -> None:
     print(f"patched: {rel}")
 
 
+
+def patch_csv_ingestion() -> None:
+    rel = "src/cvt_track_study/gpx/ingestion.py"
+    path, text = read(rel)
+    if "ingest_csv_run" in text:
+        print(f"already patched: {rel}")
+        return
+    text = replace_once(
+        text,
+        "from .fit_parser import FITParseError, ingest_fit_run\n",
+        "from .csv_parser import CSVParseError, ingest_csv_run\n"
+        "from .fit_parser import FITParseError, ingest_fit_run\n",
+        "CSV ingestion import",
+    )
+    text = replace_once(
+        text,
+        '    if suffix == ".gpx":\n'
+        '        return ingest_gpx_run(metadata)\n'
+        '    if suffix == ".fit":\n'
+        '        return ingest_fit_run(metadata)\n',
+        '    if suffix == ".gpx":\n'
+        '        return ingest_gpx_run(metadata)\n'
+        '    if suffix == ".fit":\n'
+        '        return ingest_fit_run(metadata)\n'
+        '    if suffix == ".csv":\n'
+        '        return ingest_csv_run(metadata)\n',
+        "CSV ingestion dispatch",
+    )
+    text = text.replace(
+        "expected .gpx or .fit.",
+        "expected .gpx, .fit, or .csv.",
+    )
+    text = text.replace(
+        '__all__ = [\n    "FITParseError",',
+        '__all__ = [\n    "CSVParseError",\n    "FITParseError",',
+    )
+    text = text.replace(
+        '    "ingest_fit_run",\n',
+        '    "ingest_csv_run",\n    "ingest_fit_run",\n',
+        1,
+    )
+    write(path, text)
+    print(f"patched: {rel}")
+
+
+def patch_gpx_facade_csv() -> None:
+    rel = "src/cvt_track_study/gpx/__init__.py"
+    path, text = read(rel)
+    if "CSVParseError" in text:
+        print(f"already patched: {rel}")
+        return
+    text = replace_once(
+        text,
+        "from .cleanup import (\n",
+        "from .csv_parser import CSVParseError, ingest_csv_run\n"
+        "from .cleanup import (\n",
+        "CSV facade import",
+    )
+    text = text.replace(
+        '    "CANONICAL_POINT_COLUMNS",\n',
+        '    "CANONICAL_POINT_COLUMNS",\n    "CSVParseError",\n',
+        1,
+    )
+    text = text.replace(
+        '    "ingest_configured_run",\n',
+        '    "ingest_configured_run",\n    "ingest_csv_run",\n',
+        1,
+    )
+    write(path, text)
+    print(f"patched: {rel}")
+
+
+def patch_validation_csv_external_vehicle() -> None:
+    rel = "src/cvt_track_study/config/validation.py"
+    path, text = read(rel)
+
+    if '{".gpx", ".fit", ".csv"}' not in text:
+        text = text.replace(
+            'Path(file_text).suffix.lower() not in {".gpx", ".fit"}',
+            'Path(file_text).suffix.lower() not in {".gpx", ".fit", ".csv"}',
+            1,
+        )
+        text = text.replace(
+            "Raw telemetry files must use the .gpx or .fit extension.",
+            "Raw telemetry files must use the .gpx, .fit, or .csv extension.",
+            1,
+        )
+        text = text.replace(
+            "No GPX or FIT telemetry runs are declared yet.",
+            "No GPX, FIT, or CSV telemetry runs are declared yet.",
+            1,
+        )
+        text = text.replace(
+            "Add one [[runs]] entry per GPX or FIT recording before build-track.",
+            "Add one [[runs]] entry per GPX, FIT, or CSV recording before build-track.",
+            1,
+        )
+
+    if "RUN_EXTERNAL_VEHICLE_FLAG_NOT_BOOLEAN" not in text:
+        old = '''            vehicle_id = str(run["vehicle_id"])
+            if vehicle_id not in vehicle_ids:
+                diagnostics.error(
+                    "RUN_VEHICLE_NOT_FOUND",
+                    f"Run references unknown vehicle {vehicle_id!r}.",
+                    path=f"{path}.vehicle_id",
+                )
+'''
+        new = '''            vehicle_id = str(run["vehicle_id"])
+            external_vehicle = run.get("external_vehicle", False)
+            if not isinstance(external_vehicle, bool):
+                diagnostics.error(
+                    "RUN_EXTERNAL_VEHICLE_FLAG_NOT_BOOLEAN",
+                    "external_vehicle must be true or false when declared.",
+                    path=f"{path}.external_vehicle",
+                )
+                external_vehicle = False
+            if vehicle_id not in vehicle_ids:
+                if external_vehicle:
+                    diagnostics.warning(
+                        "RUN_EXTERNAL_VEHICLE_CONFIG_NOT_REQUIRED",
+                        (
+                            f"Telemetry run uses external vehicle identity {vehicle_id!r}; "
+                            "no simulator vehicle definition is required because this identity "
+                            "is used only for measured track/gate evidence."
+                        ),
+                        path=f"{path}.vehicle_id",
+                    )
+                else:
+                    diagnostics.error(
+                        "RUN_VEHICLE_NOT_FOUND",
+                        f"Run references unknown vehicle {vehicle_id!r}.",
+                        path=f"{path}.vehicle_id",
+                    )
+'''
+        text = replace_once(text, old, new, "external telemetry vehicle identity")
+
+    write(path, text)
+    print(f"patched: {rel}")
+
+
+def patch_cli_csv_help() -> None:
+    rel = "src/cvt_track_study/cli.py"
+    path, text = read(rel)
+    updated = text.replace(
+        'help="Parse GPX/FIT and export canonical telemetry."',
+        'help="Parse GPX/FIT/CSV and export canonical telemetry."',
+    )
+    if updated != text:
+        write(path, updated)
+        print(f"patched: {rel} CSV help")
+    else:
+        print(f"CSV help already current or source wording changed: {rel}")
+
 def main() -> int:
     targets = (
         "src/cvt_track_study/uncertainty/model.py",
@@ -1184,6 +1337,9 @@ def main() -> int:
         "src/cvt_track_study/studies/scenario_reduction.py",
         "src/cvt_track_study/reports/__init__.py",
         "src/cvt_track_study/cli.py",
+        "src/cvt_track_study/gpx/ingestion.py",
+        "src/cvt_track_study/gpx/__init__.py",
+        "src/cvt_track_study/config/validation.py",
     )
     originals: dict[Path, str] = {}
     try:
@@ -1204,10 +1360,15 @@ def main() -> int:
         patch_scenario_reduction()
         patch_reports_facade()
         patch_cli()
+        patch_csv_ingestion()
+        patch_gpx_facade_csv()
+        patch_validation_csv_external_vehicle()
+        patch_cli_csv_help()
         for rel in (
             *targets,
             "src/cvt_track_study/simulation/traffic.py",
             "src/cvt_track_study/reports/traffic.py",
+            "src/cvt_track_study/gpx/csv_parser.py",
         ):
             source_path = ROOT / rel
             compile(source_path.read_text(encoding="utf-8"), str(source_path), "exec")

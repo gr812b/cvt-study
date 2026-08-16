@@ -156,6 +156,7 @@ def _execute(
         excluded_paths=(design_path,) if design_path else (),
         correlation_groups=correlation_groups_from_study(study_raw),
         gate_sampling=str(sampling.get("gate_sampling", "paired_lap")),
+        target_vehicle_id=vehicle_id,
     )
     sampler = ScenarioSampler(registry=registry, bundle=bundle, plan=plan)
     scenarios = sampler.draw_all() if study_type != "structural_sensitivity" else (
