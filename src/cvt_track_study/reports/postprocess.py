@@ -421,6 +421,9 @@ def write_design_comparison_report(output: Path) -> Path:
             output / "paired_design_world_deltas.csv", index=False
         )
     paired_effect_plots = _paired_design_effect_plots(isolated_contrasts, plots)
+    from .traffic import build_design_traffic_report_section
+
+    traffic_section = build_design_traffic_report_section(output, rows, ranking)
 
     winner = ranking.iloc[0]["design_id"] if not ranking.empty else "unresolved"
     completion = float(ranking.iloc[0]["completion_fraction"]) if not ranking.empty else math.nan
@@ -476,6 +479,7 @@ def write_design_comparison_report(output: Path) -> Path:
         "design_track_case_matrix",
         "Median bounded lap time for every design and reconstructed-track case represented in the paired scenarios.",
     )
+    body += traffic_section
     body += "<h2>Candidate-level raw summaries</h2>" + dataframe_table(rows, max_rows=250)
     body += "<h2>Study contract</h2>" + f"<pre>{html.escape(json.dumps(_manifest_subset(manifest), indent=2, sort_keys=True))}</pre>"
 

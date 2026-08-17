@@ -7,7 +7,7 @@
 # through the bounded/reference CVT and final drive to the driven wheel.
 
 [drivetrain.efficiency]
-nominal = 0.9506
+nominal = 1
 unit = "1"
 
 [drivetrain.efficiency.source]
@@ -16,17 +16,19 @@ reference = "McMaster Baja lumped CVT and final-drive mechanical-efficiency esti
 notes = "Use measured input/output power data or a validated operating map when available."
 
 [drivetrain.efficiency.uncertainty]
-distribution = "normal"
+distribution = "uniform"
 role = "structural"
-standard_deviation = 0.0077
+lower = 0.75
+upper = 1
 
 [drivetrain.final_drive_ratio]
-nominal = 7.925
+nominal = 7.556
 unit = "1"
 
 [drivetrain.final_drive_ratio.source]
 kind = "derived"
 reference = "McMaster Baja gearbox and sprocket reduction declaration"
+notes = "Confirm from the exact installed gear and sprocket tooth counts."
 
 [drivetrain.final_drive_ratio.uncertainty]
 distribution = "fixed"
@@ -45,7 +47,7 @@ distribution = "fixed"
 reason = "Engine model-form selection is fixed; available-power uncertainty is carried by power_scale."
 
 [drivetrain.engine.target_speed]
-nominal = 3100.0
+nominal = 3000.0
 unit = "rpm"
 
 [drivetrain.engine.target_speed.source]
@@ -56,7 +58,7 @@ notes = "The bounded ideal CVT attempts to operate the reference engine around t
 [drivetrain.engine.target_speed.uncertainty]
 distribution = "uniform"
 role = "structural"
-lower = 3000.0
+lower = 2900.0
 upper = 3200.0
 
 [drivetrain.engine.power_scale]
@@ -71,9 +73,9 @@ notes = "1.0 uses the reference curve unchanged; uncertainty captures engine con
 [drivetrain.engine.power_scale.uncertainty]
 distribution = "triangular"
 role = "structural"
-lower = 0.9
+lower = 0.75
 mode = 1.0
-upper = 1.1
+upper = 1.05
 
 [drivetrain.cvt.maximum_reduction_ratio]
 nominal = 3.5

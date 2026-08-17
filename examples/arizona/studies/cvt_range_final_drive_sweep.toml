@@ -1,0 +1,76 @@
+[study]
+name = "cvt_range_final_drive_sweep"
+type = "design_sweep"
+vehicle_id = "mcmaster"
+random_seed = 20260715
+
+[base_case]
+study = "baseline"
+
+# Compatibility table for repositories whose validator still expects the legacy
+# one-dimensional syntax. The grid runner ignores this table whenever the
+# authoritative [[design_variables]] array below exists.
+[design_variable]
+path = "drivetrain.final_drive_ratio"
+values = [4.5, 5.0, 5.5, 6.0, 6.2, 6.5]
+
+# Hold drivetrain.cvt.minimum_reduction_ratio fixed in the vehicle configuration.
+# This grid varies the low-speed end of the CVT and the final drive together.
+[[design_variables]]
+path = "drivetrain.cvt.maximum_reduction_ratio"
+values = [2.5, 3.0, 3.5, 4.0, 4.5]
+
+[[design_variables]]
+path = "drivetrain.final_drive_ratio"
+values = [4.5, 5.0, 5.5, 6.0, 6.2, 6.5]
+
+[design_grid]
+maximum_candidates = 100
+
+# Reuse representative, already-computed worlds from the approved uncertainty
+# result. Every Cartesian candidate sees the exact same selected worlds.
+[uncertainty_informed_design]
+enabled = true
+source_result = "latest"
+selection = "representative"
+maximum_base_draws = 12
+maximum_track_cases = 5
+require_completed = true
+maximum_abs_energy_balance_relative_error = 0.02
+maximum_abs_powertrain_balance_relative_error = 0.02
+include_output_extremes = true
+
+# Fallback only when uncertainty_informed_design.enabled=false.
+[sampling]
+mode = "all_declared"
+replicates = 30
+paired_scenarios = true
+gate_sampling = "paired_lap"
+
+[track_ensemble]
+enabled = true
+result_directory = "latest"
+auto_build = true
+study = "track_robustness"
+maximum_cases = 20
+include_categories = [
+  "nominal",
+  "data_support",
+  "telemetry_cleanup",
+  "centreline",
+  "event_windows",
+  "gate_policy",
+  "gate_weighting",
+]
+
+[decision_thresholds]
+maximum_time_penalty_s = 3.0
+maximum_opportunity_loss_kj = 120.0
+
+[reporting]
+bootstrap_resamples = 2000
+html_report = true
+
+[quality]
+maximum_abs_energy_balance_relative_error = 0.01
+maximum_abs_powertrain_balance_relative_error = 0.01

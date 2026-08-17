@@ -6,6 +6,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 from math import tanh
+import math
 from typing import Any, Mapping
 
 import numpy as np
@@ -114,6 +115,7 @@ def run_simulation(
     settings: SimulationSettings,
     traffic: TrafficRealization | None = None,
     traffic_reference: TrafficReferenceProfile | None = None,
+    pace_envelope: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> SimulationTrace:
     step = settings.integration_step_s
     time_s = 0.0
@@ -161,6 +163,8 @@ def run_simulation(
             lap_time_s=time_s,
             distance_m=distance,
         )
+        pace_ceiling = _pace_envelope_ceiling(pace_envelope, distance, track.length_m)
+        external_ceiling = min(traffic_ceiling, pace_ceiling)
         dynamics = evaluate_dynamics(
             distance_m=distance,
             vehicle_speed_mps=speed,
@@ -169,7 +173,7 @@ def run_simulation(
             track=track,
             feature_entry_speeds_mps=feature_entry_speeds,
             external_speed_ceiling_mps=(
-                None if not np.isfinite(traffic_ceiling) else traffic_ceiling
+                None if not np.isfinite(external_ceiling) else external_ceiling
             ),
         )
         road_resistance = (
@@ -329,8 +333,29 @@ def run_simulation(
         feature_obstacle_energy_j=feature_obstacle_energy,
         traffic=traffic,
         traffic_reference=traffic_reference,
+        pace_envelope=pace_envelope,
     )
 
+
+def _pace_envelope_ceiling(
+    pace_envelope: tuple[np.ndarray, np.ndarray] | None,
+    distance_m: float,
+    track_length_m: float,
+) -> float:
+    if pace_envelope is None:
+        return math.inf
+    positions, speeds = pace_envelope
+    positions = np.asarray(positions, dtype=float)
+    speeds = np.asarray(speeds, dtype=float)
+    if positions.size < 2 or speeds.size != positions.size:
+        raise ValueError("pace_envelope must contain equal-length position/speed arrays with at least two samples")
+    if not np.all(np.isfinite(positions)) or not np.all(np.isfinite(speeds)):
+        raise ValueError("pace_envelope values must be finite")
+    if np.any(speeds <= 0.0):
+        raise ValueError("pace_envelope speeds must be positive")
+    length = float(track_length_m)
+    s = float(distance_m) % length
+    return float(np.interp(s, positions, speeds, period=length))
 
 
 def _record_ordered_feature_entry_crossings(
@@ -412,6 +437,7 @@ def _report_trace(
     feature_obstacle_energy_j: Mapping[str, float],
     traffic: TrafficRealization | None,
     traffic_reference: TrafficReferenceProfile | None,
+    pace_envelope: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> SimulationTrace:
     keys = (
         "time_s", "distance_m", "vehicle_speed_mps", "vehicle_speed_kmh",
@@ -429,7 +455,7 @@ def _report_trace(
         "grade_force_n", "rolling_force_n", "aerodynamic_force_n", "obstacle_force_n",
         "lateral_force_n", "normal_load_n", "vehicle_kinetic_energy_j",
         "wheel_kinetic_energy_j", "total_kinetic_energy_j",
-        "traffic_speed_ceiling_mps", "traffic_retained_fraction", "race_time_s",
+        "traffic_speed_ceiling_mps", "traffic_retained_fraction", "pace_speed_ceiling_mps", "race_time_s",
     )
     numeric: dict[str, list[float]] = {key: [] for key in keys}
     text: dict[str, list[str]] = {
@@ -442,12 +468,14 @@ def _report_trace(
             lap_time_s=float(t),
             distance_m=float(s),
         )
+        pace_ceiling = _pace_envelope_ceiling(pace_envelope, float(s), track.length_m)
+        external_ceiling = min(traffic_ceiling, pace_ceiling)
         d = evaluate_dynamics(
             distance_m=float(s), vehicle_speed_mps=float(v), wheel_speed_rad_s=float(omega),
             case=case, track=track,
             feature_entry_speeds_mps=feature_entry_speeds_mps,
             external_speed_ceiling_mps=(
-                None if not np.isfinite(traffic_ceiling) else traffic_ceiling
+                None if not np.isfinite(external_ceiling) else external_ceiling
             ),
         )
         target = d.driver.target_speed_mps
@@ -495,6 +523,9 @@ def _report_trace(
                 np.nan if not np.isfinite(traffic_ceiling) else traffic_ceiling
             ),
             "traffic_retained_fraction": traffic_retained,
+            "pace_speed_ceiling_mps": (
+                np.nan if not np.isfinite(pace_ceiling) else pace_ceiling
+            ),
             "race_time_s": (
                 float(t) if traffic is None else traffic.lap_start_race_time_s + float(t)
             ),

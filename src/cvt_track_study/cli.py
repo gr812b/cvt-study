@@ -20,6 +20,7 @@ from .runtime.results import discover_results, write_results_index
 from .reports.traffic import write_traffic_calibration_project
 from .simulation import SimulationError, run_baseline_project
 from .studies import run_study_project
+from .studies.optimism_sensitivity import run_optimism_sensitivity
 from .track import build_project_track
 
 
@@ -47,6 +48,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Regenerate the canonical HTML report from an existing result's machine artifacts.",
     )
     report_parser.add_argument("result", type=Path)
+
+    optimism_parser = subparsers.add_parser(
+        "optimism-sensitivity",
+        help="Stress-test a completed design sweep against source-derived continuous pace ceilings.",
+    )
+    optimism_parser.add_argument("result", type=Path, help="Completed design-comparison result directory.")
+    optimism_parser.add_argument("--project", type=Path, help="Project root; inferred from result provenance when omitted.")
+    optimism_parser.add_argument("--workers", type=int, default=1)
+    optimism_parser.add_argument("--restart", action="store_true")
+    optimism_parser.add_argument("--output", type=Path)
+    optimism_parser.add_argument(
+        "--integration-step-ms",
+        type=float,
+        default=5.0,
+        help="Integration step used for all optimism assumptions, including its no-envelope control (default: 5 ms).",
+    )
 
     cache_parser = subparsers.add_parser("cache", help="Inspect or clear simulation cache.")
     cache_subparsers = cache_parser.add_subparsers(dest="cache_command", required=True)
@@ -183,6 +200,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "report":
             report = regenerate_framework_report(args.result.resolve())
             print(f"Regenerated: {report}")
+            return 0
+        if args.command == "optimism-sensitivity":
+            report = run_optimism_sensitivity(
+                args.result,
+                project=args.project,
+                workers=args.workers,
+                restart=args.restart,
+                output_directory=args.output,
+                integration_step_ms=args.integration_step_ms,
+            )
+            print(f"Optimism sensitivity report: {report}")
             return 0
         if args.command == "cache":
             resolution = ProjectLoader().resolve(args.project)

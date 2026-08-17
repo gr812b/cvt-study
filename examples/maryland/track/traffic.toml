@@ -1,50 +1,21 @@
-# Empirical Maryland endurance traffic model with Arizona-informed race-time decay.
-#
-# Maryland has a one-hour reviewed observer stream.  It is used directly for the
-# Maryland encounter-rate level and for the joint duration/severity event marks.
-# Arizona has two independent reviewed traffic streams plus competitor lap attrition;
-# those data identify how traffic rate falls as the endurance field thins.  Thus the
-# transfer assumption is the *race-time decay shape*, not Maryland's absolute event
-# rate or severity distribution.
 [traffic]
 enabled = true
-schema_version = 3
+schema_version = 4
 race_duration_s = 14400.0
 bootstrap_replicates = 512
-bootstrap_seed = 20260814
-arrival_model = "target_scaled_field_survival_power_nhpp"
+bootstrap_seed = 20260815
+arrival_model = "homogeneous_poisson"
+generation_rate_mode = "pooled_common_rate"
 mark_model = "target_joint_empirical_resampling"
 application = "full_uncertainty_and_design_only"
-source_race_id = "arizona_2025"
+source_race_id = "maryland_2025"
 target_race_id = "maryland_2025"
-target_note = "Maryland rate/marks measured directly; Arizona field attrition transfers only the time-decay shape."
 
-# Arizona source streams identify the decay exponent against Arizona field survival.
-# Each source stream receives its own nuisance encounter-rate scale so CWRU/ETS
-# between-stream rate differences cannot be mistaken for race-time decay.
+# Maryland has one reviewed one-hour traffic stream. Its own event count sets the
+# arrival rate and its own complete events supply type, duration and retained-speed
+# marks. No Arizona event, rate, severity or field-survival data are used here.
 [[traffic.source_observation_streams]]
-id = "CWRU"
-file = "track/traffic/cwru_az_2025_cleaned.csv"
-exposure_start_s = 0.0
-exposure_end_s = 900.0
-
-[[traffic.source_observation_streams]]
-id = "ETS"
-file = "track/traffic/ets_az_2025_cleaned.csv"
-exposure_start_s = 0.0
-exposure_end_s = 4500.0
-
-# Maryland target stream calibrates Maryland's initial/overall traffic level and is
-# the empirical source of type-duration-severity marks used in Maryland simulations.
-[[traffic.target_observation_streams]]
 id = "MARYLAND"
 file = "track/traffic/maryland_2025_traffic_observations.csv"
 exposure_start_s = 0.0
 exposure_end_s = 3600.0
-
-[traffic.field_population]
-file = "track/traffic/arizona_2025_field_survival_derived.csv"
-method = "kaplan_meier_active_duration"
-dropout_offset_fraction = 0.5
-source_archive = "Lap Time Data-20260809T100506Z-1-001.zip"
-notes = "59 derived Arizona car active-duration/censor records. For non-finishers, nominal retirement is halfway through one additional final-lap duration. Replace with the raw lap archive if it is re-imported."

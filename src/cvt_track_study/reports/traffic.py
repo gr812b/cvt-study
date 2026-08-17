@@ -6,8 +6,9 @@ import csv
 from datetime import datetime, timezone
 import html
 import json
+import math
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, TYPE_CHECKING
 import tomllib
 
 import matplotlib
@@ -16,12 +17,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from cvt_track_study.simulation.traffic import (
-    TrafficCalibration,
-    _draw_nhpp_window,
-    traffic_model_from_project,
-)
+from .html import dataframe_table, figure
 
+if TYPE_CHECKING:
+    from cvt_track_study.simulation.traffic import TrafficCalibration
 
 def write_traffic_calibration_project(
     project: str | Path, *, output_directory: Path | None = None
@@ -29,6 +28,8 @@ def write_traffic_calibration_project(
     project_root = Path(project).resolve()
     if project_root.is_file():
         project_root = project_root.parent
+    from cvt_track_study.simulation.traffic import traffic_model_from_project
+
     model = traffic_model_from_project(project_root)
     if model is None:
         raise ValueError(f"No enabled track/traffic.toml was found under {project_root}")
@@ -118,8 +119,19 @@ def augment_full_uncertainty_traffic_report(output: Path) -> Path | None:
     rows = pd.read_csv(rows_path) if rows_path.is_file() else pd.DataFrame()
     worlds.to_csv(output / "full_uncertainty_traffic_worlds.csv", index=False)
     events.to_csv(output / "full_uncertainty_traffic_events.csv", index=False)
-    impact = _study_traffic_impact(rows)
+    world_summary = _independent_traffic_world_summary(rows)
+    world_summary.to_csv(
+        output / "full_uncertainty_traffic_world_summary.csv", index=False
+    )
+    impact = _study_traffic_impact(world_summary)
     impact.to_csv(output / "full_uncertainty_traffic_impact.csv", index=False)
+    masking = _traffic_masking_summary(world_summary)
+    masking.to_csv(
+        output / "full_uncertainty_traffic_masking_summary.csv", index=False
+    )
+    plots = output / "report_plots"
+    plots.mkdir(parents=True, exist_ok=True)
+    traffic_plots = _plot_full_uncertainty_traffic(world_summary, plots)
 
     report = output / "full_uncertainty_report.html"
     if not report.is_file():
@@ -130,15 +142,26 @@ def augment_full_uncertainty_traffic_report(output: Path) -> Path | None:
     text = report.read_text(encoding="utf-8")
     marker = "<!-- TRAFFIC_AUDIT_SECTION -->"
     end_marker = "<!-- /TRAFFIC_AUDIT_SECTION -->"
-    section = _study_traffic_html(traffic_contract, worlds, events, impact)
+    section = _study_traffic_html(
+        traffic_contract, worlds, events, impact, world_summary, masking, traffic_plots
+    )
     if marker in text and end_marker in text:
         before, remainder = text.split(marker, 1)
         _, after = remainder.split(end_marker, 1)
         text = before + section + after
     else:
-        lower = text.lower()
-        index = lower.rfind("</body>")
-        text = text[:index] + section + text[index:] if index >= 0 else text + section
+        mechanism_end = "<!-- cvt-mechanism-overlay:end -->"
+        if mechanism_end in text:
+            index = text.index(mechanism_end) + len(mechanism_end)
+            text = text[:index] + section + text[index:]
+        else:
+            lower = text.lower()
+            index = lower.rfind("</body>")
+            text = text[:index] + section + text[index:] if index >= 0 else text + section
+    if 'href="#traffic-audit"' not in text and '<nav class="report-nav"' in text:
+        nav_end = text.find("</nav>", text.find('<nav class="report-nav"'))
+        if nav_end >= 0:
+            text = text[:nav_end] + '<a href="#traffic-audit">Traffic and usable performance</a>' + text[nav_end:]
     report.write_text(text, encoding="utf-8")
     return report
 
@@ -265,6 +288,8 @@ def _predictive_validation(model: TrafficCalibration, *, replicates: int = 3000)
     short high-rate stream from being averaged away merely because another car has a
     longer reviewed video.
     """
+
+    from cvt_track_study.simulation.traffic import _draw_nhpp_window
 
     seed = int(model.fingerprint[:16], 16) ^ 0x5052454449435456
     rng = np.random.default_rng(seed)
@@ -960,39 +985,275 @@ def _study_traffic_frames(path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     return pd.DataFrame(world_rows), pd.DataFrame(event_rows)
 
 
-def _study_traffic_impact(rows: pd.DataFrame) -> pd.DataFrame:
+def _independent_traffic_world_summary(rows: pd.DataFrame) -> pd.DataFrame:
+    """Collapse crossed route/design rows to one row per independent traffic draw.
+
+    Traffic is sampled once per ``base_draw_id`` and replayed across track cases and,
+    for design studies, across candidate designs.  Reporting traffic directly from
+    replicate rows would therefore pseudo-replicate every traffic world.  This
+    helper makes the independent unit explicit before any distributions or
+    traffic-performance relationships are calculated.
+    """
+
+    if rows.empty:
+        return pd.DataFrame()
+    key = "base_draw_id" if "base_draw_id" in rows else "replicate"
+    if key not in rows:
+        return pd.DataFrame()
+
+    metric_columns = (
+        "reference_traffic_penalty_s",
+        "reference_traffic_active_time_s",
+        "reference_traffic_event_count",
+        "reference_traffic_lap_start_race_time_s",
+        "reference_traffic_minimum_retained_fraction",
+        "bounded_traffic_active_time_s",
+        "bounded_traffic_event_count",
+        "bounded_traffic_lap_start_race_time_s",
+        "bounded_traffic_minimum_retained_fraction",
+        "lap_time_penalty_vs_infinite_s",
+        "finite_ratio_opportunity_loss_energy_kj",
+    )
+    records: list[dict[str, Any]] = []
+    for draw_id, group in rows.groupby(key, sort=True):
+        record: dict[str, Any] = {
+            "base_draw_id": draw_id,
+            "crossed_row_count": int(len(group)),
+            "track_case_count": int(group["track_case_id"].nunique())
+            if "track_case_id" in group
+            else 1,
+            "design_count": int(group["design_id"].nunique())
+            if "design_id" in group
+            else 1,
+        }
+        for column in metric_columns:
+            if column not in group:
+                continue
+            values = pd.to_numeric(group[column], errors="coerce").dropna()
+            if values.empty:
+                continue
+            # The traffic realization is common across crossed cases, while its
+            # time effect can move slightly with the reconstructed route.  Median
+            # across the crossed cases preserves one independent traffic draw.
+            record[column] = float(values.median())
+        records.append(record)
+    result = pd.DataFrame(records)
+    if result.empty:
+        return result
+    if "lap_time_penalty_vs_infinite_s" in result:
+        result = result.rename(
+            columns={"lap_time_penalty_vs_infinite_s": "finite_ratio_penalty_median_s"}
+        )
+    if "finite_ratio_opportunity_loss_energy_kj" in result:
+        result = result.rename(
+            columns={
+                "finite_ratio_opportunity_loss_energy_kj":
+                "finite_ratio_opportunity_loss_median_kj"
+            }
+        )
+    return result.sort_values("base_draw_id", kind="stable").reset_index(drop=True)
+
+
+def _study_traffic_impact(world_summary: pd.DataFrame) -> pd.DataFrame:
     columns = [
         column
         for column in (
             "reference_traffic_penalty_s",
-            "bounded_traffic_active_time_s",
-            "bounded_traffic_event_count",
-            "bounded_traffic_minimum_retained_fraction",
+            "reference_traffic_active_time_s",
+            "reference_traffic_event_count",
+            "reference_traffic_minimum_retained_fraction",
+            "finite_ratio_penalty_median_s",
         )
-        if column in rows
+        if column in world_summary
     ]
     if not columns:
         return pd.DataFrame()
     records = []
     for column in columns:
-        values = pd.to_numeric(rows[column], errors="coerce").dropna()
+        values = pd.to_numeric(world_summary[column], errors="coerce").dropna()
         if values.empty:
             continue
         records.append(
             {
                 "metric": column,
-                "count": len(values),
+                "independent_world_count": len(values),
                 "mean": values.mean(),
                 "p10": values.quantile(0.1),
                 "median": values.median(),
                 "p90": values.quantile(0.9),
+                "maximum": values.max(),
             }
         )
     return pd.DataFrame(records)
 
 
+def _traffic_severity_groups(world_summary: pd.DataFrame) -> pd.Series:
+    if world_summary.empty or "reference_traffic_penalty_s" not in world_summary:
+        return pd.Series(dtype=str)
+    values = pd.to_numeric(
+        world_summary["reference_traffic_penalty_s"], errors="coerce"
+    )
+    finite = values.dropna()
+    if finite.empty:
+        return pd.Series("unknown", index=world_summary.index, dtype=str)
+    q1 = float(finite.quantile(1.0 / 3.0))
+    q2 = float(finite.quantile(2.0 / 3.0))
+    labels = pd.Series("medium", index=world_summary.index, dtype=str)
+    labels.loc[values <= q1] = "low"
+    labels.loc[values > q2] = "high"
+    labels.loc[values.isna()] = "unknown"
+    return labels
+
+
+def _traffic_masking_summary(world_summary: pd.DataFrame) -> pd.DataFrame:
+    required = {"reference_traffic_penalty_s", "finite_ratio_penalty_median_s"}
+    if world_summary.empty or not required.issubset(world_summary.columns):
+        return pd.DataFrame()
+    work = world_summary.copy()
+    work["traffic_severity"] = _traffic_severity_groups(work)
+    records: list[dict[str, Any]] = []
+    for severity in ("low", "medium", "high"):
+        group = work[work["traffic_severity"] == severity]
+        if group.empty:
+            continue
+        traffic = pd.to_numeric(group["reference_traffic_penalty_s"], errors="coerce")
+        finite = pd.to_numeric(group["finite_ratio_penalty_median_s"], errors="coerce")
+        records.append(
+            {
+                "traffic_severity": severity,
+                "independent_world_count": int(len(group)),
+                "traffic_penalty_median_s": float(traffic.median()),
+                "traffic_penalty_p10_s": float(traffic.quantile(0.1)),
+                "traffic_penalty_p90_s": float(traffic.quantile(0.9)),
+                "finite_ratio_penalty_median_s": float(finite.median()),
+                "finite_ratio_penalty_p10_s": float(finite.quantile(0.1)),
+                "finite_ratio_penalty_p90_s": float(finite.quantile(0.9)),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def _plot_full_uncertainty_traffic(
+    world_summary: pd.DataFrame, plots: Path
+) -> list[tuple[Path, str]]:
+    generated: list[tuple[Path, str]] = []
+    if world_summary.empty:
+        return generated
+
+    if "reference_traffic_penalty_s" in world_summary:
+        values = pd.to_numeric(
+            world_summary["reference_traffic_penalty_s"], errors="coerce"
+        ).dropna()
+        if not values.empty:
+            figure_obj, axis = plt.subplots(figsize=(10, 5.2))
+            axis.hist(values, bins=min(12, max(5, int(np.sqrt(len(values))))))
+            axis.axvline(float(values.median()), linewidth=1.2, label="median")
+            axis.axvline(float(values.quantile(0.9)), linewidth=1.2, linestyle="--", label="p90")
+            axis.set_xlabel("Traffic-added infinite-reference lap time [s]")
+            axis.set_ylabel("Independent traffic worlds")
+            axis.set_title("Traffic lap-time impact across independent worlds")
+            axis.legend()
+            axis.grid(True, axis="y", alpha=0.25)
+            figure_obj.tight_layout()
+            path = plots / "traffic_lap_time_impact_distribution.png"
+            figure_obj.savefig(path, dpi=180)
+            plt.close(figure_obj)
+            generated.append(
+                (
+                    path,
+                    "Traffic-added lap time across independent traffic worlds; crossed track reconstructions are collapsed before plotting.",
+                )
+            )
+
+    active_column = next(
+        (
+            column
+            for column in (
+                "reference_traffic_active_time_s",
+                "bounded_traffic_active_time_s",
+            )
+            if column in world_summary
+        ),
+        None,
+    )
+    if active_column and "reference_traffic_penalty_s" in world_summary:
+        x = pd.to_numeric(world_summary[active_column], errors="coerce")
+        y = pd.to_numeric(world_summary["reference_traffic_penalty_s"], errors="coerce")
+        valid = np.isfinite(x.to_numpy(float)) & np.isfinite(y.to_numpy(float))
+        if valid.any():
+            sizes = np.full(int(valid.sum()), 42.0)
+            event_column = next(
+                (
+                    column
+                    for column in (
+                        "reference_traffic_event_count",
+                        "bounded_traffic_event_count",
+                    )
+                    if column in world_summary
+                ),
+                None,
+            )
+            if event_column:
+                events = pd.to_numeric(
+                    world_summary.loc[valid, event_column], errors="coerce"
+                ).fillna(0.0)
+                sizes = 35.0 + 14.0 * events.to_numpy(float)
+            figure_obj, axis = plt.subplots(figsize=(9.5, 5.5))
+            axis.scatter(x.loc[valid], y.loc[valid], s=sizes, alpha=0.75)
+            axis.set_xlabel("Traffic-active time [s]")
+            axis.set_ylabel("Traffic-added lap time [s]")
+            axis.set_title("Traffic exposure versus lap-time cost")
+            axis.grid(True, alpha=0.25)
+            figure_obj.tight_layout()
+            path = plots / "traffic_exposure_vs_time_cost.png"
+            figure_obj.savefig(path, dpi=180)
+            plt.close(figure_obj)
+            generated.append(
+                (
+                    path,
+                    "Traffic exposure versus traffic-added lap time. Marker size increases with encounter count when available.",
+                )
+            )
+
+    required = {"reference_traffic_penalty_s", "finite_ratio_penalty_median_s"}
+    if required.issubset(world_summary.columns):
+        x = pd.to_numeric(world_summary["reference_traffic_penalty_s"], errors="coerce")
+        y = pd.to_numeric(world_summary["finite_ratio_penalty_median_s"], errors="coerce")
+        valid = np.isfinite(x.to_numpy(float)) & np.isfinite(y.to_numpy(float))
+        if int(valid.sum()) >= 2:
+            xv = x.loc[valid].to_numpy(float)
+            yv = y.loc[valid].to_numpy(float)
+            figure_obj, axis = plt.subplots(figsize=(9.5, 5.5))
+            axis.scatter(xv, yv, alpha=0.8)
+            if np.ptp(xv) > 0.0:
+                slope, intercept = np.polyfit(xv, yv, 1)
+                grid = np.linspace(float(xv.min()), float(xv.max()), 100)
+                axis.plot(grid, intercept + slope * grid, linestyle="--", linewidth=1.2)
+            axis.set_xlabel("Traffic-added reference lap time [s]")
+            axis.set_ylabel("Bounded minus infinite CVT time [s]")
+            axis.set_title("Traffic masking of finite-ratio opportunity")
+            axis.grid(True, alpha=0.25)
+            figure_obj.tight_layout()
+            path = plots / "traffic_vs_finite_ratio_penalty.png"
+            figure_obj.savefig(path, dpi=180)
+            plt.close(figure_obj)
+            generated.append(
+                (
+                    path,
+                    "Each point is one independent traffic world; the y-axis is the median finite-ratio penalty across crossed track reconstructions.",
+                )
+            )
+    return generated
+
+
 def _study_traffic_html(
-    contract: Mapping[str, Any], worlds: pd.DataFrame, events: pd.DataFrame, impact: pd.DataFrame
+    contract: Mapping[str, Any],
+    worlds: pd.DataFrame,
+    events: pd.DataFrame,
+    impact: pd.DataFrame,
+    world_summary: pd.DataFrame,
+    masking: pd.DataFrame,
+    traffic_plots: Sequence[tuple[Path, str]],
 ) -> str:
     if worlds.empty:
         return ""
@@ -1003,7 +1264,16 @@ def _study_traffic_html(
     )
     event_count = pd.to_numeric(unique_worlds["event_count"], errors="coerce")
     phase_h = pd.to_numeric(unique_worlds["lap_start_race_time_s"], errors="coerce") / 3600.0
-    impact_html = impact.to_html(index=False, float_format=lambda x: f"{x:.3f}") if not impact.empty else "<p>Traffic impact columns were not found.</p>"
+    impact_html = (
+        dataframe_table(impact, max_rows=50, compact=True)
+        if not impact.empty
+        else "<p>Traffic impact columns were not found.</p>"
+    )
+    masking_html = (
+        dataframe_table(masking, max_rows=20, compact=True)
+        if not masking.empty
+        else ""
+    )
     source_race = html.escape(str(contract.get("source_race_id", "project")))
     target_race = html.escape(str(contract.get("target_race_id", source_race)))
     arrival = html.escape(str(contract.get("arrival_model", contract.get("model", "traffic"))))
@@ -1013,19 +1283,315 @@ def _study_traffic_html(
         if field_count
         else "; no field-survival transfer or late-race attrition model"
     )
+    plot_html = "".join(figure(path, caption) for path, caption in traffic_plots)
+
+    conclusion = ""
+    if not masking.empty:
+        low = masking[masking["traffic_severity"] == "low"]
+        high = masking[masking["traffic_severity"] == "high"]
+        if not low.empty and not high.empty:
+            low_value = float(low.iloc[0]["finite_ratio_penalty_median_s"])
+            high_value = float(high.iloc[0]["finite_ratio_penalty_median_s"])
+            direction = "smaller" if high_value < low_value else "larger"
+            conclusion = (
+                '<div class="card note"><strong>Traffic/drivetrain interaction.</strong> '
+                f"The median bounded-versus-infinite penalty is {low_value:.3f} s in the lower "
+                f"traffic-severity third and {high_value:.3f} s in the upper third. In this run, "
+                f"the finite-ratio penalty is therefore {direction} in heavier traffic. This is a "
+                "paired accessibility effect, not a physical drivetrain loss.</div>"
+            )
+
     return f"""\n<!-- TRAFFIC_AUDIT_SECTION -->
 <section id="traffic-audit" style="margin:2rem 0;padding-top:1rem;border-top:2px solid #d1d5db">
-<h2>Endurance traffic exposure</h2>
-<p>Traffic is an in-simulation external speed constraint, not a post-processing lap-time penalty. One reproducible traffic world is paired across the bounded CVT, infinite reference, design candidates and crossed track cases. The absolute traffic ceiling is based on the shared traffic-free infinite-CVT reference speed profile, so drivetrain changes do not alter the same external traffic restriction.</p>
+<h2>Traffic and usable performance</h2>
+<p>Traffic is an in-simulation external speed constraint, not a post-processing lap-time penalty or a physical energy loss. One reproducible traffic world is paired across the bounded CVT, infinite reference, design candidates and crossed track cases. The absolute traffic ceiling is based on the shared traffic-free infinite-CVT reference speed profile, so drivetrain changes do not alter the same external traffic restriction.</p>
 <ul>
 <li>Traffic evidence: <code>{target_race}</code>, {int(contract.get('target_event_count', contract.get('event_count',0)))} events over {float(contract.get('target_observer_exposure_h', contract.get('observer_exposure_h',0))):.2f} observer-hours{field_text}.</li>
 <li>Arrival model: <code>{arrival}</code>; generation rate mode <code>{html.escape(str(contract.get('generation_rate_mode','')))}</code>.</li>
 <li>Population-mean initial rate: {float(contract.get('initial_rate_per_hour',0)):.1f}/h; four-hour mean {float(contract.get('average_rate_per_hour_4h',0)):.1f}/h.</li>
 <li>Cross-race traffic evidence: <strong>{'none' if source_race == target_race else source_race + ' → ' + target_race}</strong>.</li>
-<li>Unique simulated traffic worlds: {len(unique_worlds)} ({len(worlds)} route-case scenario rows); event count mean {event_count.mean():.2f}, median {event_count.median():.0f}, p90 {event_count.quantile(.9):.0f}.</li>
-<li>Representative lap-start phase is sampled uniformly over the endurance clock (observed median {phase_h.median():.2f} h).</li>
+<li>Independent simulated traffic worlds: <strong>{len(world_summary) if not world_summary.empty else len(unique_worlds)}</strong>. The {len(worlds)} crossed route-case rows are collapsed back to the independent <code>base_draw_id</code> worlds before traffic distributions and traffic/CVT relationships are reported.</li>
+<li>Event count mean {event_count.mean():.2f}, median {event_count.median():.0f}, p90 {event_count.quantile(.9):.0f}; representative lap-start phase median {phase_h.median():.2f} h.</li>
 </ul>
-<h3>Traffic impact on the simulated drivetrain</h3>{impact_html}
-<p><strong>Interpretation limits:</strong> duration/severity marks and arrival calibration come from the project-local traffic evidence declared in <code>track/traffic.toml</code>. Traffic locations are not modeled because they were not measured consistently.</p>
+<h3>How much traffic costs</h3>
+{plot_html}
+<h3>Independent-world traffic summary</h3>{impact_html}
+<h3>Does traffic mask drivetrain opportunity?</h3>{masking_html}
+{conclusion}
+<p><strong>Interpretation limits:</strong> duration/severity marks and arrival calibration come from the project-local traffic evidence declared in <code>track/traffic.toml</code>. Traffic locations are not modeled because they were not measured consistently. Low/medium/high traffic groups are descriptive thirds of the independent traffic worlds in this run, not universal race categories.</p>
 </section>
 <!-- /TRAFFIC_AUDIT_SECTION -->\n"""
+
+
+def build_design_traffic_report_section(
+    output: Path, rows: pd.DataFrame, ranking: pd.DataFrame
+) -> str:
+    """Write design-by-traffic diagnostics and return the HTML report section."""
+
+    if rows.empty or "design_id" not in rows or "reference_traffic_penalty_s" not in rows:
+        return ""
+    if "base_draw_id" not in rows:
+        return ""
+    manifest_path = output / "run_manifest.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+        traffic_contract = manifest.get("traffic_model") if isinstance(manifest, Mapping) else None
+        if isinstance(traffic_contract, Mapping) and not bool(traffic_contract.get("enabled", False)):
+            return ""
+
+    world_summary = _independent_traffic_world_summary(rows)
+    if world_summary.empty:
+        return ""
+    severity_map = world_summary.set_index("base_draw_id")["reference_traffic_penalty_s"]
+    severity_labels = _traffic_severity_groups(world_summary)
+    severity_by_draw = dict(zip(world_summary["base_draw_id"], severity_labels))
+    world_summary = world_summary.copy()
+    world_summary["traffic_severity"] = severity_labels
+    world_summary.to_csv(output / "design_traffic_world_summary.csv", index=False)
+
+    design_world = _design_world_performance(rows, severity_by_draw, severity_map)
+    if design_world.empty:
+        return ""
+    design_world.to_csv(output / "design_traffic_world_performance.csv", index=False)
+    summary = _design_traffic_stratified_summary(design_world)
+    summary.to_csv(output / "design_traffic_stratified_summary.csv", index=False)
+    winners = _design_traffic_winners(summary)
+    winners.to_csv(output / "design_traffic_winner_by_severity.csv", index=False)
+
+    plots = output / "report_plots"
+    plots.mkdir(parents=True, exist_ok=True)
+    generated = _plot_design_traffic(design_world, summary, ranking, plots)
+
+    overall_winner = str(ranking.iloc[0]["design_id"]) if not ranking.empty else "unresolved"
+    severity_winners = [
+        str(value)
+        for value in winners.get("preferred_design_id", pd.Series(dtype=str)).dropna()
+    ]
+    stable = bool(severity_winners) and all(value == overall_winner for value in severity_winners)
+    verdict = (
+        f"The overall preferred design <code>{html.escape(overall_winner)}</code> remains preferred "
+        "in every reported traffic-severity third."
+        if stable
+        else "The preferred design changes in at least one traffic-severity third; treat traffic as a meaningful design interaction rather than only a common lap-time offset."
+    )
+
+    winner_html = dataframe_table(
+        winners,
+        columns=(
+            "traffic_severity",
+            "independent_world_count",
+            "traffic_penalty_median_s",
+            "preferred_design_id",
+            "completion_fraction",
+            "paired_win_fraction",
+            "paired_regret_median_s",
+            "finite_ratio_penalty_median_s",
+        ),
+        max_rows=20,
+        compact=True,
+    )
+    plot_html = "".join(figure(path, caption) for path, caption in generated)
+    return (
+        '<h2>Traffic sensitivity of the design conclusion</h2>'
+        '<div class="section-intro"><strong>What this section shows.</strong> '
+        "The same traffic realizations are replayed for every candidate. Reporting first collapses crossed track cases and candidates back to one independent <code>base_draw_id</code> traffic world, then asks whether design regret, finite-ratio opportunity and the preferred design change as traffic gets more restrictive.</div>"
+        + f'<div class="card {"good" if stable else "warning"}"><strong>Conclusion.</strong> {verdict}</div>'
+        + winner_html
+        + plot_html
+        + '<p class="subtitle">Low/medium/high traffic are descriptive thirds of the independent traffic-world reference penalty for this study. They are sensitivity strata, not calibrated probability classes. Traffic remains outside the physical energy-loss accounting.</p>'
+    )
+
+
+def _design_world_performance(
+    rows: pd.DataFrame,
+    severity_by_draw: Mapping[Any, str],
+    severity_penalty_by_draw: pd.Series,
+) -> pd.DataFrame:
+    records: list[dict[str, Any]] = []
+    for (draw_id, design_id), group in rows.groupby(["base_draw_id", "design_id"], sort=False):
+        completed = (
+            group["bounded_completed"].astype(bool)
+            if "bounded_completed" in group
+            else pd.Series(True, index=group.index)
+        )
+        lap = pd.to_numeric(group.get("bounded_lap_time_s"), errors="coerce")
+        lap = lap.where(completed, np.inf)
+        finite_lap = lap.replace([np.inf, -np.inf], np.nan).dropna()
+        penalty = pd.to_numeric(
+            group.get("lap_time_penalty_vs_infinite_s"), errors="coerce"
+        ).dropna()
+        opportunity = pd.to_numeric(
+            group.get("finite_ratio_opportunity_loss_energy_kj"), errors="coerce"
+        ).dropna()
+        records.append(
+            {
+                "base_draw_id": draw_id,
+                "design_id": str(design_id),
+                "traffic_severity": str(severity_by_draw.get(draw_id, "unknown")),
+                "traffic_penalty_s": float(severity_penalty_by_draw.get(draw_id, math.nan)),
+                "track_case_count": int(group["track_case_id"].nunique())
+                if "track_case_id" in group
+                else 1,
+                "completion_fraction_across_track_cases": float(completed.mean()),
+                "lap_time_median_s": float(finite_lap.median()) if len(finite_lap) else math.inf,
+                "finite_ratio_penalty_median_s": float(penalty.median()) if len(penalty) else math.nan,
+                "opportunity_loss_median_kj": float(opportunity.median()) if len(opportunity) else math.nan,
+            }
+        )
+    frame = pd.DataFrame(records)
+    if frame.empty:
+        return frame
+    best = frame.groupby("base_draw_id")["lap_time_median_s"].transform("min")
+    frame["paired_regret_s"] = frame["lap_time_median_s"] - best
+    frame["paired_win"] = np.isfinite(frame["lap_time_median_s"]) & np.isclose(
+        frame["lap_time_median_s"], best, rtol=0.0, atol=1e-9
+    )
+    return frame
+
+
+def _design_traffic_stratified_summary(design_world: pd.DataFrame) -> pd.DataFrame:
+    records: list[dict[str, Any]] = []
+    for severity in ("low", "medium", "high"):
+        severity_rows = design_world[design_world["traffic_severity"] == severity]
+        if severity_rows.empty:
+            continue
+        for design_id, group in severity_rows.groupby("design_id", sort=False):
+            records.append(
+                {
+                    "traffic_severity": severity,
+                    "design_id": str(design_id),
+                    "independent_world_count": int(group["base_draw_id"].nunique()),
+                    "traffic_penalty_median_s": float(pd.to_numeric(group["traffic_penalty_s"], errors="coerce").median()),
+                    "completion_fraction": float(pd.to_numeric(group["completion_fraction_across_track_cases"], errors="coerce").mean()),
+                    "paired_win_fraction": float(group["paired_win"].astype(bool).mean()),
+                    "paired_regret_median_s": float(pd.to_numeric(group["paired_regret_s"], errors="coerce").replace([np.inf, -np.inf], np.nan).median()),
+                    "lap_time_median_s": float(pd.to_numeric(group["lap_time_median_s"], errors="coerce").replace([np.inf, -np.inf], np.nan).median()),
+                    "finite_ratio_penalty_median_s": float(pd.to_numeric(group["finite_ratio_penalty_median_s"], errors="coerce").median()),
+                    "opportunity_loss_median_kj": float(pd.to_numeric(group["opportunity_loss_median_kj"], errors="coerce").median()),
+                }
+            )
+    return pd.DataFrame(records)
+
+
+def _design_traffic_winners(summary: pd.DataFrame) -> pd.DataFrame:
+    if summary.empty:
+        return pd.DataFrame()
+    records: list[dict[str, Any]] = []
+    for severity in ("low", "medium", "high"):
+        group = summary[summary["traffic_severity"] == severity].copy()
+        if group.empty:
+            continue
+        group = group.sort_values(
+            ["completion_fraction", "paired_regret_median_s", "lap_time_median_s"],
+            ascending=[False, True, True],
+            kind="stable",
+        )
+        row = group.iloc[0]
+        records.append(
+            {
+                "traffic_severity": severity,
+                "independent_world_count": int(row["independent_world_count"]),
+                "traffic_penalty_median_s": float(row["traffic_penalty_median_s"]),
+                "preferred_design_id": str(row["design_id"]),
+                "completion_fraction": float(row["completion_fraction"]),
+                "paired_win_fraction": float(row["paired_win_fraction"]),
+                "paired_regret_median_s": float(row["paired_regret_median_s"]),
+                "finite_ratio_penalty_median_s": float(row["finite_ratio_penalty_median_s"]),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def _plot_design_traffic(
+    design_world: pd.DataFrame,
+    summary: pd.DataFrame,
+    ranking: pd.DataFrame,
+    plots: Path,
+) -> list[tuple[Path, str]]:
+    generated: list[tuple[Path, str]] = []
+    if design_world.empty or summary.empty:
+        return generated
+    ordered = (
+        ranking["design_id"].astype(str).tolist()
+        if not ranking.empty and "design_id" in ranking
+        else design_world["design_id"].astype(str).drop_duplicates().tolist()
+    )
+    severities = [value for value in ("low", "medium", "high") if value in set(summary["traffic_severity"])]
+    matrix = summary.pivot_table(
+        index="design_id",
+        columns="traffic_severity",
+        values="paired_regret_median_s",
+        aggfunc="median",
+    ).reindex(index=ordered, columns=severities)
+    if not matrix.empty:
+        figure_obj, axis = plt.subplots(
+            figsize=(max(8.5, 1.6 * len(severities)), max(5.0, 0.42 * len(matrix.index)))
+        )
+        data = matrix.to_numpy(float)
+        image = axis.imshow(data, aspect="auto", interpolation="nearest")
+        axis.set_xticks(np.arange(len(matrix.columns)), matrix.columns)
+        axis.set_yticks(np.arange(len(matrix.index)), matrix.index)
+        axis.set_xlabel("Traffic severity")
+        axis.set_ylabel("Design")
+        axis.set_title("Median paired design regret by traffic severity")
+        for row_index in range(data.shape[0]):
+            for column_index in range(data.shape[1]):
+                value = data[row_index, column_index]
+                if np.isfinite(value):
+                    axis.text(column_index, row_index, f"{value:.3f}", ha="center", va="center", bbox={"boxstyle":"round,pad=0.15","facecolor":"white","edgecolor":"none","alpha":0.75})
+        figure_obj.colorbar(image, ax=axis, label="Regret [s]")
+        figure_obj.tight_layout()
+        path = plots / "design_traffic_regret_heatmap.png"
+        figure_obj.savefig(path, dpi=180)
+        plt.close(figure_obj)
+        generated.append((path, "Median paired regret for every design in low, medium and high traffic-severity worlds."))
+
+    top = ordered[: min(6, len(ordered))]
+    figure_obj, axis = plt.subplots(figsize=(10, 5.8))
+    plotted = False
+    for design_id in top:
+        group = design_world[design_world["design_id"] == design_id].sort_values("traffic_penalty_s")
+        x = pd.to_numeric(group["traffic_penalty_s"], errors="coerce")
+        y = pd.to_numeric(group["paired_regret_s"], errors="coerce").replace([np.inf, -np.inf], np.nan)
+        valid = x.notna() & y.notna()
+        if valid.any():
+            axis.plot(x[valid], y[valid], marker="o", linewidth=1.0, alpha=0.75, label=design_id)
+            plotted = True
+    if plotted:
+        axis.set_xlabel("Traffic-added reference lap time [s]")
+        axis.set_ylabel("Paired regret to best design in that world [s]")
+        axis.set_title("Does traffic change the design advantage?")
+        axis.legend(ncol=2)
+        axis.grid(True, alpha=0.25)
+        figure_obj.tight_layout()
+        path = plots / "design_advantage_vs_traffic.png"
+        figure_obj.savefig(path, dpi=180)
+        generated.append((path, "Traffic severity versus paired design regret for the highest-ranked candidates. Each point is one independent traffic world after collapsing track reconstructions."))
+    plt.close(figure_obj)
+
+    figure_obj, axis = plt.subplots(figsize=(10, 5.8))
+    plotted = False
+    for design_id in top:
+        group = design_world[design_world["design_id"] == design_id].sort_values("traffic_penalty_s")
+        x = pd.to_numeric(group["traffic_penalty_s"], errors="coerce")
+        y = pd.to_numeric(group["finite_ratio_penalty_median_s"], errors="coerce")
+        valid = x.notna() & y.notna()
+        if valid.any():
+            axis.plot(x[valid], y[valid], marker="o", linewidth=1.0, alpha=0.75, label=design_id)
+            plotted = True
+    if plotted:
+        axis.set_xlabel("Traffic-added reference lap time [s]")
+        axis.set_ylabel("Bounded minus infinite-ratio time [s]")
+        axis.set_title("Traffic masking of finite-ratio opportunity by design")
+        axis.legend(ncol=2)
+        axis.grid(True, alpha=0.25)
+        figure_obj.tight_layout()
+        path = plots / "design_finite_ratio_penalty_vs_traffic.png"
+        figure_obj.savefig(path, dpi=180)
+        generated.append((path, "Traffic severity versus each leading design's remaining finite-ratio penalty relative to the shared infinite-ratio reference."))
+    plt.close(figure_obj)
+    return generated
+

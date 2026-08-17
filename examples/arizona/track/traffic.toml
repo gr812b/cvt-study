@@ -1,0 +1,36 @@
+[traffic]
+enabled = true
+schema_version = 4
+race_duration_s = 14400.0
+bootstrap_replicates = 512
+bootstrap_seed = 20260815
+arrival_model = "field_survival_stream_mixture_nhpp"
+generation_rate_mode = "equal_observer_stream_mixture"
+mark_model = "target_joint_empirical_resampling"
+application = "full_uncertainty_and_design_only"
+source_race_id = "arizona_2025"
+target_race_id = "arizona_2025"
+
+# CWRU and ETS are independent Arizona vehicle/observer streams. Each receives its
+# own nuisance encounter-rate level for fitting the race-time shape. A generic
+# Arizona traffic world samples the two observed rate regimes equally rather than
+# giving the longer video extra population weight. Event marks are pooled only
+# within Arizona.
+[[traffic.source_observation_streams]]
+id = "CWRU"
+file = "track/traffic/cwru_az_2025_cleaned.csv"
+exposure_start_s = 0.0
+exposure_end_s = 900.0
+
+[[traffic.source_observation_streams]]
+id = "ETS"
+file = "track/traffic/ets_az_2025_cleaned.csv"
+exposure_start_s = 0.0
+exposure_end_s = 4500.0
+
+# Arizona field attrition is used only for Arizona's four-hour extrapolation.
+[traffic.field_population]
+file = "track/traffic/arizona_2025_field_survival_derived.csv"
+method = "kaplan_meier_active_duration"
+dropout_offset_fraction = 0.5
+source_archive = "Lap Time Data-20260809T100506Z-1-001.zip"
